@@ -16,6 +16,16 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : 
 
     public DbSet<TaskItem> TaskItems => Set<TaskItem>();
 
+    public DbSet<Goal> Goals => Set<Goal>();
+
+    public DbSet<Project> Projects => Set<Project>();
+
+    public DbSet<OpenLoop> OpenLoops => Set<OpenLoop>();
+
+    public DbSet<GoalSuggestion> GoalSuggestions => Set<GoalSuggestion>();
+
+    public DbSet<ProjectSuggestion> ProjectSuggestions => Set<ProjectSuggestion>();
+
     public DbSet<AgentRun> AgentRuns => Set<AgentRun>();
 
     public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
@@ -117,6 +127,105 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : 
                 .HasForeignKey(x => x.SourceMessageId)
                 .OnDelete(DeleteBehavior.SetNull);
             entity.HasData(CompanionSeedData.TaskItems);
+        });
+
+        modelBuilder.Entity<Goal>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.Priority)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.TargetDateUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.Goals)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasData(CompanionSeedData.Goals);
+        });
+
+        modelBuilder.Entity<Project>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.Priority)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.UpdatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.Projects)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasData(CompanionSeedData.Projects);
+        });
+
+        modelBuilder.Entity<OpenLoop>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.OpenLoops)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasData(CompanionSeedData.OpenLoops);
+        });
+
+        modelBuilder.Entity<GoalSuggestion>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.GoalSuggestions)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProjectSuggestion>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.MentionCount).IsRequired();
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.ProjectSuggestions)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<AgentRun>(entity =>

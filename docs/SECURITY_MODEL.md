@@ -41,6 +41,10 @@ The following interfaces exist specifically so future security and policy behavi
 - `IApprovalService`
 - `IMemoryService`
 - `ITaskService`
+- `IGoalService`
+- `IProjectService`
+- `IOpenLoopService`
+- `IChiefOfStaffService`
 - `IAgentRuntime`
 - `IConnectorManager`
 
@@ -54,6 +58,8 @@ Right now it provides:
 
 - predictable triggering behavior
 - easy-to-audit approval creation
+- easy-to-audit goal and project suggestion creation
+- explicit review points before suggestions become durable planning state
 - no hidden outbound model calls
 - a stable baseline for later regression testing
 

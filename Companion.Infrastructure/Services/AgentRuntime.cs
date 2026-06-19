@@ -15,6 +15,7 @@ public class AgentRuntime(
     IMemoryService memoryService,
     ITaskService taskService,
     IApprovalService approvalService,
+    IChiefOfStaffService chiefOfStaffService,
     TimeProvider timeProvider,
     ILogger<AgentRuntime> logger) : IAgentRuntime
 {
@@ -136,12 +137,21 @@ public class AgentRuntime(
             approvalRequests.Add(await approvalService.CreateApprovalAsync(approvalCommand, cancellationToken));
         }
 
+        var planningAnalysis = await chiefOfStaffService.AnalyzeMessageAsync(
+            userProfileId,
+            userMessage,
+            cancellationToken);
+
         var reply = BuildAssistantReply(
             recentMessages.Count,
             usedMemories.Count,
             savedMemories.Count,
             createdTasks.Count,
-            approvalRequests.Count);
+            approvalRequests.Count,
+            planningAnalysis.CreatedOpenLoops.Count,
+            planningAnalysis.GoalSuggestions.Count,
+            planningAnalysis.ProjectSuggestions.Count,
+            planningAnalysis.Insights.Count);
 
         await conversationService.AddMessageAsync(
             conversation.Id,
@@ -156,7 +166,11 @@ public class AgentRuntime(
                 usedMemoryIds = usedMemories.Select(x => x.Id),
                 savedMemoryIds = savedMemories.Select(x => x.Id),
                 createdTaskIds = createdTasks.Select(x => x.Id),
-                approvalRequestIds = approvalRequests.Select(x => x.Id)
+                approvalRequestIds = approvalRequests.Select(x => x.Id),
+                openLoopIds = planningAnalysis.CreatedOpenLoops.Select(x => x.Id),
+                goalSuggestionIds = planningAnalysis.GoalSuggestions.Select(x => x.Id),
+                projectSuggestionIds = planningAnalysis.ProjectSuggestions.Select(x => x.Id),
+                insightCategories = planningAnalysis.Insights.Select(x => x.Category)
             }),
             cancellationToken);
 
@@ -168,6 +182,10 @@ public class AgentRuntime(
             savedMemories,
             createdTasks,
             approvalRequests,
+            planningAnalysis.CreatedOpenLoops,
+            planningAnalysis.GoalSuggestions,
+            planningAnalysis.ProjectSuggestions,
+            planningAnalysis.Insights,
             usedMemories);
     }
 
@@ -344,7 +362,11 @@ public class AgentRuntime(
         int usedMemoryCount,
         int savedMemoryCount,
         int createdTaskCount,
-        int approvalRequestCount)
+        int approvalRequestCount,
+        int openLoopCount,
+        int goalSuggestionCount,
+        int projectSuggestionCount,
+        int insightCount)
     {
         var clauses = new List<string>
         {
@@ -377,6 +399,38 @@ public class AgentRuntime(
                 approvalRequestCount == 1
                     ? "flagged one action for approval"
                     : $"flagged {approvalRequestCount} actions for approval");
+        }
+
+        if (openLoopCount > 0)
+        {
+            clauses.Add(
+                openLoopCount == 1
+                    ? "captured one open loop"
+                    : $"captured {openLoopCount} open loops");
+        }
+
+        if (goalSuggestionCount > 0)
+        {
+            clauses.Add(
+                goalSuggestionCount == 1
+                    ? "suggested one goal"
+                    : $"suggested {goalSuggestionCount} goals");
+        }
+
+        if (projectSuggestionCount > 0)
+        {
+            clauses.Add(
+                projectSuggestionCount == 1
+                    ? "suggested one project"
+                    : $"suggested {projectSuggestionCount} projects");
+        }
+
+        if (insightCount > 0)
+        {
+            clauses.Add(
+                insightCount == 1
+                    ? "surfaced one planning insight"
+                    : $"surfaced {insightCount} planning insights");
         }
 
         return $"I {JoinClauses(clauses)}.";

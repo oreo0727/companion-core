@@ -13,11 +13,17 @@ public static class CompanionSeedData
     public static readonly Guid TaskReviewApiId = Guid.Parse("b7fd0e94-87ba-42ed-a0f7-f8ce8b2d4cc4");
     public static readonly Guid TaskApprovalFlowId = Guid.Parse("9995cd58-1841-4732-8c87-34a6334f6652");
     public static readonly Guid TaskAgentRuntimeId = Guid.Parse("0ec7d330-08fb-44fe-9b34-e0075ef75f8a");
+    public static readonly Guid GoalPlanningLayerId = Guid.Parse("fa3f78ea-b16f-4b83-8d55-3371aa2c0d7e");
+    public static readonly Guid ProjectChurchAppId = Guid.Parse("7efc59c5-27ec-48b8-9c67-f08a8da71d99");
+    public static readonly Guid OpenLoopArchitectureId = Guid.Parse("5cddf563-fb88-4ce0-b64d-558867bd8b44");
 
     public static readonly DateTime UserCreatedUtc = new(2026, 6, 19, 12, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime ConversationCreatedUtc = new(2026, 6, 19, 12, 5, 0, DateTimeKind.Utc);
     public static readonly DateTime MemoryCreatedUtc = new(2026, 6, 19, 12, 10, 0, DateTimeKind.Utc);
     public static readonly DateTime TaskCreatedUtc = new(2026, 6, 19, 12, 15, 0, DateTimeKind.Utc);
+    public static readonly DateTime GoalCreatedUtc = new(2026, 6, 19, 12, 20, 0, DateTimeKind.Utc);
+    public static readonly DateTime ProjectCreatedUtc = new(2026, 5, 1, 14, 0, 0, DateTimeKind.Utc);
+    public static readonly DateTime OpenLoopCreatedUtc = new(2026, 6, 19, 12, 25, 0, DateTimeKind.Utc);
 
     public static readonly UserProfile LocalUser = new()
     {
@@ -111,7 +117,7 @@ public static class CompanionSeedData
             Id = TaskApprovalFlowId,
             UserProfileId = CompanionDefaults.LocalUserProfileId,
             Title = "Exercise the approval workflow",
-            Description = "Create a sample approval request and verify it can be approved or rejected.",
+            Description = "Create a sample Companion Core approval request and verify it can be approved or rejected.",
             Status = TaskItemStatus.InProgress,
             Priority = TaskItemPriority.Normal,
             DueDateUtc = new DateTime(2026, 6, 21, 17, 0, 0, DateTimeKind.Utc),
@@ -124,13 +130,58 @@ public static class CompanionSeedData
             Id = TaskAgentRuntimeId,
             UserProfileId = CompanionDefaults.LocalUserProfileId,
             Title = "Observe worker-driven agent runs",
-            Description = "Queue a pending agent run and confirm the worker moves it to completed.",
+            Description = "Queue a pending Companion Core agent run and confirm the worker moves it to completed.",
             Status = TaskItemStatus.Todo,
             Priority = TaskItemPriority.High,
             DueDateUtc = new DateTime(2026, 6, 22, 17, 0, 0, DateTimeKind.Utc),
             CreatedUtc = TaskCreatedUtc.AddMinutes(2),
             SourceMessageId = null,
             CompletedUtc = null
+        }
+    ];
+
+    public static readonly Goal[] Goals =
+    [
+        new Goal
+        {
+            Id = GoalPlanningLayerId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            Title = "Ship the Chief Of Staff planning layer",
+            Description = "Expand Companion Core from memory and task tracking into deterministic planning support.",
+            Status = GoalStatus.Active,
+            Priority = PlanningPriority.High,
+            TargetDateUtc = new DateTime(2026, 6, 27, 17, 0, 0, DateTimeKind.Utc),
+            CreatedUtc = GoalCreatedUtc,
+            UpdatedUtc = GoalCreatedUtc
+        }
+    ];
+
+    public static readonly Project[] Projects =
+    [
+        new Project
+        {
+            Id = ProjectChurchAppId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            Title = "Church App",
+            Description = "Resume progress on the church app after the earlier planning pass stalled.",
+            Status = ProjectStatus.Active,
+            Priority = PlanningPriority.Normal,
+            CreatedUtc = ProjectCreatedUtc,
+            UpdatedUtc = ProjectCreatedUtc
+        }
+    ];
+
+    public static readonly OpenLoop[] OpenLoops =
+    [
+        new OpenLoop
+        {
+            Id = OpenLoopArchitectureId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            Title = "Architecture sign-off for outbound approvals",
+            Description = "Waiting on architecture sign-off before enabling broader action execution flows.",
+            Status = OpenLoopStatus.Waiting,
+            CreatedUtc = OpenLoopCreatedUtc,
+            ClosedUtc = null
         }
     ];
 }

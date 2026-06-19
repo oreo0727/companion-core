@@ -33,6 +33,12 @@ When a message arrives at `POST /api/chat`, the runtime performs a deterministic
 
 When a memory is selected, `LastReferencedUtc` is updated. That makes memory usage visible and gives later ranking systems useful behavioral history.
 
+The Chief Of Staff layer also uses memories as planning evidence. Memories can influence:
+
+- whether a project looks active or stale
+- which topics appear repeatedly important
+- which durable preferences should shape planning outputs
+
 ## Design Intent
 
 ### `Type`
@@ -121,6 +127,7 @@ Archiving is the first user-controlled way to remove a memory from active recall
 - semantic retrieval over `Summary` and `Content`
 - conflict resolution between competing memories
 - short-term versus long-term memory tiers
+- stronger links between memory records and projects, goals, and open loops
 - user-visible memory editing and pinning
 - memory compaction and summarization pipelines
 

@@ -31,6 +31,10 @@ public class ChatController(IAgentRuntime agentRuntime) : ControllerBase
                 result.SavedMemories.Select(x => x.ToResponse()).ToList(),
                 result.CreatedTasks.Select(x => x.ToResponse()).ToList(),
                 result.ApprovalRequests.Select(x => x.ToResponse()).ToList(),
+                result.CreatedOpenLoops.Select(x => x.ToResponse()).ToList(),
+                result.GoalSuggestions.Select(x => x.ToResponse()).ToList(),
+                result.ProjectSuggestions.Select(x => x.ToResponse()).ToList(),
+                result.Insights.Select(x => x.ToResponse()).ToList(),
                 result.UsedMemories.Select(x => x.ToResponse()).ToList()));
         }
         catch (KeyNotFoundException)

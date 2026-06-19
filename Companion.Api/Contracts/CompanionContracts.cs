@@ -1,5 +1,6 @@
 using Companion.Core.Entities;
 using Companion.Core.Enums;
+using Companion.Core.Models;
 
 namespace Companion.Api.Contracts;
 
@@ -48,6 +49,55 @@ public sealed record TaskItemResponse(
     Guid? SourceMessageId,
     DateTime? CompletedUtc);
 
+public sealed record GoalResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Title,
+    string? Description,
+    GoalStatus Status,
+    PlanningPriority Priority,
+    DateTime? TargetDateUtc,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc);
+
+public sealed record ProjectResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Title,
+    string? Description,
+    ProjectStatus Status,
+    PlanningPriority Priority,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc);
+
+public sealed record OpenLoopResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Title,
+    string? Description,
+    OpenLoopStatus Status,
+    DateTime CreatedUtc,
+    DateTime? ClosedUtc);
+
+public sealed record GoalSuggestionResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Title,
+    string? Description,
+    SuggestionStatus Status,
+    DateTime CreatedUtc,
+    DateTime? ReviewedUtc);
+
+public sealed record ProjectSuggestionResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Title,
+    string? Description,
+    int MentionCount,
+    SuggestionStatus Status,
+    DateTime CreatedUtc,
+    DateTime? ReviewedUtc);
+
 public sealed record ApprovalRequestResponse(
     Guid Id,
     Guid? UserProfileId,
@@ -75,19 +125,40 @@ public sealed record AgentRunResponse(
     DateTime? StartedUtc,
     DateTime? CompletedUtc);
 
+public sealed record CompanionInsightResponse(
+    string Category,
+    string Message,
+    int Priority);
+
 public sealed record SendChatMessageResponse(
     string Reply,
     Guid ConversationId,
     IReadOnlyList<MemoryEntryResponse> SavedMemories,
     IReadOnlyList<TaskItemResponse> CreatedTasks,
     IReadOnlyList<ApprovalRequestResponse> ApprovalRequests,
+    IReadOnlyList<OpenLoopResponse> CreatedOpenLoops,
+    IReadOnlyList<GoalSuggestionResponse> GoalSuggestions,
+    IReadOnlyList<ProjectSuggestionResponse> ProjectSuggestions,
+    IReadOnlyList<CompanionInsightResponse> Insights,
     IReadOnlyList<MemoryEntryResponse> UsedMemories);
 
 public sealed record CompanionBriefingResponse(
     IReadOnlyList<TaskItemResponse> OpenTasks,
     IReadOnlyList<ApprovalRequestResponse> PendingApprovals,
     IReadOnlyList<MemoryEntryResponse> RecentMemories,
-    IReadOnlyList<MessageResponse> RecentMessages);
+    IReadOnlyList<GoalResponse> Goals,
+    IReadOnlyList<ProjectResponse> Projects,
+    IReadOnlyList<OpenLoopResponse> OpenLoops,
+    IReadOnlyList<ProjectSuggestionResponse> ProjectSuggestions,
+    IReadOnlyList<GoalSuggestionResponse> GoalSuggestions,
+    IReadOnlyList<CompanionInsightResponse> ChiefOfStaffInsights);
+
+public sealed record CompanionDashboardResponse(
+    int ActiveProjects,
+    int ActiveGoals,
+    int OpenLoops,
+    int PendingApprovals,
+    IReadOnlyList<CompanionInsightResponse> TopInsights);
 
 public static class CompanionApiMappings
 {
@@ -148,6 +219,70 @@ public static class CompanionApiMappings
             taskItem.CompletedUtc);
     }
 
+    public static GoalResponse ToResponse(this Goal goal)
+    {
+        return new GoalResponse(
+            goal.Id,
+            goal.UserProfileId,
+            goal.Title,
+            goal.Description,
+            goal.Status,
+            goal.Priority,
+            goal.TargetDateUtc,
+            goal.CreatedUtc,
+            goal.UpdatedUtc);
+    }
+
+    public static ProjectResponse ToResponse(this Project project)
+    {
+        return new ProjectResponse(
+            project.Id,
+            project.UserProfileId,
+            project.Title,
+            project.Description,
+            project.Status,
+            project.Priority,
+            project.CreatedUtc,
+            project.UpdatedUtc);
+    }
+
+    public static OpenLoopResponse ToResponse(this OpenLoop openLoop)
+    {
+        return new OpenLoopResponse(
+            openLoop.Id,
+            openLoop.UserProfileId,
+            openLoop.Title,
+            openLoop.Description,
+            openLoop.Status,
+            openLoop.CreatedUtc,
+            openLoop.ClosedUtc);
+    }
+
+    public static GoalSuggestionResponse ToResponse(this GoalSuggestion goalSuggestion)
+    {
+        return new GoalSuggestionResponse(
+            goalSuggestion.Id,
+            goalSuggestion.UserProfileId,
+            goalSuggestion.Title,
+            goalSuggestion.Description,
+            goalSuggestion.Status,
+            goalSuggestion.CreatedUtc,
+            goalSuggestion.ReviewedUtc);
+    }
+
+    public static ProjectSuggestionResponse ToResponse(this ProjectSuggestion projectSuggestion)
+    {
+        return new ProjectSuggestionResponse(
+            projectSuggestion.Id,
+            projectSuggestion.UserProfileId,
+            projectSuggestion.Title,
+            projectSuggestion.Description,
+            projectSuggestion.MentionCount,
+            projectSuggestion.Status,
+            projectSuggestion.CreatedUtc,
+            projectSuggestion.ReviewedUtc);
+    }
+
     public static ApprovalRequestResponse ToResponse(this ApprovalRequest approvalRequest)
     {
         return new ApprovalRequestResponse(
@@ -179,5 +314,37 @@ public static class CompanionApiMappings
             agentRun.CreatedUtc,
             agentRun.StartedUtc,
             agentRun.CompletedUtc);
+    }
+
+    public static CompanionInsightResponse ToResponse(this CompanionInsight insight)
+    {
+        return new CompanionInsightResponse(
+            insight.Category,
+            insight.Message,
+            insight.Priority);
+    }
+
+    public static CompanionBriefingResponse ToResponse(this CompanionBriefing briefing)
+    {
+        return new CompanionBriefingResponse(
+            briefing.OpenTasks.Select(x => x.ToResponse()).ToList(),
+            briefing.PendingApprovals.Select(x => x.ToResponse()).ToList(),
+            briefing.RecentMemories.Select(x => x.ToResponse()).ToList(),
+            briefing.Goals.Select(x => x.ToResponse()).ToList(),
+            briefing.Projects.Select(x => x.ToResponse()).ToList(),
+            briefing.OpenLoops.Select(x => x.ToResponse()).ToList(),
+            briefing.ProjectSuggestions.Select(x => x.ToResponse()).ToList(),
+            briefing.GoalSuggestions.Select(x => x.ToResponse()).ToList(),
+            briefing.ChiefOfStaffInsights.Select(x => x.ToResponse()).ToList());
+    }
+
+    public static CompanionDashboardResponse ToResponse(this CompanionDashboard dashboard)
+    {
+        return new CompanionDashboardResponse(
+            dashboard.ActiveProjects,
+            dashboard.ActiveGoals,
+            dashboard.OpenLoops,
+            dashboard.PendingApprovals,
+            dashboard.TopInsights.Select(x => x.ToResponse()).ToList());
     }
 }

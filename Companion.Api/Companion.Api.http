@@ -18,7 +18,43 @@ POST {{Companion.Api_HostAddress}}/api/chat
 Content-Type: application/json
 
 {
-  "message": "Remind me to check the server tomorrow."
+  "message": "Companion needs a stronger planning layer."
+}
+
+###
+
+POST {{Companion.Api_HostAddress}}/api/chat
+Content-Type: application/json
+
+{
+  "message": "Companion should keep track of projects and priorities."
+}
+
+###
+
+POST {{Companion.Api_HostAddress}}/api/chat
+Content-Type: application/json
+
+{
+  "message": "Companion needs clearer rollout planning."
+}
+
+###
+
+POST {{Companion.Api_HostAddress}}/api/chat
+Content-Type: application/json
+
+{
+  "message": "I want to ship the Chief Of Staff planning engine this month."
+}
+
+###
+
+POST {{Companion.Api_HostAddress}}/api/chat
+Content-Type: application/json
+
+{
+  "message": "Still haven't reviewed the rollout checklist."
 }
 
 ###
@@ -42,12 +78,42 @@ Accept: application/json
 
 ###
 
+GET {{Companion.Api_HostAddress}}/api/goals
+Accept: application/json
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/goals/suggestions
+Accept: application/json
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/projects
+Accept: application/json
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/projects/suggestions
+Accept: application/json
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/open-loops
+Accept: application/json
+
+###
+
 GET {{Companion.Api_HostAddress}}/api/approvals
 Accept: application/json
 
 ###
 
 GET {{Companion.Api_HostAddress}}/api/companion/briefing
+Accept: application/json
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/companion/dashboard
 Accept: application/json
 
 ###

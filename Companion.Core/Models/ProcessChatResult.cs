@@ -8,4 +8,8 @@ public sealed record ProcessChatResult(
     IReadOnlyList<MemoryEntry> SavedMemories,
     IReadOnlyList<TaskItem> CreatedTasks,
     IReadOnlyList<ApprovalRequest> ApprovalRequests,
+    IReadOnlyList<OpenLoop> CreatedOpenLoops,
+    IReadOnlyList<GoalSuggestion> GoalSuggestions,
+    IReadOnlyList<ProjectSuggestion> ProjectSuggestions,
+    IReadOnlyList<CompanionInsight> Insights,
     IReadOnlyList<MemoryEntry> UsedMemories);

@@ -24,6 +24,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConversationService, ConversationService>();
         services.AddScoped<IMemoryService, MemoryService>();
         services.AddScoped<ITaskService, TaskService>();
+        services.AddScoped<IGoalService, GoalService>();
+        services.AddScoped<IProjectService, ProjectService>();
+        services.AddScoped<IOpenLoopService, OpenLoopService>();
+        services.AddScoped<IChiefOfStaffService, ChiefOfStaffService>();
         services.AddScoped<IApprovalService, ApprovalService>();
         services.AddScoped<IAgentRuntime, AgentRuntime>();
         services.AddScoped<IConnectorManager, ConnectorManager>();
