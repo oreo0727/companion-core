@@ -1,0 +1,53 @@
+@Companion.Api_HostAddress = http://localhost:8080
+
+POST {{Companion.Api_HostAddress}}/api/chat
+Content-Type: application/json
+
+{
+  "message": "Remember that I prefer short updates."
+}
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/memories
+Accept: application/json
+
+###
+
+POST {{Companion.Api_HostAddress}}/api/chat
+Content-Type: application/json
+
+{
+  "message": "Remind me to check the server tomorrow."
+}
+
+###
+
+POST {{Companion.Api_HostAddress}}/api/chat
+Content-Type: application/json
+
+{
+  "message": "Send an email to Bob with the deployment summary."
+}
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/conversations
+Accept: application/json
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/tasks/open
+Accept: application/json
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/approvals
+Accept: application/json
+
+###
+
+GET {{Companion.Api_HostAddress}}/api/companion/briefing
+Accept: application/json
+
+###
