@@ -1,3 +1,5 @@
+name: companion-core
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -40,5 +42,14 @@ services:
       companion-api:
         condition: service_started
 
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - companion-ollama-data:/root/.ollama
+
 volumes:
   companion-postgres-data:
+  companion-ollama-data:

@@ -14,7 +14,11 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : 
 
     public DbSet<MemoryEntry> MemoryEntries => Set<MemoryEntry>();
 
+    public DbSet<MemorySuggestion> MemorySuggestions => Set<MemorySuggestion>();
+
     public DbSet<TaskItem> TaskItems => Set<TaskItem>();
+
+    public DbSet<TaskSuggestion> TaskSuggestions => Set<TaskSuggestion>();
 
     public DbSet<Goal> Goals => Set<Goal>();
 
@@ -31,6 +35,8 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : 
     public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
 
     public DbSet<ConnectorAccount> ConnectorAccounts => Set<ConnectorAccount>();
+
+    public DbSet<AiProviderConfiguration> AiProviderConfigurations => Set<AiProviderConfiguration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -127,6 +133,49 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : 
                 .HasForeignKey(x => x.SourceMessageId)
                 .OnDelete(DeleteBehavior.SetNull);
             entity.HasData(CompanionSeedData.TaskItems);
+        });
+
+        modelBuilder.Entity<MemorySuggestion>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Type).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Summary).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.Content).IsRequired();
+            entity.Property(x => x.Confidence).HasPrecision(5, 4).IsRequired();
+            entity.Property(x => x.Source).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Importance).IsRequired();
+            entity.Property(x => x.Sensitivity).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.MemorySuggestions)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TaskSuggestion>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.Priority)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.TaskSuggestions)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Goal>(entity =>
@@ -240,6 +289,10 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : 
             entity.Property(x => x.CreatedUtc).IsRequired();
             entity.Property(x => x.Error).HasMaxLength(4000);
             entity.Property(x => x.MetadataJson);
+            entity.Property(x => x.Provider).HasMaxLength(50);
+            entity.Property(x => x.Model).HasMaxLength(200);
+            entity.Property(x => x.TotalTokens);
+            entity.Property(x => x.FallbackUsed).HasDefaultValue(false).IsRequired();
             entity.HasIndex(x => new { x.Status, x.CreatedUtc });
             entity.HasOne<UserProfile>()
                 .WithMany()
@@ -289,6 +342,23 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : 
                 .IsRequired();
             entity.Property(x => x.CreatedUtc).IsRequired();
             entity.HasIndex(x => new { x.Provider, x.Status });
+        });
+
+        modelBuilder.Entity<AiProviderConfiguration>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Provider).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.Model).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ApiBaseUrl).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ApiKeyEncrypted).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.IsEnabled).IsRequired();
+            entity.Property(x => x.Temperature).HasPrecision(4, 3).IsRequired();
+            entity.Property(x => x.MaxTokens).IsRequired();
+            entity.Property(x => x.TimeoutSeconds).HasDefaultValue(30).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => x.Provider).IsUnique();
+            entity.HasData(CompanionSeedData.AiProviderConfigurations);
         });
     }
 }

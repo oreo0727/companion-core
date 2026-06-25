@@ -1,4 +1,5 @@
 using Companion.Core.Abstractions;
+using Companion.Core.Constants;
 using Companion.Infrastructure.Persistence;
 using Companion.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -15,11 +16,25 @@ public static class ServiceCollectionExtensions
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
         services.AddSingleton(TimeProvider.System);
+        services.AddDataProtection();
 
         services.AddDbContext<CompanionDbContext>(options =>
             options.UseNpgsql(
                 connectionString,
                 npgsql => npgsql.MigrationsAssembly(typeof(CompanionDbContext).Assembly.FullName)));
+
+        services.AddHttpClient<OpenAIProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
+        services.AddHttpClient<AnthropicProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
+        services.AddHttpClient<OllamaProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
+
+        services.AddScoped<IAiProviderConfigurationService, AiProviderConfigurationService>();
+        services.AddScoped<IContextBuilder, ContextBuilder>();
+        services.AddScoped<IReasoningEngine, ChiefOfStaffReasoningEngine>();
+        services.AddScoped<IMemoryExtractionService, MemoryExtractionService>();
+        services.AddScoped<ISuggestionService, SuggestionService>();
+        services.AddScoped<IAIProvider>(serviceProvider => serviceProvider.GetRequiredService<OpenAIProvider>());
+        services.AddScoped<IAIProvider>(serviceProvider => serviceProvider.GetRequiredService<AnthropicProvider>());
+        services.AddScoped<IAIProvider>(serviceProvider => serviceProvider.GetRequiredService<OllamaProvider>());
 
         services.AddScoped<IConversationService, ConversationService>();
         services.AddScoped<IMemoryService, MemoryService>();

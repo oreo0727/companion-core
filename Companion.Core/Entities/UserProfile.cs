@@ -16,7 +16,11 @@ public class UserProfile
 
     public ICollection<MemoryEntry> MemoryEntries { get; set; } = new List<MemoryEntry>();
 
+    public ICollection<MemorySuggestion> MemorySuggestions { get; set; } = new List<MemorySuggestion>();
+
     public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
+
+    public ICollection<TaskSuggestion> TaskSuggestions { get; set; } = new List<TaskSuggestion>();
 
     public ICollection<Goal> Goals { get; set; } = new List<Goal>();
 

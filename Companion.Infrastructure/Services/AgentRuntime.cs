@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Companion.Core.Abstractions;
 using Companion.Core.Entities;
@@ -12,10 +13,13 @@ namespace Companion.Infrastructure.Services;
 public class AgentRuntime(
     CompanionDbContext dbContext,
     IConversationService conversationService,
-    IMemoryService memoryService,
-    ITaskService taskService,
+    IReasoningEngine reasoningEngine,
+    IMemoryExtractionService memoryExtractionService,
+    ISuggestionService suggestionService,
+    IGoalService goalService,
+    IProjectService projectService,
+    IOpenLoopService openLoopService,
     IApprovalService approvalService,
-    IChiefOfStaffService chiefOfStaffService,
     TimeProvider timeProvider,
     ILogger<AgentRuntime> logger) : IAgentRuntime
 {
@@ -70,123 +74,196 @@ public class AgentRuntime(
             throw new ArgumentException("Message cannot be empty.", nameof(message));
         }
 
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var chatStopwatch = Stopwatch.StartNew();
+        var agentRun = new AgentRun
+        {
+            Id = Guid.NewGuid(),
+            UserProfileId = userProfileId,
+            ConversationId = conversationId,
+            AgentName = "ChiefOfStaff.ChatV2",
+            Status = AgentRunStatus.Running,
+            Input = normalizedMessage,
+            FallbackUsed = false,
+            CreatedUtc = now,
+            StartedUtc = now,
+            MetadataJson = JsonSerializer.Serialize(new
+            {
+                kind = "chat-v2",
+                conversationProvided = conversationId is not null
+            })
+        };
+
+        dbContext.AgentRuns.Add(agentRun);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        var conversation = conversationId is { } providedConversationId
-            ? await conversationService.GetConversationAsync(userProfileId, providedConversationId, cancellationToken)
-                ?? throw new KeyNotFoundException($"Conversation '{providedConversationId}' was not found.")
-            : await conversationService.GetOrCreateDefaultConversationAsync(userProfileId, cancellationToken);
-
-        var userMessage = await conversationService.AddMessageAsync(
-            conversation.Id,
-            MessageRole.User,
-            normalizedMessage,
-            JsonSerializer.Serialize(new
-            {
-                kind = "user-message",
-                source = "api.chat",
-                phase = "brain-spine",
-                conversationProvided = conversationId is not null
-            }),
-            cancellationToken);
-
-        var recentMessages = await conversationService.GetRecentMessagesAsync(
-            conversation.Id,
-            count: 8,
-            cancellationToken);
-
-        var usedMemories = await memoryService.SearchAsync(
-            userProfileId,
-            normalizedMessage,
-            limit: 5,
-            cancellationToken);
-
-        var savedMemories = new List<MemoryEntry>();
-        if (ShouldCreateMemory(normalizedMessage))
+        try
         {
-            savedMemories.Add(await memoryService.CreateMemoryAsync(
+            var conversation = conversationId is { } providedConversationId
+                ? await conversationService.GetConversationAsync(userProfileId, providedConversationId, cancellationToken)
+                    ?? throw new KeyNotFoundException($"Conversation '{providedConversationId}' was not found.")
+                : await conversationService.GetOrCreateDefaultConversationAsync(userProfileId, cancellationToken);
+
+            agentRun.ConversationId = conversation.Id;
+
+            var userMessage = await conversationService.AddMessageAsync(
+                conversation.Id,
+                MessageRole.User,
+                normalizedMessage,
+                JsonSerializer.Serialize(new
+                {
+                    kind = "user-message",
+                    source = "api.chat",
+                    phase = "phase-4",
+                    conversationProvided = conversationId is not null
+                }),
+                cancellationToken);
+
+            var reasoningResult = await reasoningEngine.GenerateReplyAsync(
                 userProfileId,
-                new CreateMemoryCommand(
-                    DetermineMemoryType(normalizedMessage),
-                    BuildMemorySummary(normalizedMessage),
-                    normalizedMessage,
-                    "Chat",
-                    DetermineMemoryImportance(normalizedMessage),
-                    DetermineSensitivity(normalizedMessage),
-                    DetermineMemoryConfidence(normalizedMessage)),
-                cancellationToken));
-        }
-
-        var createdTasks = new List<TaskItem>();
-        if (ShouldCreateTask(normalizedMessage))
-        {
-            createdTasks.Add(await taskService.CreateTaskAsync(
+                conversation.Id,
+                cancellationToken);
+            var extractionCandidates = await memoryExtractionService.ExtractAsync(
                 userProfileId,
-                new CreateTaskItemCommand(
-                    ExtractTaskTitle(normalizedMessage),
-                    normalizedMessage,
-                    DetermineTaskPriority(normalizedMessage),
-                    DetermineDueDate(normalizedMessage),
-                    userMessage.Id),
-                cancellationToken));
-        }
+                conversation.Id,
+                normalizedMessage,
+                reasoningResult.Reply,
+                cancellationToken);
 
-        var approvalRequests = new List<ApprovalRequest>();
-        foreach (var approvalCommand in BuildApprovalCommands(userProfileId, conversation.Id, userMessage.Id, normalizedMessage))
-        {
-            approvalRequests.Add(await approvalService.CreateApprovalAsync(approvalCommand, cancellationToken));
-        }
+            var memorySuggestions = await suggestionService.CaptureMemorySuggestionsAsync(
+                userProfileId,
+                extractionCandidates.MemorySuggestions,
+                cancellationToken);
+            var goalSuggestions = await CaptureGoalSuggestionsAsync(
+                userProfileId,
+                extractionCandidates.GoalSuggestions,
+                cancellationToken);
+            var projectSuggestions = await CaptureProjectSuggestionsAsync(
+                userProfileId,
+                extractionCandidates.ProjectSuggestions,
+                cancellationToken);
+            var taskSuggestions = await suggestionService.CaptureTaskSuggestionsAsync(
+                userProfileId,
+                extractionCandidates.TaskSuggestions,
+                cancellationToken);
+            var approvalRequests = await CaptureApprovalRequestsAsync(
+                userProfileId,
+                conversation.Id,
+                userMessage.Id,
+                normalizedMessage,
+                cancellationToken);
+            var createdOpenLoops = await CaptureOpenLoopsAsync(
+                userProfileId,
+                normalizedMessage,
+                cancellationToken);
 
-        var planningAnalysis = await chiefOfStaffService.AnalyzeMessageAsync(
-            userProfileId,
-            userMessage,
-            cancellationToken);
+            var assistantMessage = await conversationService.AddMessageAsync(
+                conversation.Id,
+                MessageRole.Companion,
+                reasoningResult.Reply,
+                JsonSerializer.Serialize(new
+                {
+                    kind = "assistant-message",
+                    source = reasoningResult.Provider ?? "fallback",
+                    phase = "phase-4",
+                    usedFallback = reasoningResult.UsedFallback,
+                    provider = reasoningResult.Provider,
+                    model = reasoningResult.Model,
+                    failureReason = reasoningResult.FailureReason,
+                    usedMemoryIds = reasoningResult.Context.RelevantMemories.Select(x => x.Id),
+                    insightCategories = reasoningResult.Insights.Select(x => x.Category),
+                    memorySuggestionIds = memorySuggestions.Select(x => x.Id),
+                    goalSuggestionIds = goalSuggestions.Select(x => x.Id),
+                    projectSuggestionIds = projectSuggestions.Select(x => x.Id),
+                    taskSuggestionIds = taskSuggestions.Select(x => x.Id),
+                    approvalRequestIds = approvalRequests.Select(x => x.Id),
+                    openLoopIds = createdOpenLoops.Select(x => x.Id)
+                }),
+                cancellationToken);
 
-        var reply = BuildAssistantReply(
-            recentMessages.Count,
-            usedMemories.Count,
-            savedMemories.Count,
-            createdTasks.Count,
-            approvalRequests.Count,
-            planningAnalysis.CreatedOpenLoops.Count,
-            planningAnalysis.GoalSuggestions.Count,
-            planningAnalysis.ProjectSuggestions.Count,
-            planningAnalysis.Insights.Count);
-
-        await conversationService.AddMessageAsync(
-            conversation.Id,
-            MessageRole.Companion,
-            reply,
-            JsonSerializer.Serialize(new
+            agentRun.Status = AgentRunStatus.Completed;
+            agentRun.Output = reasoningResult.Reply;
+            agentRun.Error = reasoningResult.UsedFallback ? reasoningResult.FailureReason : null;
+            agentRun.Provider = reasoningResult.Provider;
+            agentRun.Model = reasoningResult.Model;
+            agentRun.PromptTokens = reasoningResult.Completion?.Usage.PromptTokens;
+            agentRun.CompletionTokens = reasoningResult.Completion?.Usage.CompletionTokens;
+            agentRun.TotalTokens = reasoningResult.Completion?.Usage.TotalTokens;
+            agentRun.LatencyMs = reasoningResult.Completion?.LatencyMs ?? chatStopwatch.ElapsedMilliseconds;
+            agentRun.FallbackUsed = reasoningResult.UsedFallback;
+            agentRun.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
+            agentRun.MetadataJson = JsonSerializer.Serialize(new
             {
-                kind = "assistant-message",
-                source = "deterministic-placeholder",
-                phase = "brain-spine",
-                recentMessageCount = recentMessages.Count,
-                usedMemoryIds = usedMemories.Select(x => x.Id),
-                savedMemoryIds = savedMemories.Select(x => x.Id),
-                createdTaskIds = createdTasks.Select(x => x.Id),
-                approvalRequestIds = approvalRequests.Select(x => x.Id),
-                openLoopIds = planningAnalysis.CreatedOpenLoops.Select(x => x.Id),
-                goalSuggestionIds = planningAnalysis.GoalSuggestions.Select(x => x.Id),
-                projectSuggestionIds = planningAnalysis.ProjectSuggestions.Select(x => x.Id),
-                insightCategories = planningAnalysis.Insights.Select(x => x.Category)
-            }),
-            cancellationToken);
+                kind = "chat-v2",
+                conversationId = conversation.Id,
+                userMessageId = userMessage.Id,
+                assistantMessageId = assistantMessage.Id,
+                provider = reasoningResult.Provider,
+                model = reasoningResult.Model,
+                usedFallback = reasoningResult.UsedFallback,
+                failureReason = reasoningResult.FailureReason,
+                context = new
+                {
+                    recentMessages = reasoningResult.Context.RecentMessages.Count,
+                    memories = reasoningResult.Context.RelevantMemories.Count,
+                    goals = reasoningResult.Context.ActiveGoals.Count,
+                    projects = reasoningResult.Context.ActiveProjects.Count,
+                    openLoops = reasoningResult.Context.OpenLoops.Count,
+                    approvals = reasoningResult.Context.PendingApprovals.Count
+                },
+                suggestions = new
+                {
+                    memories = memorySuggestions.Count,
+                    goals = goalSuggestions.Count,
+                    projects = projectSuggestions.Count,
+                    tasks = taskSuggestions.Count
+                }
+            });
 
-        await transaction.CommitAsync(cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
-        return new ProcessChatResult(
-            conversation.Id,
-            reply,
-            savedMemories,
-            createdTasks,
-            approvalRequests,
-            planningAnalysis.CreatedOpenLoops,
-            planningAnalysis.GoalSuggestions,
-            planningAnalysis.ProjectSuggestions,
-            planningAnalysis.Insights,
-            usedMemories);
+            return new ProcessChatResult(
+                conversation.Id,
+                reasoningResult.Reply,
+                reasoningResult.Context.RelevantMemories,
+                reasoningResult.Insights,
+                memorySuggestions,
+                goalSuggestions,
+                projectSuggestions,
+                taskSuggestions,
+                approvalRequests,
+                createdOpenLoops,
+                reasoningResult.Provider,
+                reasoningResult.Model,
+                reasoningResult.UsedFallback);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            agentRun.Status = AgentRunStatus.Failed;
+            agentRun.Error = "Chat processing was canceled.";
+            agentRun.FallbackUsed = false;
+            agentRun.LatencyMs ??= chatStopwatch.ElapsedMilliseconds;
+            agentRun.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
+            await dbContext.SaveChangesAsync(CancellationToken.None);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+
+            logger.LogError(ex, "Chat processing failed for conversation {ConversationId}.", conversationId);
+            agentRun.Status = AgentRunStatus.Failed;
+            agentRun.Error = ex.Message;
+            agentRun.FallbackUsed = false;
+            agentRun.LatencyMs ??= chatStopwatch.ElapsedMilliseconds;
+            agentRun.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
+            await dbContext.SaveChangesAsync(CancellationToken.None);
+            throw;
+        }
     }
 
     public async Task<int> ProcessPendingRunsAsync(CancellationToken cancellationToken = default)
@@ -198,9 +275,11 @@ public class AgentRuntime(
 
         foreach (var pendingRun in pendingRuns)
         {
+            var runStopwatch = Stopwatch.StartNew();
             pendingRun.Status = AgentRunStatus.Running;
             pendingRun.StartedUtc ??= timeProvider.GetUtcNow().UtcDateTime;
             pendingRun.Error = null;
+            pendingRun.FallbackUsed = false;
             await dbContext.SaveChangesAsync(cancellationToken);
 
             try
@@ -209,6 +288,7 @@ public class AgentRuntime(
 
                 pendingRun.Status = AgentRunStatus.Completed;
                 pendingRun.Output = $"Placeholder execution completed for agent '{pendingRun.AgentName}'.";
+                pendingRun.LatencyMs = runStopwatch.ElapsedMilliseconds;
                 pendingRun.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
                 pendingRun.Error = null;
             }
@@ -221,6 +301,7 @@ public class AgentRuntime(
                 logger.LogError(ex, "Agent run {AgentRunId} failed while processing.", pendingRun.Id);
                 pendingRun.Status = AgentRunStatus.Failed;
                 pendingRun.Error = ex.Message;
+                pendingRun.LatencyMs = runStopwatch.ElapsedMilliseconds;
                 pendingRun.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
             }
 
@@ -230,14 +311,99 @@ public class AgentRuntime(
         return pendingRuns.Count;
     }
 
-    private static bool ShouldCreateMemory(string message)
+    private async Task<IReadOnlyList<GoalSuggestion>> CaptureGoalSuggestionsAsync(
+        Guid userProfileId,
+        IReadOnlyList<GoalSuggestionCandidate> candidates,
+        CancellationToken cancellationToken)
     {
-        return ContainsAny(message, "remember", "from now on", "note that");
+        var suggestions = new List<GoalSuggestion>();
+
+        foreach (var candidate in candidates)
+        {
+            var suggestion = await goalService.CaptureGoalSuggestionAsync(
+                userProfileId,
+                new CreateGoalSuggestionCommand(candidate.Title, candidate.Description),
+                cancellationToken);
+
+            if (suggestion is not null)
+            {
+                suggestions.Add(suggestion);
+            }
+        }
+
+        return suggestions;
     }
 
-    private static bool ShouldCreateTask(string message)
+    private async Task<IReadOnlyList<ProjectSuggestion>> CaptureProjectSuggestionsAsync(
+        Guid userProfileId,
+        IReadOnlyList<ProjectSuggestionCandidate> candidates,
+        CancellationToken cancellationToken)
     {
-        return ContainsAny(message, "remind me", "todo", "task", "i need to");
+        var suggestions = new List<ProjectSuggestion>();
+
+        foreach (var candidate in candidates)
+        {
+            var suggestion = await projectService.CaptureProjectSuggestionAsync(
+                userProfileId,
+                new CreateProjectSuggestionCommand(candidate.Title, candidate.Description, candidate.MentionCount),
+                cancellationToken);
+
+            if (suggestion is not null)
+            {
+                suggestions.Add(suggestion);
+            }
+        }
+
+        return suggestions;
+    }
+
+    private async Task<IReadOnlyList<ApprovalRequest>> CaptureApprovalRequestsAsync(
+        Guid userProfileId,
+        Guid conversationId,
+        Guid sourceMessageId,
+        string message,
+        CancellationToken cancellationToken)
+    {
+        var approvals = new List<ApprovalRequest>();
+
+        foreach (var approvalCommand in BuildApprovalCommands(userProfileId, conversationId, sourceMessageId, message))
+        {
+            approvals.Add(await approvalService.CreateApprovalAsync(approvalCommand, cancellationToken));
+        }
+
+        return approvals;
+    }
+
+    private async Task<IReadOnlyList<OpenLoop>> CaptureOpenLoopsAsync(
+        Guid userProfileId,
+        string message,
+        CancellationToken cancellationToken)
+    {
+        if (!TryBuildOpenLoop(message, out var command))
+        {
+            return [];
+        }
+
+        var openLoop = await openLoopService.CaptureOpenLoopAsync(userProfileId, command, cancellationToken);
+        return openLoop is null ? [] : [openLoop];
+    }
+
+    private static bool TryBuildOpenLoop(string message, out CreateOpenLoopCommand command)
+    {
+        command = default!;
+
+        if (ContainsAny(message, "waiting on", "still need to", "follow up with", "haven't heard back"))
+        {
+            command = new CreateOpenLoopCommand(
+                BuildTitle(message, "waiting on", "still need to", "follow up with", "haven't heard back"),
+                message.Trim(),
+                message.Contains("waiting on", StringComparison.OrdinalIgnoreCase)
+                    ? OpenLoopStatus.Waiting
+                    : OpenLoopStatus.Open);
+            return true;
+        }
+
+        return false;
     }
 
     private static bool ContainsAny(string message, params string[] markers)
@@ -245,84 +411,35 @@ public class AgentRuntime(
         return markers.Any(marker => message.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string DetermineMemoryType(string message)
+    private static string BuildTitle(string message, params string[] markers)
     {
-        return ContainsAny(message, "prefer", "from now on") ? "Preference" : "Note";
-    }
-
-    private static string BuildMemorySummary(string message)
-    {
-        var summary = RemoveLeadingMarker(
-            message,
-            "remember that",
-            "remember",
-            "from now on",
-            "note that");
-
-        summary = summary.Trim().Trim('.', '!', '?');
-        summary = summary.StartsWith("to ", StringComparison.OrdinalIgnoreCase) ? summary[3..] : summary;
-        summary = string.IsNullOrWhiteSpace(summary) ? message.Trim() : summary;
-
-        return summary.Length <= 140 ? Capitalize(summary) : $"{Capitalize(summary[..137].Trim())}...";
-    }
-
-    private static int DetermineMemoryImportance(string message)
-    {
-        return ContainsAny(message, "always", "important") ? 5 : 4;
-    }
-
-    private static string DetermineSensitivity(string message)
-    {
-        return ContainsAny(message, "secret", "private", "password", "credential") ? "High" : "Normal";
-    }
-
-    private static decimal DetermineMemoryConfidence(string message)
-    {
-        return ContainsAny(message, "from now on", "remember") ? 0.96m : 0.90m;
-    }
-
-    private static string ExtractTaskTitle(string message)
-    {
-        var title = RemoveLeadingMarker(
-            message,
-            "remind me to",
-            "remind me",
-            "todo",
-            "task",
-            "i need to");
-
-        title = title.Trim().Trim(':', '-', '.', '!', '?');
-        title = title.StartsWith("to ", StringComparison.OrdinalIgnoreCase) ? title[3..] : title;
-        title = string.IsNullOrWhiteSpace(title) ? "Follow up on chat request" : title;
-
-        title = Capitalize(title);
-        return title.Length <= 200 ? title : $"{title[..197].Trim()}...";
-    }
-
-    private TaskItemPriority DetermineTaskPriority(string message)
-    {
-        if (ContainsAny(message, "critical"))
+        foreach (var marker in markers)
         {
-            return TaskItemPriority.Critical;
+            var index = message.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+            {
+                continue;
+            }
+
+            var title = message[(index + marker.Length)..]
+                .Trim()
+                .Trim(':', '-', '.', '!', '?');
+
+            if (title.StartsWith("to ", StringComparison.OrdinalIgnoreCase))
+            {
+                title = title[3..];
+            }
+
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                break;
+            }
+
+            title = string.Concat(char.ToUpperInvariant(title[0]), title[1..]);
+            return title.Length <= 200 ? title : $"{title[..197].Trim()}...";
         }
 
-        if (ContainsAny(message, "urgent", "asap", "important"))
-        {
-            return TaskItemPriority.High;
-        }
-
-        return TaskItemPriority.Normal;
-    }
-
-    private DateTime? DetermineDueDate(string message)
-    {
-        if (!message.Contains("tomorrow", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        return now.Date.AddDays(1).AddHours(17);
+        return "Follow up on outstanding item";
     }
 
     private static IReadOnlyList<CreateApprovalRequestCommand> BuildApprovalCommands(
@@ -357,133 +474,12 @@ public class AgentRuntime(
         return commands;
     }
 
-    private static string BuildAssistantReply(
-        int recentMessageCount,
-        int usedMemoryCount,
-        int savedMemoryCount,
-        int createdTaskCount,
-        int approvalRequestCount,
-        int openLoopCount,
-        int goalSuggestionCount,
-        int projectSuggestionCount,
-        int insightCount)
+    private static async Task SimulateRunAsync(AgentRun agentRun, CancellationToken cancellationToken)
     {
-        var clauses = new List<string>
-        {
-            "stored your message in the conversation history"
-        };
+        var delay = agentRun.AgentName.Contains("quick", StringComparison.OrdinalIgnoreCase)
+            ? TimeSpan.FromMilliseconds(250)
+            : TimeSpan.FromSeconds(1);
 
-        if (recentMessageCount > 1)
-        {
-            clauses.Add("kept the recent conversation context in view");
-        }
-
-        if (usedMemoryCount > 0)
-        {
-            clauses.Add($"recalled {FormatCount(usedMemoryCount, "relevant memory", "relevant memories")}");
-        }
-
-        if (savedMemoryCount > 0)
-        {
-            clauses.Add(savedMemoryCount == 1 ? "saved that as a memory" : $"saved {savedMemoryCount} new memories");
-        }
-
-        if (createdTaskCount > 0)
-        {
-            clauses.Add(createdTaskCount == 1 ? "created one task" : $"created {createdTaskCount} tasks");
-        }
-
-        if (approvalRequestCount > 0)
-        {
-            clauses.Add(
-                approvalRequestCount == 1
-                    ? "flagged one action for approval"
-                    : $"flagged {approvalRequestCount} actions for approval");
-        }
-
-        if (openLoopCount > 0)
-        {
-            clauses.Add(
-                openLoopCount == 1
-                    ? "captured one open loop"
-                    : $"captured {openLoopCount} open loops");
-        }
-
-        if (goalSuggestionCount > 0)
-        {
-            clauses.Add(
-                goalSuggestionCount == 1
-                    ? "suggested one goal"
-                    : $"suggested {goalSuggestionCount} goals");
-        }
-
-        if (projectSuggestionCount > 0)
-        {
-            clauses.Add(
-                projectSuggestionCount == 1
-                    ? "suggested one project"
-                    : $"suggested {projectSuggestionCount} projects");
-        }
-
-        if (insightCount > 0)
-        {
-            clauses.Add(
-                insightCount == 1
-                    ? "surfaced one planning insight"
-                    : $"surfaced {insightCount} planning insights");
-        }
-
-        return $"I {JoinClauses(clauses)}.";
-    }
-
-    private static string JoinClauses(IReadOnlyList<string> clauses)
-    {
-        return clauses.Count switch
-        {
-            0 => "processed your message",
-            1 => clauses[0],
-            2 => $"{clauses[0]} and {clauses[1]}",
-            _ => $"{string.Join(", ", clauses.Take(clauses.Count - 1))}, and {clauses[^1]}"
-        };
-    }
-
-    private static string FormatCount(int count, string singular, string plural)
-    {
-        return count == 1 ? $"1 {singular}" : $"{count} {plural}";
-    }
-
-    private static string RemoveLeadingMarker(string message, params string[] markers)
-    {
-        foreach (var marker in markers.OrderByDescending(x => x.Length))
-        {
-            if (!message.StartsWith(marker, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            return message[marker.Length..];
-        }
-
-        return message;
-    }
-
-    private static string Capitalize(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return text;
-        }
-
-        return char.ToUpperInvariant(text[0]) + text[1..];
-    }
-
-    private static async Task SimulateRunAsync(AgentRun pendingRun, CancellationToken cancellationToken)
-    {
-        await Task.Delay(TimeSpan.FromMilliseconds(750), cancellationToken);
-
-        if (pendingRun.Input.Contains("force-fail", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Agent run was instructed to fail for testing.");
-        }
+        await Task.Delay(delay, cancellationToken);
     }
 }

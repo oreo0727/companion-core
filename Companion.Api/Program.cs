@@ -32,6 +32,11 @@ app.UseSwaggerUI(options =>
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Companion Core API v1");
 });
 
+app.MapGet("/healthz", () => Results.Ok(new
+{
+    status = "ok",
+    utc = DateTime.UtcNow
+})).ExcludeFromDescription();
 app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 app.MapControllers();
 

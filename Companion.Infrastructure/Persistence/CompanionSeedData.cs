@@ -16,14 +16,18 @@ public static class CompanionSeedData
     public static readonly Guid GoalPlanningLayerId = Guid.Parse("fa3f78ea-b16f-4b83-8d55-3371aa2c0d7e");
     public static readonly Guid ProjectChurchAppId = Guid.Parse("7efc59c5-27ec-48b8-9c67-f08a8da71d99");
     public static readonly Guid OpenLoopArchitectureId = Guid.Parse("5cddf563-fb88-4ce0-b64d-558867bd8b44");
+    public static readonly Guid OpenAiProviderConfigurationId = Guid.Parse("3b678d7f-7d22-4ef2-a653-8a45b0b88011");
+    public static readonly Guid AnthropicProviderConfigurationId = Guid.Parse("2d9e33d7-4386-4d20-8d2d-68ccdb554a7d");
+    public static readonly Guid OllamaProviderConfigurationId = Guid.Parse("a65cdf3d-b2ee-44d8-9c81-729f60a7a31c");
 
     public static readonly DateTime UserCreatedUtc = new(2026, 6, 19, 12, 0, 0, DateTimeKind.Utc);
-    public static readonly DateTime ConversationCreatedUtc = new(2026, 6, 19, 12, 5, 0, DateTimeKind.Utc);
+    public static readonly DateTime ConversationCreatedUtc = new(2026, 6, 19, 12, 5, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime MemoryCreatedUtc = new(2026, 6, 19, 12, 10, 0, DateTimeKind.Utc);
     public static readonly DateTime TaskCreatedUtc = new(2026, 6, 19, 12, 15, 0, DateTimeKind.Utc);
     public static readonly DateTime GoalCreatedUtc = new(2026, 6, 19, 12, 20, 0, DateTimeKind.Utc);
     public static readonly DateTime ProjectCreatedUtc = new(2026, 5, 1, 14, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime OpenLoopCreatedUtc = new(2026, 6, 19, 12, 25, 0, DateTimeKind.Utc);
+    public static readonly DateTime AiProviderCreatedUtc = new(2026, 6, 19, 12, 30, 0, DateTimeKind.Utc);
 
     public static readonly UserProfile LocalUser = new()
     {
@@ -182,6 +186,52 @@ public static class CompanionSeedData
             Status = OpenLoopStatus.Waiting,
             CreatedUtc = OpenLoopCreatedUtc,
             ClosedUtc = null
+        }
+    ];
+
+    public static readonly AiProviderConfiguration[] AiProviderConfigurations =
+    [
+        new AiProviderConfiguration
+        {
+            Id = OpenAiProviderConfigurationId,
+            Provider = AiProviderNames.OpenAI,
+            Model = "gpt-4.1-mini",
+            ApiBaseUrl = "https://api.openai.com/v1",
+            ApiKeyEncrypted = "",
+            IsEnabled = false,
+            Temperature = 0.4m,
+            MaxTokens = 600,
+            TimeoutSeconds = 30,
+            CreatedUtc = AiProviderCreatedUtc,
+            UpdatedUtc = AiProviderCreatedUtc
+        },
+        new AiProviderConfiguration
+        {
+            Id = AnthropicProviderConfigurationId,
+            Provider = AiProviderNames.Anthropic,
+            Model = "claude-3-5-sonnet-latest",
+            ApiBaseUrl = "https://api.anthropic.com/v1",
+            ApiKeyEncrypted = "",
+            IsEnabled = false,
+            Temperature = 0.4m,
+            MaxTokens = 600,
+            TimeoutSeconds = 30,
+            CreatedUtc = AiProviderCreatedUtc,
+            UpdatedUtc = AiProviderCreatedUtc
+        },
+        new AiProviderConfiguration
+        {
+            Id = OllamaProviderConfigurationId,
+            Provider = AiProviderNames.Ollama,
+            Model = "llama3",
+            ApiBaseUrl = "http://ollama:11434",
+            ApiKeyEncrypted = "",
+            IsEnabled = true,
+            Temperature = 0.3m,
+            MaxTokens = 600,
+            TimeoutSeconds = 30,
+            CreatedUtc = AiProviderCreatedUtc,
+            UpdatedUtc = AiProviderCreatedUtc
         }
     ];
 }

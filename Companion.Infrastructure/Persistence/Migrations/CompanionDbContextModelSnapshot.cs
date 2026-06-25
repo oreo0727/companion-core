@@ -36,6 +36,9 @@ namespace Companion.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("CompletedUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("CompletionTokens")
+                        .HasColumnType("integer");
+
                     b.Property<Guid?>("ConversationId")
                         .HasColumnType("uuid");
 
@@ -46,15 +49,34 @@ namespace Companion.Infrastructure.Persistence.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
+                    b.Property<bool>("FallbackUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Input")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<long?>("LatencyMs")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("MetadataJson")
                         .HasColumnType("text");
 
+                    b.Property<string>("Model")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("Output")
                         .HasColumnType("text");
+
+                    b.Property<int?>("PromptTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<DateTime?>("StartedUtc")
                         .HasColumnType("timestamp with time zone");
@@ -63,6 +85,9 @@ namespace Companion.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<int?>("TotalTokens")
+                        .HasColumnType("integer");
 
                     b.Property<Guid?>("UserProfileId")
                         .HasColumnType("uuid");
@@ -76,6 +101,105 @@ namespace Companion.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status", "CreatedUtc");
 
                     b.ToTable("AgentRuns");
+                });
+
+            modelBuilder.Entity("Companion.Core.Entities.AiProviderConfiguration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApiBaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ApiKeyEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("Temperature")
+                        .HasPrecision(4, 3)
+                        .HasColumnType("numeric(4,3)");
+
+                    b.Property<int>("TimeoutSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Provider")
+                        .IsUnique();
+
+                    b.ToTable("AiProviderConfigurations");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("3b678d7f-7d22-4ef2-a653-8a45b0b88011"),
+                            ApiBaseUrl = "https://api.openai.com/v1",
+                            ApiKeyEncrypted = "",
+                            CreatedUtc = new DateTime(2026, 6, 19, 12, 30, 0, 0, DateTimeKind.Utc),
+                            IsEnabled = false,
+                            MaxTokens = 600,
+                            Model = "gpt-4.1-mini",
+                            Provider = "OpenAI",
+                            Temperature = 0.4m,
+                            TimeoutSeconds = 30,
+                            UpdatedUtc = new DateTime(2026, 6, 19, 12, 30, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("2d9e33d7-4386-4d20-8d2d-68ccdb554a7d"),
+                            ApiBaseUrl = "https://api.anthropic.com/v1",
+                            ApiKeyEncrypted = "",
+                            CreatedUtc = new DateTime(2026, 6, 19, 12, 30, 0, 0, DateTimeKind.Utc),
+                            IsEnabled = false,
+                            MaxTokens = 600,
+                            Model = "claude-3-5-sonnet-latest",
+                            Provider = "Anthropic",
+                            Temperature = 0.4m,
+                            TimeoutSeconds = 30,
+                            UpdatedUtc = new DateTime(2026, 6, 19, 12, 30, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = new Guid("a65cdf3d-b2ee-44d8-9c81-729f60a7a31c"),
+                            ApiBaseUrl = "http://ollama:11434",
+                            ApiKeyEncrypted = "",
+                            CreatedUtc = new DateTime(2026, 6, 19, 12, 30, 0, 0, DateTimeKind.Utc),
+                            IsEnabled = true,
+                            MaxTokens = 600,
+                            Model = "llama3",
+                            Provider = "Ollama",
+                            Temperature = 0.3m,
+                            TimeoutSeconds = 30,
+                            UpdatedUtc = new DateTime(2026, 6, 19, 12, 30, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("Companion.Core.Entities.ApprovalRequest", b =>
@@ -412,6 +536,64 @@ namespace Companion.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Companion.Core.Entities.MemorySuggestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Confidence")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Importance")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ReviewedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Sensitivity")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("UserProfileId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserProfileId", "Status", "CreatedUtc");
+
+                    b.ToTable("MemorySuggestions");
+                });
+
             modelBuilder.Entity("Companion.Core.Entities.Message", b =>
                 {
                     b.Property<Guid>("Id")
@@ -670,6 +852,50 @@ namespace Companion.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Companion.Core.Entities.TaskSuggestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("DueDateUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime?>("ReviewedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("UserProfileId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserProfileId", "Status", "CreatedUtc");
+
+                    b.ToTable("TaskSuggestions");
+                });
+
             modelBuilder.Entity("Companion.Core.Entities.UserProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -785,6 +1011,17 @@ namespace Companion.Infrastructure.Persistence.Migrations
                     b.Navigation("UserProfile");
                 });
 
+            modelBuilder.Entity("Companion.Core.Entities.MemorySuggestion", b =>
+                {
+                    b.HasOne("Companion.Core.Entities.UserProfile", "UserProfile")
+                        .WithMany("MemorySuggestions")
+                        .HasForeignKey("UserProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UserProfile");
+                });
+
             modelBuilder.Entity("Companion.Core.Entities.Message", b =>
                 {
                     b.HasOne("Companion.Core.Entities.Conversation", "Conversation")
@@ -845,6 +1082,17 @@ namespace Companion.Infrastructure.Persistence.Migrations
                     b.Navigation("UserProfile");
                 });
 
+            modelBuilder.Entity("Companion.Core.Entities.TaskSuggestion", b =>
+                {
+                    b.HasOne("Companion.Core.Entities.UserProfile", "UserProfile")
+                        .WithMany("TaskSuggestions")
+                        .HasForeignKey("UserProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UserProfile");
+                });
+
             modelBuilder.Entity("Companion.Core.Entities.Conversation", b =>
                 {
                     b.Navigation("Messages");
@@ -860,11 +1108,15 @@ namespace Companion.Infrastructure.Persistence.Migrations
 
                     b.Navigation("MemoryEntries");
 
+                    b.Navigation("MemorySuggestions");
+
                     b.Navigation("OpenLoops");
 
                     b.Navigation("ProjectSuggestions");
 
                     b.Navigation("Projects");
+
+                    b.Navigation("TaskSuggestions");
 
                     b.Navigation("Tasks");
                 });

@@ -26,16 +26,19 @@ public class ChatController(IAgentRuntime agentRuntime) : ControllerBase
                 cancellationToken);
 
             return Ok(new SendChatMessageResponse(
-                result.Reply,
                 result.ConversationId,
-                result.SavedMemories.Select(x => x.ToResponse()).ToList(),
-                result.CreatedTasks.Select(x => x.ToResponse()).ToList(),
-                result.ApprovalRequests.Select(x => x.ToResponse()).ToList(),
-                result.CreatedOpenLoops.Select(x => x.ToResponse()).ToList(),
+                result.Reply,
+                result.UsedMemories.Select(x => x.ToResponse()).ToList(),
+                result.GeneratedInsights.Select(x => x.ToResponse()).ToList(),
+                result.MemorySuggestions.Select(x => x.ToResponse()).ToList(),
                 result.GoalSuggestions.Select(x => x.ToResponse()).ToList(),
                 result.ProjectSuggestions.Select(x => x.ToResponse()).ToList(),
-                result.Insights.Select(x => x.ToResponse()).ToList(),
-                result.UsedMemories.Select(x => x.ToResponse()).ToList()));
+                result.TaskSuggestions.Select(x => x.ToResponse()).ToList(),
+                result.ApprovalRequests.Select(x => x.ToResponse()).ToList(),
+                result.CreatedOpenLoops.Select(x => x.ToResponse()).ToList(),
+                result.Provider,
+                result.Model,
+                result.UsedFallback));
         }
         catch (KeyNotFoundException)
         {

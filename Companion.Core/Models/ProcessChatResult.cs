@@ -5,11 +5,14 @@ namespace Companion.Core.Models;
 public sealed record ProcessChatResult(
     Guid ConversationId,
     string Reply,
-    IReadOnlyList<MemoryEntry> SavedMemories,
-    IReadOnlyList<TaskItem> CreatedTasks,
-    IReadOnlyList<ApprovalRequest> ApprovalRequests,
-    IReadOnlyList<OpenLoop> CreatedOpenLoops,
+    IReadOnlyList<MemoryEntry> UsedMemories,
+    IReadOnlyList<CompanionInsight> GeneratedInsights,
+    IReadOnlyList<MemorySuggestion> MemorySuggestions,
     IReadOnlyList<GoalSuggestion> GoalSuggestions,
     IReadOnlyList<ProjectSuggestion> ProjectSuggestions,
-    IReadOnlyList<CompanionInsight> Insights,
-    IReadOnlyList<MemoryEntry> UsedMemories);
+    IReadOnlyList<TaskSuggestion> TaskSuggestions,
+    IReadOnlyList<ApprovalRequest> ApprovalRequests,
+    IReadOnlyList<OpenLoop> CreatedOpenLoops,
+    string? Provider,
+    string? Model,
+    bool UsedFallback);

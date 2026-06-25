@@ -22,6 +22,20 @@ public class AgentRun
 
     public string? MetadataJson { get; set; }
 
+    public string? Provider { get; set; }
+
+    public string? Model { get; set; }
+
+    public int? PromptTokens { get; set; }
+
+    public int? CompletionTokens { get; set; }
+
+    public int? TotalTokens { get; set; }
+
+    public long? LatencyMs { get; set; }
+
+    public bool FallbackUsed { get; set; }
+
     public DateTime CreatedUtc { get; set; }
 
     public DateTime? StartedUtc { get; set; }

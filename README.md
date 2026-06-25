@@ -1,26 +1,28 @@
 # Companion Core
 
-Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. The current phase adds the first planning layer: persistent conversation continuity, deterministic memory recall, task extraction, approval-gated risky actions, and a Chief Of Staff engine that tracks goals, projects, priorities, open loops, and planning insights.
+Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 4 adds a provider-independent reasoning layer on top of the planning foundation: persistent conversation continuity, structured context assembly, Chief Of Staff reasoning, approval-gated risky actions, and suggestion-based memory and task capture.
 
 ## What This Phase Includes
 
 - .NET 8 solution using ASP.NET Core Web API, Entity Framework Core, and PostgreSQL
 - Clean split across `Companion.Core`, `Companion.Infrastructure`, `Companion.Api`, and `Companion.Worker`
-- Persistent domain model for profiles, conversations, messages, memories, tasks, goals, projects, open loops, approvals, agent runs, and connector accounts
-- Deterministic `POST /api/chat` pipeline that:
-  persists the user message, loads recent context, searches memories, creates memories/tasks/approvals when rules match, detects planning suggestions, captures open loops, and returns a structured assistant reply
-- Deterministic Chief Of Staff service that surfaces planning insights and creates project and goal suggestions without an LLM
+- Persistent domain model for profiles, conversations, messages, memories, tasks, goals, projects, open loops, approvals, agent runs, connector accounts, provider configurations, and suggestion records
+- Phase 4 `POST /api/chat` pipeline that persists the user message, builds bounded context, runs the Chief Of Staff reasoning engine, extracts candidate memories/goals/projects/tasks, stores them as suggestions, creates approval requests and open loops when needed, and returns a structured assistant reply
+- Provider abstraction with `OpenAI`, `Anthropic`, and `Ollama` implementations behind `IAIProvider`
+- Provider configuration persistence through `AiProviderConfiguration` plus `/api/settings/ai`
+- Suggestion approval flow through `/api/suggestions`
+- Timeout-aware provider execution and fallback telemetry on `AgentRun`
 - Background worker that processes pending `AgentRun` records every 30 seconds
-- Swagger-enabled API and Docker Compose bootstrap
+- Swagger-enabled API and Docker Compose bootstrap with an optional Ollama profile
 
 ## Solution Layout
 
 - `Companion.Core`
   Entities, enums, command/result models, and service interfaces
 - `Companion.Infrastructure`
-  EF Core persistence, migrations, deterministic service implementations, and startup extensions
+  EF Core persistence, migrations, provider implementations, reasoning/context services, and startup extensions
 - `Companion.Api`
-  REST API for chat, conversations, memories, tasks, goals, projects, open loops, approvals, agent runs, briefing, and dashboard
+  REST API for chat, conversations, memories, tasks, goals, projects, open loops, approvals, agent runs, settings, suggestions, briefing, and dashboard
 - `Companion.Worker`
   Background processor for pending specialist-agent runs
 
@@ -30,6 +32,12 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 
 ```bash
 docker compose up --build
+```
+
+Start the optional Ollama service with:
+
+```bash
+docker compose --profile ollama up --build
 ```
 
 Once the containers are running:
@@ -44,6 +52,7 @@ Once the containers are running:
 3. Build the solution:
 
 ```bash
+dotnet clean Companion.Core.sln
 dotnet build Companion.Core.sln
 ```
 
@@ -59,9 +68,21 @@ dotnet run --project Companion.Api
 dotnet run --project Companion.Worker
 ```
 
+6. Run the smoke test:
+
+```bash
+./scripts/smoke-test.sh
+```
+
 ## API Surface
 
 - `POST /api/chat`
+- `GET /api/settings/ai`
+- `PUT /api/settings/ai`
+- `GET /api/suggestions`
+- `POST /api/suggestions/{id}/approve`
+- `POST /api/suggestions/{id}/reject`
+- `GET /healthz`
 - `GET /api/conversations`
 - `GET /api/conversations/{id}/messages`
 - `GET /api/memories`
@@ -95,22 +116,37 @@ dotnet run --project Companion.Worker
 - `GET /api/companion/briefing`
 - `GET /api/companion/dashboard`
 
-## Chat Rules
+## Chat V2
 
-The current chat loop is deterministic on purpose. It does not call OpenAI or any external model yet.
+The current chat loop is provider-driven with a deterministic fallback.
 
-- Memory capture triggers:
-  `remember`, `from now on`, `note that`
-- Task creation triggers:
-  `remind me`, `todo`, `task`, `I need to`
-- Approval triggers:
-  `send`, `delete`, `purchase`, `schedule`
+- Context is assembled from recent messages, memories, tasks, goals, projects, open loops, approvals, and planning insights.
+- The enabled provider receives a structured prompt through `IAIProvider`.
+- The extraction pass creates candidate memories, goals, projects, and tasks.
+- Candidates are stored as suggestions and require approval before they become first-class entities.
+- High-risk action language still produces `ApprovalRequest` records.
+- If the provider fails or returns unusable output, the chat pipeline falls back to a bounded deterministic reply.
 
-These placeholders let the platform validate persistence, orchestration, and approval boundaries before real AI reasoning is introduced.
+AI-generated memories, goals, projects, and tasks are never written directly to first-class tables. They must enter the system as pending suggestions first and only become durable entities after an explicit approval step.
+
+## AI Providers
+
+- `OpenAI` and `Anthropic` are seeded disabled.
+- `Ollama` is seeded enabled with `llama3`.
+- Providers are switched through data, not code changes.
+- API keys can live in the database row or config/environment settings.
+- Provider timeouts are stored per configuration row through `TimeoutSeconds` and default to `30`.
+- If Ollama is unavailable, chat still completes through fallback behavior.
+
+### Fallback Testing
+
+- Disable every provider in `/api/settings/ai` to test pure fallback mode.
+- Point `Ollama` at an unreachable base URL to test unavailable-provider fallback.
+- Run `./scripts/smoke-test.sh` to exercise unavailable, malformed, timeout, and mock-success provider scenarios automatically.
 
 ## Planning Rules
 
-The Chief Of Staff layer is also deterministic for now.
+The deterministic planning layer is still used for dashboard insights, open loop capture, approval detection, and fallback behavior.
 
 - Goal suggestion triggers:
   `I want to`, `My goal is`, `I am trying to`
@@ -128,7 +164,7 @@ Briefings and the dashboard synthesize:
 - active projects
 - open loops
 - pending suggestions
-- deterministic planning insights
+- planning insights
 
 ## Seed Data
 
@@ -141,17 +177,24 @@ The migrations seed:
 - 1 `Goal`
 - 1 `Project`
 - 1 `OpenLoop`
+- 3 `AiProviderConfiguration` records
 
 ## Current Constraints
 
 - No authentication yet
-- No external AI providers yet
 - No voice, mobile, email, calendar, or desktop control yet
-- Memory recall, task extraction, approval detection, and planning insights are deterministic placeholder rules
+- Provider calls use plain `HttpClient` and require external model availability plus valid configuration
+- Suggestion approval boundaries remain in place before new durable user data is persisted
 
 ## Additional Docs
 
 - [Architecture Blueprint](docs/BLUEPRINT.md)
+- [AI Architecture](docs/AI_ARCHITECTURE.md)
+- [AI Failure Modes](docs/AI_FAILURE_MODES.md)
+- [Context Builder](docs/CONTEXT_BUILDER.md)
+- [Developer Notes](docs/DEV_NOTES.md)
 - [Chat Pipeline](docs/CHAT_PIPELINE.md)
 - [Memory Model](docs/MEMORY_MODEL.md)
+- [Provider Model](docs/PROVIDER_MODEL.md)
 - [Security Model](docs/SECURITY_MODEL.md)
+- [Smoke Testing](docs/SMOKE_TESTING.md)

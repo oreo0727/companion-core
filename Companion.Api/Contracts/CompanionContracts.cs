@@ -88,12 +88,37 @@ public sealed record GoalSuggestionResponse(
     DateTime CreatedUtc,
     DateTime? ReviewedUtc);
 
+public sealed record MemorySuggestionResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Type,
+    string Summary,
+    string Content,
+    decimal Confidence,
+    string Source,
+    int Importance,
+    string Sensitivity,
+    SuggestionStatus Status,
+    DateTime CreatedUtc,
+    DateTime? ReviewedUtc);
+
 public sealed record ProjectSuggestionResponse(
     Guid Id,
     Guid UserProfileId,
     string Title,
     string? Description,
     int MentionCount,
+    SuggestionStatus Status,
+    DateTime CreatedUtc,
+    DateTime? ReviewedUtc);
+
+public sealed record TaskSuggestionResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Title,
+    string? Description,
+    TaskItemPriority Priority,
+    DateTime? DueDateUtc,
     SuggestionStatus Status,
     DateTime CreatedUtc,
     DateTime? ReviewedUtc);
@@ -121,6 +146,13 @@ public sealed record AgentRunResponse(
     string? Output,
     string? Error,
     string? MetadataJson,
+    string? Provider,
+    string? Model,
+    int? PromptTokens,
+    int? CompletionTokens,
+    int? TotalTokens,
+    long? LatencyMs,
+    bool FallbackUsed,
     DateTime CreatedUtc,
     DateTime? StartedUtc,
     DateTime? CompletedUtc);
@@ -131,16 +163,49 @@ public sealed record CompanionInsightResponse(
     int Priority);
 
 public sealed record SendChatMessageResponse(
-    string Reply,
     Guid ConversationId,
-    IReadOnlyList<MemoryEntryResponse> SavedMemories,
-    IReadOnlyList<TaskItemResponse> CreatedTasks,
-    IReadOnlyList<ApprovalRequestResponse> ApprovalRequests,
-    IReadOnlyList<OpenLoopResponse> CreatedOpenLoops,
+    string Reply,
+    IReadOnlyList<MemoryEntryResponse> UsedMemories,
+    IReadOnlyList<CompanionInsightResponse> GeneratedInsights,
+    IReadOnlyList<MemorySuggestionResponse> MemorySuggestions,
     IReadOnlyList<GoalSuggestionResponse> GoalSuggestions,
     IReadOnlyList<ProjectSuggestionResponse> ProjectSuggestions,
-    IReadOnlyList<CompanionInsightResponse> Insights,
-    IReadOnlyList<MemoryEntryResponse> UsedMemories);
+    IReadOnlyList<TaskSuggestionResponse> TaskSuggestions,
+    IReadOnlyList<ApprovalRequestResponse> ApprovalRequests,
+    IReadOnlyList<OpenLoopResponse> CreatedOpenLoops,
+    string? Provider,
+    string? Model,
+    bool UsedFallback);
+
+public sealed record AiProviderConfigurationResponse(
+    Guid Id,
+    string Provider,
+    string Model,
+    string ApiBaseUrl,
+    bool IsEnabled,
+    decimal Temperature,
+    int MaxTokens,
+    int TimeoutSeconds,
+    bool HasApiKey,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc);
+
+public sealed record SuggestionRecordResponse(
+    Guid Id,
+    SuggestionKind Kind,
+    string Title,
+    string? Description,
+    SuggestionStatus Status,
+    DateTime CreatedUtc,
+    DateTime? ReviewedUtc,
+    string? Detail,
+    string? Meta);
+
+public sealed record SuggestionActionResponse(
+    SuggestionRecordResponse Suggestion,
+    string MaterializedEntityType,
+    Guid MaterializedEntityId,
+    SuggestionKind Kind);
 
 public sealed record CompanionBriefingResponse(
     IReadOnlyList<TaskItemResponse> OpenTasks,
@@ -283,6 +348,37 @@ public static class CompanionApiMappings
             projectSuggestion.ReviewedUtc);
     }
 
+    public static MemorySuggestionResponse ToResponse(this MemorySuggestion memorySuggestion)
+    {
+        return new MemorySuggestionResponse(
+            memorySuggestion.Id,
+            memorySuggestion.UserProfileId,
+            memorySuggestion.Type,
+            memorySuggestion.Summary,
+            memorySuggestion.Content,
+            memorySuggestion.Confidence,
+            memorySuggestion.Source,
+            memorySuggestion.Importance,
+            memorySuggestion.Sensitivity,
+            memorySuggestion.Status,
+            memorySuggestion.CreatedUtc,
+            memorySuggestion.ReviewedUtc);
+    }
+
+    public static TaskSuggestionResponse ToResponse(this TaskSuggestion taskSuggestion)
+    {
+        return new TaskSuggestionResponse(
+            taskSuggestion.Id,
+            taskSuggestion.UserProfileId,
+            taskSuggestion.Title,
+            taskSuggestion.Description,
+            taskSuggestion.Priority,
+            taskSuggestion.DueDateUtc,
+            taskSuggestion.Status,
+            taskSuggestion.CreatedUtc,
+            taskSuggestion.ReviewedUtc);
+    }
+
     public static ApprovalRequestResponse ToResponse(this ApprovalRequest approvalRequest)
     {
         return new ApprovalRequestResponse(
@@ -311,6 +407,13 @@ public static class CompanionApiMappings
             agentRun.Output,
             agentRun.Error,
             agentRun.MetadataJson,
+            agentRun.Provider,
+            agentRun.Model,
+            agentRun.PromptTokens,
+            agentRun.CompletionTokens,
+            agentRun.TotalTokens,
+            agentRun.LatencyMs,
+            agentRun.FallbackUsed,
             agentRun.CreatedUtc,
             agentRun.StartedUtc,
             agentRun.CompletedUtc);
@@ -346,5 +449,44 @@ public static class CompanionApiMappings
             dashboard.OpenLoops,
             dashboard.PendingApprovals,
             dashboard.TopInsights.Select(x => x.ToResponse()).ToList());
+    }
+
+    public static AiProviderConfigurationResponse ToResponse(this AiProviderConfigurationSummary configuration)
+    {
+        return new AiProviderConfigurationResponse(
+            configuration.Id,
+            configuration.Provider,
+            configuration.Model,
+            configuration.ApiBaseUrl,
+            configuration.IsEnabled,
+            configuration.Temperature,
+            configuration.MaxTokens,
+            configuration.TimeoutSeconds,
+            configuration.HasApiKey,
+            configuration.CreatedUtc,
+            configuration.UpdatedUtc);
+    }
+
+    public static SuggestionRecordResponse ToResponse(this SuggestionRecord suggestion)
+    {
+        return new SuggestionRecordResponse(
+            suggestion.Id,
+            suggestion.Kind,
+            suggestion.Title,
+            suggestion.Description,
+            suggestion.Status,
+            suggestion.CreatedUtc,
+            suggestion.ReviewedUtc,
+            suggestion.Detail,
+            suggestion.Meta);
+    }
+
+    public static SuggestionActionResponse ToResponse(this SuggestionActionResult result)
+    {
+        return new SuggestionActionResponse(
+            result.Suggestion.ToResponse(),
+            result.MaterializedEntityType,
+            result.MaterializedEntityId,
+            result.Kind);
     }
 }

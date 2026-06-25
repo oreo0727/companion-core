@@ -2,15 +2,19 @@ using Companion.Core.Abstractions;
 
 namespace Companion.Worker.Services;
 
-public class AgentRunWorker(IServiceScopeFactory scopeFactory, ILogger<AgentRunWorker> logger) : BackgroundService
+public class AgentRunWorker(
+    IServiceScopeFactory scopeFactory,
+    IConfiguration configuration,
+    ILogger<AgentRunWorker> logger) : BackgroundService
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
+    private readonly TimeSpan pollInterval = TimeSpan.FromSeconds(
+        Math.Max(configuration.GetValue<int?>("AgentRunWorker:PollIntervalSeconds") ?? 30, 1));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation(
             "Agent run worker started. Polling every {PollIntervalSeconds} seconds.",
-            PollInterval.TotalSeconds);
+            pollInterval.TotalSeconds);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -34,7 +38,7 @@ public class AgentRunWorker(IServiceScopeFactory scopeFactory, ILogger<AgentRunW
                 logger.LogError(ex, "Unexpected error while processing agent runs.");
             }
 
-            await Task.Delay(PollInterval, stoppingToken);
+            await Task.Delay(pollInterval, stoppingToken);
         }
     }
 }
