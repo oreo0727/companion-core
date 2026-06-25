@@ -13,6 +13,10 @@ The script fails fast and verifies:
 - API health
 - Swagger availability
 - seeded local administrator authentication
+- tool discovery
+- immediate low-risk tool execution
+- approval-gated tool execution
+- failed tool execution telemetry
 - `POST /api/chat`
 - persisted user and assistant messages
 - memory, task, goal, and project suggestion creation
@@ -40,6 +44,12 @@ The smoke test exercises:
 3. Ollama configured against a mock success endpoint
 4. malformed provider JSON
 5. provider timeout
+
+It also exercises:
+
+6. low-risk `GetBriefing` execution
+7. approval-gated `CreateTask` execution
+8. failed `MemorySearch` execution with stored error state
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

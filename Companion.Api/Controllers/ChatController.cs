@@ -38,6 +38,7 @@ public class ChatController(IAgentRuntime agentRuntime) : ControllerBase
                 result.TaskSuggestions.Select(x => x.ToResponse()).ToList(),
                 result.ApprovalRequests.Select(x => x.ToResponse()).ToList(),
                 result.CreatedOpenLoops.Select(x => x.ToResponse()).ToList(),
+                result.ToolExecutions.Select(x => x.ToResponse()).ToList(),
                 result.Provider,
                 result.Model,
                 result.UsedFallback));

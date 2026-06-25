@@ -11,20 +11,28 @@ class MockAiState:
     timeout_seconds = 2
 
 
-def build_reasoning_payload():
-    return json.dumps(
-        {
-            "reply": "Mock provider reply.",
-            "insights": [
-                {
-                    "category": "Mock",
-                    "message": "Provider succeeded.",
-                    "priority": 55,
-                }
-            ],
-            "recommendations": ["Proceed with the next planned step."],
-        }
-    )
+def build_reasoning_payload(include_tool_request=False):
+    payload = {
+        "reply": "Mock provider reply.",
+        "insights": [
+            {
+                "category": "Mock",
+                "message": "Provider succeeded.",
+                "priority": 55,
+            }
+        ],
+        "recommendations": ["Proceed with the next planned step."],
+    }
+
+    if include_tool_request:
+        payload["toolRequests"] = [
+            {
+                "tool": "GetBriefing",
+                "input": {},
+            }
+        ]
+
+    return json.dumps(payload)
 
 
 def build_extraction_payload():
@@ -119,7 +127,11 @@ class Handler(BaseHTTPRequestHandler):
             content = "```json\n{\"reply\":\n```"
         else:
             payload = json.dumps(body)
-            content = build_extraction_payload() if "memorySuggestions" in payload else build_reasoning_payload()
+            content = (
+                build_extraction_payload()
+                if "memorySuggestions" in payload
+                else build_reasoning_payload(include_tool_request=MockAiState.mode == "tool-request")
+            )
 
         if parsed.path == "/api/chat":
             return self.respond_json(

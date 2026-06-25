@@ -68,6 +68,21 @@ public class AuthController(
         dbContext.UserProfiles.Add(profile);
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        var toolPermissions = await dbContext.ToolDefinitions
+            .AsNoTracking()
+            .Where(x => x.Enabled)
+            .Select(x => new ToolPermission
+            {
+                Id = Guid.NewGuid(),
+                UserProfileId = profile.Id,
+                ToolDefinitionId = x.Id,
+                Allowed = true,
+                CreatedUtc = DateTime.UtcNow
+            })
+            .ToListAsync(cancellationToken);
+        dbContext.ToolPermissions.AddRange(toolPermissions);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         await userPreferenceService.SetPreferenceAsync(profile.Id, "ResponseStyle", "Balanced", cancellationToken);
         await userPreferenceService.SetPreferenceAsync(profile.Id, "Notifications", "ImportantOnly", cancellationToken);
         await userPreferenceService.SetPreferenceAsync(profile.Id, "AiPersonality", "SupportivePragmatic", cancellationToken);

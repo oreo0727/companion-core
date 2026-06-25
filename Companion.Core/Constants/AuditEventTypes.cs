@@ -10,4 +10,8 @@ public static class AuditEventTypes
     public const string ApprovalRejected = "ApprovalRejected";
     public const string SettingsChanged = "SettingsChanged";
     public const string PreferenceChanged = "PreferenceChanged";
+    public const string ToolExecutionRequested = "ToolExecutionRequested";
+    public const string ToolExecutionCompleted = "ToolExecutionCompleted";
+    public const string ToolExecutionFailed = "ToolExecutionFailed";
+    public const string ToolExecutionRejected = "ToolExecutionRejected";
 }

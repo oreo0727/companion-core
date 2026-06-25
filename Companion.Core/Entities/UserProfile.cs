@@ -41,4 +41,8 @@ public class UserProfile
     public ICollection<AuditEvent> AuditEvents { get; set; } = new List<AuditEvent>();
 
     public ICollection<StoredSecret> StoredSecrets { get; set; } = new List<StoredSecret>();
+
+    public ICollection<ToolExecution> ToolExecutions { get; set; } = new List<ToolExecution>();
+
+    public ICollection<ToolPermission> ToolPermissions { get; set; } = new List<ToolPermission>();
 }

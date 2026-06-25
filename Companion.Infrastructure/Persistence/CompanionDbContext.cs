@@ -49,6 +49,12 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<StoredSecret> StoredSecrets => Set<StoredSecret>();
 
+    public DbSet<ToolDefinition> ToolDefinitions => Set<ToolDefinition>();
+
+    public DbSet<ToolExecution> ToolExecutions => Set<ToolExecution>();
+
+    public DbSet<ToolPermission> ToolPermissions => Set<ToolPermission>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -420,6 +426,68 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
                 .WithMany(x => x.StoredSecrets)
                 .HasForeignKey(x => x.UserProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ToolDefinition>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Category).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.RiskLevel)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.RequiresApproval).IsRequired();
+            entity.Property(x => x.Enabled).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasData(CompanionSeedData.ToolDefinitions);
+        });
+
+        modelBuilder.Entity<ToolExecution>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.InputJson).IsRequired();
+            entity.Property(x => x.OutputJson);
+            entity.Property(x => x.Error).HasMaxLength(4000);
+            entity.Property(x => x.StartedUtc).IsRequired();
+            entity.Property(x => x.CompletedUtc);
+            entity.HasIndex(x => new { x.UserProfileId, x.StartedUtc });
+            entity.HasIndex(x => new { x.ToolDefinitionId, x.Status });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.ToolExecutions)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ToolDefinition)
+                .WithMany()
+                .HasForeignKey(x => x.ToolDefinitionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.AgentRun)
+                .WithMany(x => x.ToolExecutions)
+                .HasForeignKey(x => x.AgentRunId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ToolPermission>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Allowed).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.ToolDefinitionId }).IsUnique();
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.ToolPermissions)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ToolDefinition)
+                .WithMany()
+                .HasForeignKey(x => x.ToolDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasData(CompanionSeedData.LocalUserToolPermissions);
         });
 
         modelBuilder.Entity<AiProviderConfiguration>(entity =>

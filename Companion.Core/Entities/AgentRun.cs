@@ -41,4 +41,6 @@ public class AgentRun
     public DateTime? StartedUtc { get; set; }
 
     public DateTime? CompletedUtc { get; set; }
+
+    public ICollection<ToolExecution> ToolExecutions { get; set; } = new List<ToolExecution>();
 }

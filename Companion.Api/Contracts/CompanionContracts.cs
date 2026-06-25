@@ -157,6 +157,35 @@ public sealed record AgentRunResponse(
     DateTime? StartedUtc,
     DateTime? CompletedUtc);
 
+public sealed record ToolDefinitionResponse(
+    Guid Id,
+    string Name,
+    string Description,
+    string Category,
+    ToolRiskLevel RiskLevel,
+    bool RequiresApproval,
+    bool Enabled,
+    DateTime CreatedUtc);
+
+public sealed record ToolExecutionResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ToolDefinitionId,
+    Guid? AgentRunId,
+    ToolExecutionStatus Status,
+    string InputJson,
+    string? OutputJson,
+    string? Error,
+    DateTime StartedUtc,
+    DateTime? CompletedUtc,
+    string? ToolName,
+    string? ToolDescription);
+
+public sealed record ToolDispatchResponse(
+    ToolExecutionResponse Execution,
+    Guid? ApprovalRequestId,
+    bool ExecutedImmediately);
+
 public sealed record CompanionInsightResponse(
     string Category,
     string Message,
@@ -173,6 +202,7 @@ public sealed record SendChatMessageResponse(
     IReadOnlyList<TaskSuggestionResponse> TaskSuggestions,
     IReadOnlyList<ApprovalRequestResponse> ApprovalRequests,
     IReadOnlyList<OpenLoopResponse> CreatedOpenLoops,
+    IReadOnlyList<ToolExecutionResponse> ToolExecutions,
     string? Provider,
     string? Model,
     bool UsedFallback);
@@ -460,6 +490,46 @@ public static class CompanionApiMappings
             agentRun.CreatedUtc,
             agentRun.StartedUtc,
             agentRun.CompletedUtc);
+    }
+
+    public static ToolDefinitionResponse ToResponse(this ToolDefinition definition)
+    {
+        return new ToolDefinitionResponse(
+            definition.Id,
+            definition.Name,
+            definition.Description,
+            definition.Category,
+            definition.RiskLevel,
+            definition.RequiresApproval,
+            definition.Enabled,
+            definition.CreatedUtc);
+    }
+
+    public static ToolExecutionResponse ToResponse(this ToolExecution execution)
+    {
+        return new ToolExecutionResponse(
+            execution.Id,
+            execution.UserProfileId,
+            execution.ToolDefinitionId,
+            execution.AgentRunId,
+            execution.Status,
+            execution.InputJson,
+            execution.OutputJson,
+            execution.Error,
+            execution.StartedUtc,
+            execution.CompletedUtc,
+            execution.ToolDefinition?.Name,
+            execution.ToolDefinition?.Description);
+    }
+
+    public static ToolDispatchResponse ToResponse(this ToolDispatchResult result)
+    {
+        result.Execution.ToolDefinition ??= result.Definition;
+
+        return new ToolDispatchResponse(
+            result.Execution.ToResponse(),
+            result.ApprovalRequest?.Id,
+            result.ExecutedImmediately);
     }
 
     public static CompanionInsightResponse ToResponse(this CompanionInsight insight)

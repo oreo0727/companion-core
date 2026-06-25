@@ -13,6 +13,7 @@ public sealed record ProcessChatResult(
     IReadOnlyList<TaskSuggestion> TaskSuggestions,
     IReadOnlyList<ApprovalRequest> ApprovalRequests,
     IReadOnlyList<OpenLoop> CreatedOpenLoops,
+    IReadOnlyList<ToolExecution> ToolExecutions,
     string? Provider,
     string? Model,
     bool UsedFallback);

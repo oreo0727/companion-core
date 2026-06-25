@@ -1,6 +1,6 @@
 # Companion Core
 
-Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 5 adds the identity, security, and trust layer on top of the planning foundation: authenticated users, JWT bearer auth, per-user ownership, encrypted secrets, audit logging, and role-aware administration.
+Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 6 adds an internal tool runtime on top of the identity, planning, and reasoning stack so Companion can perform bounded, auditable actions against its own data.
 
 ## What This Phase Includes
 
@@ -15,6 +15,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - ASP.NET Core Identity with `ApplicationUser` plus `UserProfile` linkage
 - JWT bearer authentication with `User` and `Administrator` roles
 - `UserPreference`, encrypted `StoredSecret`, and `AuditEvent` persistence
+- Internal tool runtime with `ToolDefinition`, `ToolPermission`, `ToolExecution`, and approval-aware execution
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Swagger-enabled API and Docker Compose bootstrap with an optional Ollama profile
 
@@ -132,6 +133,9 @@ The API is authenticated by default.
 - `POST /api/approvals/{id}/reject`
 - `GET /api/agent-runs`
 - `POST /api/agent-runs`
+- `GET /api/tools`
+- `GET /api/tools/executions`
+- `POST /api/tools/{id}/execute`
 - `GET /api/companion/briefing`
 - `GET /api/companion/dashboard`
 
@@ -141,12 +145,16 @@ The current chat loop is provider-driven with a deterministic fallback.
 
 - Context is assembled from recent messages, memories, tasks, goals, projects, open loops, approvals, and planning insights.
 - The enabled provider receives a structured prompt through `IAIProvider`.
+- The reasoning payload may include internal `toolRequests`.
+- Tool requests are executed only after permission and approval checks.
 - The extraction pass creates candidate memories, goals, projects, and tasks.
 - Candidates are stored as suggestions and require approval before they become first-class entities.
 - High-risk action language still produces `ApprovalRequest` records.
 - If the provider fails or returns unusable output, the chat pipeline falls back to a bounded deterministic reply.
 
 AI-generated memories, goals, projects, and tasks are never written directly to first-class tables. They must enter the system as pending suggestions first and only become durable entities after an explicit approval step.
+
+Tool executions are recorded separately from suggestions. Built-in tools can read or mutate first-class data only through the audited tool runtime.
 
 ## AI Providers
 
@@ -185,6 +193,20 @@ Briefings and the dashboard synthesize:
 - pending suggestions
 - planning insights
 
+## Internal Tools
+
+The current built-in tool set is intentionally narrow:
+
+- `MemorySearch`
+- `CreateTask`
+- `GetBriefing`
+
+Risk is enforced centrally:
+
+- low-risk tools can execute immediately
+- medium/high-risk tools create approval requests first
+- every execution writes audit data
+
 ## Seed Data
 
 The migrations seed:
@@ -203,6 +225,7 @@ The migrations seed:
 ## Current Constraints
 
 - No voice, mobile, email, calendar, or desktop control yet
+- No external action connectors yet; tools are internal-only
 - Provider calls use plain `HttpClient` and require external model availability plus valid configuration
 - Suggestion approval boundaries remain in place before new durable user data is persisted
 - The seeded local admin is a development bootstrap only
@@ -212,10 +235,12 @@ The migrations seed:
 - [Architecture Blueprint](docs/BLUEPRINT.md)
 - [AI Architecture](docs/AI_ARCHITECTURE.md)
 - [AI Failure Modes](docs/AI_FAILURE_MODES.md)
+- [Actions](docs/ACTIONS.md)
 - [Authentication](docs/AUTHENTICATION.md)
 - [Context Builder](docs/CONTEXT_BUILDER.md)
 - [Data Ownership](docs/DATA_OWNERSHIP.md)
 - [Developer Notes](docs/DEV_NOTES.md)
+- [Tool Runtime](docs/TOOLS.md)
 - [Chat Pipeline](docs/CHAT_PIPELINE.md)
 - [Memory Model](docs/MEMORY_MODEL.md)
 - [Provider Model](docs/PROVIDER_MODEL.md)

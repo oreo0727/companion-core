@@ -10,6 +10,7 @@ namespace Companion.Infrastructure.Services;
 public class ChiefOfStaffReasoningEngine(
     IContextBuilder contextBuilder,
     IAiProviderConfigurationService configurationService,
+    IToolRegistry toolRegistry,
     IEnumerable<IAIProvider> providers,
     ILogger<ChiefOfStaffReasoningEngine> logger) : IReasoningEngine
 {
@@ -44,14 +45,19 @@ public class ChiefOfStaffReasoningEngine(
                 new AiCompletionRequest(
                     [
                         new AiMessage("system", CompanionPrompts.ChiefOfStaff),
-                        new AiMessage("user", BuildReasoningPrompt(context))
+                        new AiMessage("user", BuildReasoningPrompt(context, toolRegistry.GetAvailableTools()))
                     ],
                     (double)providerConfiguration.Temperature,
                     providerConfiguration.MaxTokens,
                     ExpectJson: true),
                 cancellationToken);
 
-            if (!TryParseCompletionPayload(completion.Content, out var reply, out var insights, out var recommendations))
+            if (!TryParseCompletionPayload(
+                completion.Content,
+                out var reply,
+                out var insights,
+                out var recommendations,
+                out var toolRequests))
             {
                 return BuildFallback(
                     context,
@@ -69,6 +75,7 @@ public class ChiefOfStaffReasoningEngine(
                 reply,
                 insights.Count > 0 ? insights : context.ChiefOfStaffInsights.Take(3).ToList(),
                 recommendations,
+                toolRequests,
                 completion,
                 completion.Provider,
                 completion.Model,
@@ -86,7 +93,7 @@ public class ChiefOfStaffReasoningEngine(
         }
     }
 
-    private static string BuildReasoningPrompt(CompanionContext context)
+    private static string BuildReasoningPrompt(CompanionContext context, IReadOnlyList<ITool> availableTools)
     {
         var payload = new
         {
@@ -102,8 +109,22 @@ public class ChiefOfStaffReasoningEngine(
                         priority = 0
                     }
                 },
-                recommendations = new[] { "string" }
+                recommendations = new[] { "string" },
+                toolRequests = new[]
+                {
+                    new
+                    {
+                        tool = "string",
+                        input = new { }
+                    }
+                }
             },
+            availableTools = availableTools.Select(tool => new
+            {
+                tool.Name,
+                tool.Description,
+                riskLevel = tool.RiskLevel.ToString()
+            }),
             context = new
             {
                 context.ActiveTopic,
@@ -170,7 +191,9 @@ public class ChiefOfStaffReasoningEngine(
                 "Use the context provided and say when context is incomplete.",
                 "Return valid JSON only.",
                 "Keep the reply practical, concise, and specific to the user's current situation.",
-                "Use the insights array for strategic observations and recommendations for suggested next actions."
+                "Use the insights array for strategic observations and recommendations for suggested next actions.",
+                "Only request a tool when it materially helps the user and the tool is listed in availableTools.",
+                "Leave toolRequests empty when no action should be taken."
             }
         };
 
@@ -181,11 +204,13 @@ public class ChiefOfStaffReasoningEngine(
         string content,
         out string reply,
         out List<CompanionInsight> insights,
-        out List<string> recommendations)
+        out List<string> recommendations,
+        out List<ToolRequest> toolRequests)
     {
         reply = string.Empty;
         insights = [];
         recommendations = [];
+        toolRequests = [];
 
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -238,6 +263,28 @@ public class ChiefOfStaffReasoningEngine(
                 .ToList();
         }
 
+        if (root.TryGetProperty("toolRequests", out var toolRequestsElement) &&
+            toolRequestsElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in toolRequestsElement.EnumerateArray())
+            {
+                var toolName = item.TryGetProperty("tool", out var toolElement)
+                    ? toolElement.GetString()?.Trim()
+                    : null;
+
+                if (string.IsNullOrWhiteSpace(toolName))
+                {
+                    continue;
+                }
+
+                var inputJson = item.TryGetProperty("input", out var inputElement)
+                    ? JsonSerializer.Serialize(inputElement)
+                    : "{}";
+
+                toolRequests.Add(new ToolRequest(toolName, inputJson));
+            }
+        }
+
         return !string.IsNullOrWhiteSpace(reply);
     }
 
@@ -254,6 +301,7 @@ public class ChiefOfStaffReasoningEngine(
             context,
             reply,
             context.ChiefOfStaffInsights.Take(3).ToList(),
+            [],
             [],
             completion,
             completion?.Provider ?? provider,

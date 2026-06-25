@@ -20,6 +20,7 @@ public class AgentRuntime(
     IProjectService projectService,
     IOpenLoopService openLoopService,
     IApprovalService approvalService,
+    IToolExecutor toolExecutor,
     TimeProvider timeProvider,
     ILogger<AgentRuntime> logger) : IAgentRuntime
 {
@@ -161,6 +162,24 @@ public class AgentRuntime(
                 userProfileId,
                 normalizedMessage,
                 cancellationToken);
+            var toolDispatchResults = await ExecuteToolRequestsAsync(
+                userProfileId,
+                conversation.Id,
+                userMessage.Id,
+                agentRun.Id,
+                reasoningResult.ToolRequests,
+                cancellationToken);
+            var toolExecutions = toolDispatchResults
+                .Select(x => x.Execution)
+                .ToList();
+            var toolApprovalRequests = toolDispatchResults
+                .Select(x => x.ApprovalRequest)
+                .Where(x => x is not null)
+                .Select(x => x!)
+                .ToList();
+            var allApprovalRequests = approvalRequests
+                .Concat(toolApprovalRequests)
+                .ToList();
 
             var assistantMessage = await conversationService.AddMessageAsync(
                 conversation.Id,
@@ -181,8 +200,9 @@ public class AgentRuntime(
                     goalSuggestionIds = goalSuggestions.Select(x => x.Id),
                     projectSuggestionIds = projectSuggestions.Select(x => x.Id),
                     taskSuggestionIds = taskSuggestions.Select(x => x.Id),
-                    approvalRequestIds = approvalRequests.Select(x => x.Id),
-                    openLoopIds = createdOpenLoops.Select(x => x.Id)
+                    approvalRequestIds = allApprovalRequests.Select(x => x.Id),
+                    openLoopIds = createdOpenLoops.Select(x => x.Id),
+                    toolExecutionIds = toolExecutions.Select(x => x.Id)
                 }),
                 cancellationToken);
 
@@ -222,6 +242,13 @@ public class AgentRuntime(
                     goals = goalSuggestions.Count,
                     projects = projectSuggestions.Count,
                     tasks = taskSuggestions.Count
+                },
+                tools = new
+                {
+                    requested = reasoningResult.ToolRequests.Count,
+                    executed = toolExecutions.Count(x => x.Status == ToolExecutionStatus.Completed),
+                    awaitingApproval = toolExecutions.Count(x => x.Status == ToolExecutionStatus.AwaitingApproval),
+                    failed = toolExecutions.Count(x => x.Status == ToolExecutionStatus.Failed)
                 }
             });
 
@@ -237,8 +264,9 @@ public class AgentRuntime(
                 goalSuggestions,
                 projectSuggestions,
                 taskSuggestions,
-                approvalRequests,
+                allApprovalRequests,
                 createdOpenLoops,
+                toolExecutions,
                 reasoningResult.Provider,
                 reasoningResult.Model,
                 reasoningResult.UsedFallback);
@@ -484,5 +512,47 @@ public class AgentRuntime(
             : TimeSpan.FromSeconds(1);
 
         await Task.Delay(delay, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<ToolDispatchResult>> ExecuteToolRequestsAsync(
+        Guid userProfileId,
+        Guid conversationId,
+        Guid sourceMessageId,
+        Guid agentRunId,
+        IReadOnlyList<ToolRequest> toolRequests,
+        CancellationToken cancellationToken)
+    {
+        if (toolRequests.Count == 0)
+        {
+            return [];
+        }
+
+        var results = new List<ToolDispatchResult>();
+
+        foreach (var toolRequest in toolRequests)
+        {
+            try
+            {
+                var result = await toolExecutor.ExecuteAsync(
+                    userProfileId,
+                    toolRequest.Tool,
+                    toolRequest.InputJson,
+                    agentRunId,
+                    conversationId,
+                    sourceMessageId,
+                    cancellationToken);
+                results.Add(result);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Tool request '{ToolName}' was ignored during chat processing for agent run {AgentRunId}.",
+                    toolRequest.Tool,
+                    agentRunId);
+            }
+        }
+
+        return results;
     }
 }

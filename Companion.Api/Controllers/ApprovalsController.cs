@@ -11,7 +11,9 @@ namespace Companion.Api.Controllers;
 [ApiController]
 [Route("api/approvals")]
 [Authorize]
-public class ApprovalsController(IApprovalService approvalService) : ControllerBase
+public class ApprovalsController(
+    IApprovalService approvalService,
+    IToolExecutor toolExecutor) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<ApprovalRequestResponse>), StatusCodes.Status200OK)]
@@ -47,6 +49,11 @@ public class ApprovalsController(IApprovalService approvalService) : ControllerB
     public async Task<ActionResult<ApprovalRequestResponse>> Approve(Guid id, CancellationToken cancellationToken)
     {
         var approval = await approvalService.ApproveAsync(User.GetRequiredUserProfileId(), id, cancellationToken);
+        if (approval is not null)
+        {
+            await toolExecutor.ExecuteApprovedAsync(User.GetRequiredUserProfileId(), id, cancellationToken);
+        }
+
         return approval is null ? NotFound() : Ok(approval.ToResponse());
     }
 
@@ -56,6 +63,11 @@ public class ApprovalsController(IApprovalService approvalService) : ControllerB
     public async Task<ActionResult<ApprovalRequestResponse>> Reject(Guid id, CancellationToken cancellationToken)
     {
         var approval = await approvalService.RejectAsync(User.GetRequiredUserProfileId(), id, cancellationToken);
+        if (approval is not null)
+        {
+            await toolExecutor.RejectApprovedAsync(User.GetRequiredUserProfileId(), id, cancellationToken);
+        }
+
         return approval is null ? NotFound() : Ok(approval.ToResponse());
     }
 }

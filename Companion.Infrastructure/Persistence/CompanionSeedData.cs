@@ -25,6 +25,12 @@ public static class CompanionSeedData
     public static readonly Guid PersonalityPreferenceId = Guid.Parse("de65c017-8a0d-427e-a8b6-9fa383d63e1f");
     public static readonly Guid AdministratorRoleId = Guid.Parse("1fc75f52-55c1-4222-aeeb-77291e0c6c80");
     public static readonly Guid UserRoleId = Guid.Parse("0a56a52f-cf4b-4a39-9432-1aa4c03be59f");
+    public static readonly Guid MemorySearchToolDefinitionId = Guid.Parse("ba1ae420-3338-40cb-b7be-b7a08b95fe7b");
+    public static readonly Guid CreateTaskToolDefinitionId = Guid.Parse("d39d98cc-c066-44b5-bc05-6dc81c7dbf6c");
+    public static readonly Guid GetBriefingToolDefinitionId = Guid.Parse("56ec1a59-1115-4da9-9292-c8a2609fe632");
+    public static readonly Guid MemorySearchToolPermissionId = Guid.Parse("1a9f7783-8d03-4769-ab39-f9b8dc7bd3b4");
+    public static readonly Guid CreateTaskToolPermissionId = Guid.Parse("b4608125-c91c-4a2a-ae17-68a4b0f4f6df");
+    public static readonly Guid GetBriefingToolPermissionId = Guid.Parse("f2a6cdb9-212d-4f0f-92a1-0e2db84cf90f");
 
     public static readonly DateTime UserCreatedUtc = new(2026, 6, 19, 12, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime ConversationCreatedUtc = new(2026, 6, 19, 12, 5, 0, 0, DateTimeKind.Utc);
@@ -34,6 +40,7 @@ public static class CompanionSeedData
     public static readonly DateTime ProjectCreatedUtc = new(2026, 5, 1, 14, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime OpenLoopCreatedUtc = new(2026, 6, 19, 12, 25, 0, DateTimeKind.Utc);
     public static readonly DateTime AiProviderCreatedUtc = new(2026, 6, 19, 12, 30, 0, DateTimeKind.Utc);
+    public static readonly DateTime ToolCreatedUtc = new(2026, 6, 25, 20, 0, 0, DateTimeKind.Utc);
 
     public static readonly UserProfile LocalUser = new()
     {
@@ -318,6 +325,71 @@ public static class CompanionSeedData
             Value = "SupportivePragmatic",
             CreatedUtc = UserCreatedUtc,
             UpdatedUtc = UserCreatedUtc
+        }
+    ];
+
+    public static readonly ToolDefinition[] ToolDefinitions =
+    [
+        new ToolDefinition
+        {
+            Id = MemorySearchToolDefinitionId,
+            Name = ToolNames.MemorySearch,
+            Description = "Search the authenticated user's saved memories.",
+            Category = ToolCategories.Memory,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = CreateTaskToolDefinitionId,
+            Name = ToolNames.CreateTask,
+            Description = "Create a task for the authenticated user after approval.",
+            Category = ToolCategories.Planning,
+            RiskLevel = ToolRiskLevel.Medium,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = GetBriefingToolDefinitionId,
+            Name = ToolNames.GetBriefing,
+            Description = "Retrieve the authenticated user's current companion briefing.",
+            Category = ToolCategories.Companion,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        }
+    ];
+
+    public static readonly ToolPermission[] LocalUserToolPermissions =
+    [
+        new ToolPermission
+        {
+            Id = MemorySearchToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = MemorySearchToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = CreateTaskToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = CreateTaskToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = GetBriefingToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = GetBriefingToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 }

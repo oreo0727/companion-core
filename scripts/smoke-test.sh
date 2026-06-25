@@ -114,6 +114,17 @@ http_post_json() {
   curl -fsS -X POST "$url" "${headers[@]}" -d "$body"
 }
 
+http_post() {
+  local url="$1"
+  local headers=()
+
+  if [[ -n "${AUTH_TOKEN}" && "$url" == "${API_URL}"* ]]; then
+    headers+=(-H "Authorization: Bearer ${AUTH_TOKEN}")
+  fi
+
+  curl -fsS -X POST "$url" "${headers[@]}"
+}
+
 http_put_json() {
   local url="$1"
   local body="$2"
@@ -263,6 +274,43 @@ authenticate_api
 start_worker
 start_mock_ai
 
+step "Verifying tool discovery and execution"
+TOOLS="$(http_get "${API_URL}/api/tools")"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'MemorySearch') == 1" "MemorySearch is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CreateTask') == 1" "CreateTask is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'GetBriefing') == 1" "GetBriefing is discoverable"
+
+GET_BRIEFING_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'GetBriefing')")"
+CREATE_TASK_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CreateTask')")"
+MEMORY_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'MemorySearch')")"
+SMOKE_TASK_TITLE="Smoke task ${RUN_ID}"
+
+GET_BRIEFING_EXECUTION="$(http_post_json "${API_URL}/api/tools/${GET_BRIEFING_TOOL_ID}/execute" '{"input":{}}')"
+assert_json "$GET_BRIEFING_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "Low-risk tool executes immediately"
+
+CREATE_TASK_EXECUTION="$(http_post_json "${API_URL}/api/tools/${CREATE_TASK_TOOL_ID}/execute" "$(cat <<JSON
+{"input":{"title":"${SMOKE_TASK_TITLE}","description":"Created by the phase 6 smoke test."}}
+JSON
+)")"
+assert_json "$CREATE_TASK_EXECUTION" "data['executedImmediately'] is False and data['execution']['status'] == 'AwaitingApproval'" "Approval-gated tool waits for approval"
+CREATE_TASK_APPROVAL_ID="$(json_eval "$CREATE_TASK_EXECUTION" "data['approvalRequestId']")"
+CREATE_TASK_EXECUTION_ID="$(json_eval "$CREATE_TASK_EXECUTION" "data['execution']['id']")"
+http_post "${API_URL}/api/approvals/${CREATE_TASK_APPROVAL_ID}/approve" >/dev/null
+
+TOOL_EXECUTIONS="$(http_get "${API_URL}/api/tools/executions")"
+assert_json "$TOOL_EXECUTIONS" "next((x['status'] == 'Completed' for x in data if x['id'] == '${CREATE_TASK_EXECUTION_ID}'), False)" "Approved tool execution completes"
+
+TASKS_AFTER_TOOL="$(http_get "${API_URL}/api/tasks")"
+assert_json "$TASKS_AFTER_TOOL" "sum(1 for x in data if x['title'] == '${SMOKE_TASK_TITLE}') == 1" "Approved tool execution creates the task"
+
+FAILED_MEMORY_EXECUTION="$(http_post_json "${API_URL}/api/tools/${MEMORY_SEARCH_TOOL_ID}/execute" '{"input":{}}')"
+assert_json "$FAILED_MEMORY_EXECUTION" "data['execution']['status'] == 'Failed' and 'query' in (data['execution']['error'] or '').lower()" "Failed tool captures a useful error"
+
+AUDIT_AFTER_TOOLS="$(http_get "${API_URL}/api/audit")"
+assert_json "$AUDIT_AFTER_TOOLS" "sum(1 for x in data if x['eventType'] == 'ToolExecutionCompleted') >= 2" "Successful tool executions are audited"
+assert_json "$AUDIT_AFTER_TOOLS" "sum(1 for x in data if x['eventType'] == 'ToolExecutionRequested') >= 1" "Approval-gated tool requests are audited"
+assert_json "$AUDIT_AFTER_TOOLS" "sum(1 for x in data if x['eventType'] == 'ToolExecutionFailed') >= 1" "Failed tool executions are audited"
+
 step "Fetching baseline counts"
 BASE_SUGGESTIONS="$(http_get "${API_URL}/api/suggestions")"
 BASE_APPROVALS="$(http_get "${API_URL}/api/approvals")"
@@ -323,6 +371,13 @@ assert_json "$CHAT_OK" "data['provider'] == 'Ollama' and data['model'] == 'mock-
 RUNS_AFTER_OK="$(http_get "${API_URL}/api/agent-runs")"
 assert_json "$RUNS_AFTER_OK" "data[0]['provider'] == 'Ollama' and data[0]['totalTokens'] == 34 and data[0]['fallbackUsed'] is False" "AgentRun telemetry is populated for successful provider calls"
 
+step "Scenario C2: provider-driven tool request"
+set_mock_mode tool-request
+set_provider "Ollama" "${MOCK_AI_URL}" true 30 "mock-ollama" >/dev/null
+CHAT_TOOL_REQUEST="$(http_post_json "${API_URL}/api/chat" '{"message":"Please get my briefing through the available tool path."}')"
+assert_json "$CHAT_TOOL_REQUEST" "data['usedFallback'] is False and len(data['toolExecutions']) >= 1" "Chat returns provider-driven tool executions"
+assert_json "$CHAT_TOOL_REQUEST" "sum(1 for x in data['toolExecutions'] if x['toolName'] == 'GetBriefing' and x['status'] == 'Completed') >= 1" "Provider-driven GetBriefing tool request completes"
+
 step "Scenario D: malformed JSON from provider"
 set_mock_mode malformed
 set_provider "Ollama" "${MOCK_AI_URL}" true 30 "mock-ollama" >/dev/null
@@ -348,4 +403,4 @@ POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 5 smoke test passed"
+pass "Phase 6 smoke test passed"
