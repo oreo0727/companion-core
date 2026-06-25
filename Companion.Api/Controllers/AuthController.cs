@@ -121,8 +121,13 @@ public class AuthController(
             .AsNoTracking()
             .FirstAsync(x => x.ApplicationUserId == applicationUser.Id, cancellationToken);
 
-        applicationUser.LastLoginUtc = DateTime.UtcNow;
-        await userManager.UpdateAsync(applicationUser);
+        var lastLoginUtc = DateTime.UtcNow;
+        await dbContext.ApplicationUsers
+            .Where(x => x.Id == applicationUser.Id)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(x => x.LastLoginUtc, lastLoginUtc),
+                cancellationToken);
+        applicationUser.LastLoginUtc = lastLoginUtc;
         await auditService.WriteEventAsync(
             profile.Id,
             AuditEventTypes.Login,

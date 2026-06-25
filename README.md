@@ -1,6 +1,6 @@
 # Companion Core
 
-Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 6 adds an internal tool runtime on top of the identity, planning, and reasoning stack so Companion can perform bounded, auditable actions against its own data.
+Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 7 adds a user-owned knowledge layer on top of the identity, planning, reasoning, and tool runtime so Companion can retrieve relevant document context safely.
 
 ## What This Phase Includes
 
@@ -16,6 +16,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - JWT bearer authentication with `User` and `Administrator` roles
 - `UserPreference`, encrypted `StoredSecret`, and `AuditEvent` persistence
 - Internal tool runtime with `ToolDefinition`, `ToolPermission`, `ToolExecution`, and approval-aware execution
+- Knowledge import, chunking, keyword retrieval, and context injection
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Swagger-enabled API and Docker Compose bootstrap with an optional Ollama profile
 
@@ -136,6 +137,9 @@ The API is authenticated by default.
 - `GET /api/tools`
 - `GET /api/tools/executions`
 - `POST /api/tools/{id}/execute`
+- `POST /api/knowledge/import`
+- `GET /api/knowledge/search`
+- `GET /api/knowledge/sources`
 - `GET /api/companion/briefing`
 - `GET /api/companion/dashboard`
 
@@ -147,6 +151,7 @@ The current chat loop is provider-driven with a deterministic fallback.
 - The enabled provider receives a structured prompt through `IAIProvider`.
 - The reasoning payload may include internal `toolRequests`.
 - Tool requests are executed only after permission and approval checks.
+- Relevant knowledge chunks are retrieved and added to the bounded prompt context.
 - The extraction pass creates candidate memories, goals, projects, and tasks.
 - Candidates are stored as suggestions and require approval before they become first-class entities.
 - High-risk action language still produces `ApprovalRequest` records.
@@ -198,6 +203,7 @@ Briefings and the dashboard synthesize:
 The current built-in tool set is intentionally narrow:
 
 - `MemorySearch`
+- `KnowledgeSearch`
 - `CreateTask`
 - `GetBriefing`
 
@@ -226,6 +232,7 @@ The migrations seed:
 
 - No voice, mobile, email, calendar, or desktop control yet
 - No external action connectors yet; tools are internal-only
+- No external knowledge connectors yet; imports are direct API submissions only
 - Provider calls use plain `HttpClient` and require external model availability plus valid configuration
 - Suggestion approval boundaries remain in place before new durable user data is persisted
 - The seeded local admin is a development bootstrap only
@@ -240,7 +247,9 @@ The migrations seed:
 - [Context Builder](docs/CONTEXT_BUILDER.md)
 - [Data Ownership](docs/DATA_OWNERSHIP.md)
 - [Developer Notes](docs/DEV_NOTES.md)
+- [Knowledge Layer](docs/KNOWLEDGE.md)
 - [Tool Runtime](docs/TOOLS.md)
+- [Retrieval](docs/RETRIEVAL.md)
 - [Chat Pipeline](docs/CHAT_PIPELINE.md)
 - [Memory Model](docs/MEMORY_MODEL.md)
 - [Provider Model](docs/PROVIDER_MODEL.md)

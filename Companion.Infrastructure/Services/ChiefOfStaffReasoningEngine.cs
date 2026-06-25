@@ -165,6 +165,14 @@ public class ChiefOfStaffReasoningEngine(
                     status = x.Status.ToString(),
                     priority = x.Priority.ToString()
                 }),
+                relevantKnowledge = context.RelevantKnowledge.Select(x => new
+                {
+                    source = x.Source.Name,
+                    document = x.Document.Title,
+                    x.Chunk.ChunkIndex,
+                    x.Chunk.Content,
+                    x.RelevanceScore
+                }),
                 openLoops = context.OpenLoops.Select(x => new
                 {
                     x.Title,
@@ -191,6 +199,7 @@ public class ChiefOfStaffReasoningEngine(
                 "Use the context provided and say when context is incomplete.",
                 "Return valid JSON only.",
                 "Keep the reply practical, concise, and specific to the user's current situation.",
+                "Treat the context priority as: conversation, memories, goals, projects, knowledge, tasks, then other signals.",
                 "Use the insights array for strategic observations and recommendations for suggested next actions.",
                 "Only request a tool when it materially helps the user and the tool is listed in availableTools.",
                 "Leave toolRequests empty when no action should be taken."

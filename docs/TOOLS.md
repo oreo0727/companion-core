@@ -26,6 +26,8 @@ The runtime is built around three persisted records:
 
 - `MemorySearch`
   Searches the authenticated user's saved memories.
+- `KnowledgeSearch`
+  Searches the authenticated user's imported knowledge documents.
 - `CreateTask`
   Creates a task for the authenticated user after approval.
 - `GetBriefing`

@@ -10,6 +10,8 @@ public static class AuditEventTypes
     public const string ApprovalRejected = "ApprovalRejected";
     public const string SettingsChanged = "SettingsChanged";
     public const string PreferenceChanged = "PreferenceChanged";
+    public const string KnowledgeDocumentImported = "KnowledgeDocumentImported";
+    public const string KnowledgeSearchPerformed = "KnowledgeSearchPerformed";
     public const string ToolExecutionRequested = "ToolExecutionRequested";
     public const string ToolExecutionCompleted = "ToolExecutionCompleted";
     public const string ToolExecutionFailed = "ToolExecutionFailed";

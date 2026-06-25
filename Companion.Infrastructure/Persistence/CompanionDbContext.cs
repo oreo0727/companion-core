@@ -49,6 +49,14 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<StoredSecret> StoredSecrets => Set<StoredSecret>();
 
+    public DbSet<KnowledgeSource> KnowledgeSources => Set<KnowledgeSource>();
+
+    public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
+
+    public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
+
+    public DbSet<KnowledgeCollection> KnowledgeCollections => Set<KnowledgeCollection>();
+
     public DbSet<ToolDefinition> ToolDefinitions => Set<ToolDefinition>();
 
     public DbSet<ToolExecution> ToolExecutions => Set<ToolExecution>();
@@ -424,6 +432,61 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
             entity.HasIndex(x => new { x.UserProfileId, x.Scope, x.Name }).IsUnique();
             entity.HasOne(x => x.UserProfile)
                 .WithMany(x => x.StoredSecrets)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<KnowledgeSource>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Type).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Name });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.KnowledgeSources)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<KnowledgeDocument>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Content).IsRequired();
+            entity.Property(x => x.MimeType).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.KnowledgeSourceId, x.CreatedUtc });
+            entity.HasOne(x => x.KnowledgeSource)
+                .WithMany(x => x.Documents)
+                .HasForeignKey(x => x.KnowledgeSourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<KnowledgeChunk>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Content).IsRequired();
+            entity.Property(x => x.ChunkIndex).IsRequired();
+            entity.Property(x => x.MetadataJson).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.KnowledgeDocumentId, x.ChunkIndex }).IsUnique();
+            entity.HasOne(x => x.KnowledgeDocument)
+                .WithMany(x => x.Chunks)
+                .HasForeignKey(x => x.KnowledgeDocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<KnowledgeCollection>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Name });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.KnowledgeCollections)
                 .HasForeignKey(x => x.UserProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

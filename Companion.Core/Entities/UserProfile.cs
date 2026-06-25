@@ -42,6 +42,10 @@ public class UserProfile
 
     public ICollection<StoredSecret> StoredSecrets { get; set; } = new List<StoredSecret>();
 
+    public ICollection<KnowledgeSource> KnowledgeSources { get; set; } = new List<KnowledgeSource>();
+
+    public ICollection<KnowledgeCollection> KnowledgeCollections { get; set; } = new List<KnowledgeCollection>();
+
     public ICollection<ToolExecution> ToolExecutions { get; set; } = new List<ToolExecution>();
 
     public ICollection<ToolPermission> ToolPermissions { get; set; } = new List<ToolPermission>();

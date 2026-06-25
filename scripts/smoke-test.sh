@@ -279,11 +279,14 @@ TOOLS="$(http_get "${API_URL}/api/tools")"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'MemorySearch') == 1" "MemorySearch is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CreateTask') == 1" "CreateTask is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'GetBriefing') == 1" "GetBriefing is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'KnowledgeSearch') == 1" "KnowledgeSearch is discoverable"
 
 GET_BRIEFING_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'GetBriefing')")"
 CREATE_TASK_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CreateTask')")"
 MEMORY_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'MemorySearch')")"
+KNOWLEDGE_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'KnowledgeSearch')")"
 SMOKE_TASK_TITLE="Smoke task ${RUN_ID}"
+KNOWLEDGE_TERM="knowledge-${RUN_ID}"
 
 GET_BRIEFING_EXECUTION="$(http_post_json "${API_URL}/api/tools/${GET_BRIEFING_TOOL_ID}/execute" '{"input":{}}')"
 assert_json "$GET_BRIEFING_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "Low-risk tool executes immediately"
@@ -310,6 +313,22 @@ AUDIT_AFTER_TOOLS="$(http_get "${API_URL}/api/audit")"
 assert_json "$AUDIT_AFTER_TOOLS" "sum(1 for x in data if x['eventType'] == 'ToolExecutionCompleted') >= 2" "Successful tool executions are audited"
 assert_json "$AUDIT_AFTER_TOOLS" "sum(1 for x in data if x['eventType'] == 'ToolExecutionRequested') >= 1" "Approval-gated tool requests are audited"
 assert_json "$AUDIT_AFTER_TOOLS" "sum(1 for x in data if x['eventType'] == 'ToolExecutionFailed') >= 1" "Failed tool executions are audited"
+
+step "Importing and retrieving knowledge"
+KNOWLEDGE_IMPORT="$(http_post_json "${API_URL}/api/knowledge/import" "$(cat <<JSON
+{"sourceName":"Smoke Knowledge ${RUN_ID}","sourceType":"Manual","sourceDescription":"Smoke test import","title":"Knowledge ${RUN_ID}","content":"This is the ${KNOWLEDGE_TERM} reference Companion should retrieve during smoke testing.","mimeType":"text/plain"}
+JSON
+)")"
+assert_json "$KNOWLEDGE_IMPORT" "data['chunkCount'] >= 1" "Knowledge import creates chunks"
+
+KNOWLEDGE_SEARCH="$(http_get "${API_URL}/api/knowledge/search?query=${KNOWLEDGE_TERM}")"
+assert_json "$KNOWLEDGE_SEARCH" "sum(1 for x in data if '${KNOWLEDGE_TERM}' in x['content']) >= 1" "Knowledge API search returns the imported content"
+
+KNOWLEDGE_TOOL_EXECUTION="$(http_post_json "${API_URL}/api/tools/${KNOWLEDGE_SEARCH_TOOL_ID}/execute" "$(cat <<JSON
+{"input":{"query":"${KNOWLEDGE_TERM}"}}
+JSON
+)")"
+assert_json "$KNOWLEDGE_TOOL_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "KnowledgeSearch tool executes immediately"
 
 step "Fetching baseline counts"
 BASE_SUGGESTIONS="$(http_get "${API_URL}/api/suggestions")"
@@ -403,4 +422,4 @@ POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 6 smoke test passed"
+pass "Phase 7 smoke test passed"

@@ -47,9 +47,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserPreferenceService, UserPreferenceService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<ISecretStore, DataProtectionSecretStore>();
+        services.AddScoped<IChunkingService, ChunkingService>();
+        services.AddScoped<IKnowledgeImporter, KnowledgeImporter>();
+        services.AddScoped<IKnowledgeSearchService, KnowledgeSearchService>();
         services.AddScoped<ITool, MemorySearchTool>();
         services.AddScoped<ITool, CreateTaskTool>();
         services.AddScoped<ITool, GetBriefingTool>();
+        services.AddScoped<ITool, KnowledgeSearchTool>();
         services.AddScoped<IToolRegistry, ToolRegistry>();
         services.AddScoped<IToolExecutor, ToolExecutor>();
         services.AddScoped<IContextBuilder, ContextBuilder>();

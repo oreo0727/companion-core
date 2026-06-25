@@ -186,6 +186,40 @@ public sealed record ToolDispatchResponse(
     Guid? ApprovalRequestId,
     bool ExecutedImmediately);
 
+public sealed record KnowledgeSourceResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Name,
+    string Type,
+    string? Description,
+    DateTime CreatedUtc,
+    int DocumentCount,
+    int ChunkCount);
+
+public sealed record KnowledgeDocumentResponse(
+    Guid Id,
+    Guid KnowledgeSourceId,
+    string Title,
+    string Content,
+    string MimeType,
+    DateTime CreatedUtc);
+
+public sealed record KnowledgeImportResponse(
+    KnowledgeSourceResponse Source,
+    KnowledgeDocumentResponse Document,
+    int ChunkCount);
+
+public sealed record KnowledgeSearchResultResponse(
+    Guid SourceId,
+    string SourceName,
+    Guid DocumentId,
+    string DocumentTitle,
+    Guid ChunkId,
+    int ChunkIndex,
+    string Content,
+    string MetadataJson,
+    int RelevanceScore);
+
 public sealed record CompanionInsightResponse(
     string Category,
     string Message,
@@ -530,6 +564,60 @@ public static class CompanionApiMappings
             result.Execution.ToResponse(),
             result.ApprovalRequest?.Id,
             result.ExecutedImmediately);
+    }
+
+    public static KnowledgeSourceResponse ToResponse(this KnowledgeSourceSummary source)
+    {
+        return new KnowledgeSourceResponse(
+            source.Id,
+            source.UserProfileId,
+            source.Name,
+            source.Type,
+            source.Description,
+            source.CreatedUtc,
+            source.DocumentCount,
+            source.ChunkCount);
+    }
+
+    public static KnowledgeDocumentResponse ToResponse(this KnowledgeDocument document)
+    {
+        return new KnowledgeDocumentResponse(
+            document.Id,
+            document.KnowledgeSourceId,
+            document.Title,
+            document.Content,
+            document.MimeType,
+            document.CreatedUtc);
+    }
+
+    public static KnowledgeImportResponse ToResponse(this KnowledgeImportResult result)
+    {
+        return new KnowledgeImportResponse(
+            new KnowledgeSourceSummary(
+                result.Source.Id,
+                result.Source.UserProfileId,
+                result.Source.Name,
+                result.Source.Type,
+                result.Source.Description,
+                result.Source.CreatedUtc,
+                result.SourceDocumentCount,
+                result.SourceChunkCount).ToResponse(),
+            result.Document.ToResponse(),
+            result.Chunks.Count);
+    }
+
+    public static KnowledgeSearchResultResponse ToResponse(this KnowledgeSearchResult result)
+    {
+        return new KnowledgeSearchResultResponse(
+            result.Source.Id,
+            result.Source.Name,
+            result.Document.Id,
+            result.Document.Title,
+            result.Chunk.Id,
+            result.Chunk.ChunkIndex,
+            result.Chunk.Content,
+            result.Chunk.MetadataJson,
+            result.RelevanceScore);
     }
 
     public static CompanionInsightResponse ToResponse(this CompanionInsight insight)

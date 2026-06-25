@@ -8,9 +8,10 @@ public sealed record CompanionContext(
     string? ActiveTopic,
     IReadOnlyList<Message> RecentMessages,
     IReadOnlyList<MemoryEntry> RelevantMemories,
-    IReadOnlyList<TaskItem> OpenTasks,
     IReadOnlyList<Goal> ActiveGoals,
     IReadOnlyList<Project> ActiveProjects,
+    IReadOnlyList<KnowledgeSearchResult> RelevantKnowledge,
+    IReadOnlyList<TaskItem> OpenTasks,
     IReadOnlyList<OpenLoop> OpenLoops,
     IReadOnlyList<ApprovalRequest> PendingApprovals,
     IReadOnlyList<CompanionInsight> ChiefOfStaffInsights);

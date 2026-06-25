@@ -17,6 +17,8 @@ The script fails fast and verifies:
 - immediate low-risk tool execution
 - approval-gated tool execution
 - failed tool execution telemetry
+- knowledge import
+- knowledge search
 - `POST /api/chat`
 - persisted user and assistant messages
 - memory, task, goal, and project suggestion creation
@@ -50,6 +52,7 @@ It also exercises:
 6. low-risk `GetBriefing` execution
 7. approval-gated `CreateTask` execution
 8. failed `MemorySearch` execution with stored error state
+9. knowledge import and retrieval through API and tool paths
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

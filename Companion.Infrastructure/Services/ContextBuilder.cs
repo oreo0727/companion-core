@@ -10,6 +10,7 @@ namespace Companion.Infrastructure.Services;
 public class ContextBuilder(
     CompanionDbContext dbContext,
     IChiefOfStaffService chiefOfStaffService,
+    IKnowledgeSearchService knowledgeSearchService,
     TimeProvider timeProvider) : IContextBuilder
 {
     private static readonly HashSet<string> SearchStopWords =
@@ -60,6 +61,7 @@ public class ContextBuilder(
         recentMessages.Reverse();
 
         var relevantMemories = await SelectRelevantMemoriesAsync(userProfileId, recentMessages, conversation.ActiveTopic, now, cancellationToken);
+        var relevantKnowledge = await SelectRelevantKnowledgeAsync(userProfileId, recentMessages, conversation.ActiveTopic, cancellationToken);
         var openTasks = await dbContext.TaskItems
             .AsNoTracking()
             .Where(x =>
@@ -120,9 +122,10 @@ public class ContextBuilder(
             conversation.ActiveTopic,
             recentMessages,
             relevantMemories,
-            openTasks,
             activeGoals,
             activeProjects,
+            relevantKnowledge,
+            openTasks,
             openLoops,
             pendingApprovals,
             chiefOfStaffInsights);
@@ -189,5 +192,32 @@ public class ContextBuilder(
 
         score += terms.Count(term => haystack.Contains(term, StringComparison.Ordinal));
         return score;
+    }
+
+    private async Task<IReadOnlyList<KnowledgeSearchResult>> SelectRelevantKnowledgeAsync(
+        Guid userProfileId,
+        IReadOnlyList<Message> recentMessages,
+        string? activeTopic,
+        CancellationToken cancellationToken)
+    {
+        var query = string.Join(
+            ' ',
+            recentMessages
+                .Where(x => x.Role == MessageRole.User)
+                .Select(x => x.Content)
+                .Append(activeTopic ?? string.Empty))
+            .Trim();
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return [];
+        }
+
+        return await knowledgeSearchService.SearchAsync(
+            userProfileId,
+            query,
+            limit: 4,
+            audit: false,
+            cancellationToken: cancellationToken);
     }
 }
