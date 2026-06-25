@@ -5,7 +5,7 @@ namespace Companion.Core.Abstractions;
 
 public interface IAgentRuntime
 {
-    Task<IReadOnlyList<AgentRun>> GetRunsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AgentRun>> GetRunsAsync(Guid userProfileId, CancellationToken cancellationToken = default);
 
     Task<AgentRun> QueueRunAsync(QueueAgentRunCommand command, CancellationToken cancellationToken = default);
 

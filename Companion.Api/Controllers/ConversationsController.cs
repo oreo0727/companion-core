@@ -1,12 +1,14 @@
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/conversations")]
+[Authorize]
 public class ConversationsController(IConversationService conversationService) : ControllerBase
 {
     [HttpGet]
@@ -14,7 +16,7 @@ public class ConversationsController(IConversationService conversationService) :
     public async Task<ActionResult<IEnumerable<ConversationResponse>>> GetConversations(CancellationToken cancellationToken)
     {
         var conversations = await conversationService.GetConversationsAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             cancellationToken);
 
         return Ok(conversations.Select(x => x.ToResponse()));
@@ -28,7 +30,7 @@ public class ConversationsController(IConversationService conversationService) :
         CancellationToken cancellationToken)
     {
         var conversation = await conversationService.GetConversationAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             cancellationToken);
 

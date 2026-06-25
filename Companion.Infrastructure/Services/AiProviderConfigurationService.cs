@@ -13,6 +13,7 @@ public class AiProviderConfigurationService(
     CompanionDbContext dbContext,
     IConfiguration appConfiguration,
     IDataProtectionProvider dataProtectionProvider,
+    IAuditService auditService,
     TimeProvider timeProvider) : IAiProviderConfigurationService
 {
     private readonly IDataProtector apiKeyProtector = dataProtectionProvider.CreateProtector("companion.ai-provider-api-keys.v1");
@@ -82,6 +83,13 @@ public class AiProviderConfigurationService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await auditService.WriteEventAsync(
+            null,
+            AuditEventTypes.SettingsChanged,
+            nameof(AiProviderConfiguration),
+            providerConfiguration.Id.ToString(),
+            $"Updated AI provider settings for '{providerConfiguration.Provider}'.",
+            cancellationToken);
         return providerConfiguration;
     }
 

@@ -1,17 +1,20 @@
 # Companion Core
 
-Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 4 adds a provider-independent reasoning layer on top of the planning foundation: persistent conversation continuity, structured context assembly, Chief Of Staff reasoning, approval-gated risky actions, and suggestion-based memory and task capture.
+Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 5 adds the identity, security, and trust layer on top of the planning foundation: authenticated users, JWT bearer auth, per-user ownership, encrypted secrets, audit logging, and role-aware administration.
 
 ## What This Phase Includes
 
 - .NET 8 solution using ASP.NET Core Web API, Entity Framework Core, and PostgreSQL
 - Clean split across `Companion.Core`, `Companion.Infrastructure`, `Companion.Api`, and `Companion.Worker`
 - Persistent domain model for profiles, conversations, messages, memories, tasks, goals, projects, open loops, approvals, agent runs, connector accounts, provider configurations, and suggestion records
-- Phase 4 `POST /api/chat` pipeline that persists the user message, builds bounded context, runs the Chief Of Staff reasoning engine, extracts candidate memories/goals/projects/tasks, stores them as suggestions, creates approval requests and open loops when needed, and returns a structured assistant reply
+- `POST /api/chat` pipeline that persists the user message, builds bounded context, runs the Chief Of Staff reasoning engine, extracts candidate memories/goals/projects/tasks, stores them as suggestions, creates approval requests and open loops when needed, and returns a structured assistant reply
 - Provider abstraction with `OpenAI`, `Anthropic`, and `Ollama` implementations behind `IAIProvider`
 - Provider configuration persistence through `AiProviderConfiguration` plus `/api/settings/ai`
 - Suggestion approval flow through `/api/suggestions`
 - Timeout-aware provider execution and fallback telemetry on `AgentRun`
+- ASP.NET Core Identity with `ApplicationUser` plus `UserProfile` linkage
+- JWT bearer authentication with `User` and `Administrator` roles
+- `UserPreference`, encrypted `StoredSecret`, and `AuditEvent` persistence
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Swagger-enabled API and Docker Compose bootstrap with an optional Ollama profile
 
@@ -44,6 +47,7 @@ Once the containers are running:
 
 - Swagger UI: `http://localhost:8080/swagger`
 - PostgreSQL remains internal to Docker Compose; the API and worker connect to it over the compose network
+- Local development admin: `local.user@companion-core.local` / `CompanionDev123!`
 
 ### Local Development
 
@@ -74,11 +78,26 @@ dotnet run --project Companion.Worker
 ./scripts/smoke-test.sh
 ```
 
+### Authentication
+
+The API is authenticated by default.
+
+- Register with `POST /api/auth/register`
+- Or log into the seeded local admin with `POST /api/auth/login`
+- Send the returned bearer token as `Authorization: Bearer <token>`
+
 ## API Surface
 
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 - `POST /api/chat`
 - `GET /api/settings/ai`
 - `PUT /api/settings/ai`
+- `GET /api/preferences`
+- `PUT /api/preferences/{preferenceType}`
+- `GET /api/audit`
 - `GET /api/suggestions`
 - `POST /api/suggestions/{id}/approve`
 - `POST /api/suggestions/{id}/reject`
@@ -170,28 +189,32 @@ Briefings and the dashboard synthesize:
 
 The migrations seed:
 
-- 1 `UserProfile` named `Local User`
+- 1 development `ApplicationUser` / `UserProfile` pair named `Local User`
+- 2 roles: `User` and `Administrator`
 - 1 starter `Conversation`
 - 3 `MemoryEntry` records
 - 3 `TaskItem` records
 - 1 `Goal`
 - 1 `Project`
 - 1 `OpenLoop`
+- 3 `UserPreference` records
 - 3 `AiProviderConfiguration` records
 
 ## Current Constraints
 
-- No authentication yet
 - No voice, mobile, email, calendar, or desktop control yet
 - Provider calls use plain `HttpClient` and require external model availability plus valid configuration
 - Suggestion approval boundaries remain in place before new durable user data is persisted
+- The seeded local admin is a development bootstrap only
 
 ## Additional Docs
 
 - [Architecture Blueprint](docs/BLUEPRINT.md)
 - [AI Architecture](docs/AI_ARCHITECTURE.md)
 - [AI Failure Modes](docs/AI_FAILURE_MODES.md)
+- [Authentication](docs/AUTHENTICATION.md)
 - [Context Builder](docs/CONTEXT_BUILDER.md)
+- [Data Ownership](docs/DATA_OWNERSHIP.md)
 - [Developer Notes](docs/DEV_NOTES.md)
 - [Chat Pipeline](docs/CHAT_PIPELINE.md)
 - [Memory Model](docs/MEMORY_MODEL.md)

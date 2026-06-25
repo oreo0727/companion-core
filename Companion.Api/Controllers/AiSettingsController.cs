@@ -2,12 +2,15 @@ using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
 using Companion.Core.Abstractions;
 using Companion.Core.Models;
+using Companion.Core.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/settings/ai")]
+[Authorize(Roles = SystemRoles.Administrator)]
 public class AiSettingsController(IAiProviderConfigurationService configurationService) : ControllerBase
 {
     [HttpGet]

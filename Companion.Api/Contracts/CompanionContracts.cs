@@ -207,6 +207,49 @@ public sealed record SuggestionActionResponse(
     Guid MaterializedEntityId,
     SuggestionKind Kind);
 
+public sealed record UserPreferenceResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string PreferenceType,
+    string Value,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc);
+
+public sealed record AuditEventResponse(
+    Guid Id,
+    Guid? UserProfileId,
+    string EventType,
+    string EntityType,
+    string EntityId,
+    string Description,
+    DateTime CreatedUtc);
+
+public sealed record AuthUserProfileResponse(
+    Guid UserId,
+    Guid UserProfileId,
+    string Email,
+    string DisplayName,
+    DateTime CreatedUtc,
+    DateTime? LastLoginUtc,
+    IReadOnlyList<string> Roles);
+
+public sealed record UserCapabilitiesResponse(
+    bool CanManageOwnData,
+    bool CanQueueAgentRuns,
+    bool CanReviewApprovals,
+    bool CanManageAiSettings,
+    bool CanViewAuditTrail);
+
+public sealed record CurrentUserResponse(
+    AuthUserProfileResponse Profile,
+    IReadOnlyList<UserPreferenceResponse> Preferences,
+    UserCapabilitiesResponse Capabilities);
+
+public sealed record AuthSessionResponse(
+    string AccessToken,
+    DateTime ExpiresUtc,
+    CurrentUserResponse Me);
+
 public sealed record CompanionBriefingResponse(
     IReadOnlyList<TaskItemResponse> OpenTasks,
     IReadOnlyList<ApprovalRequestResponse> PendingApprovals,
@@ -488,5 +531,28 @@ public static class CompanionApiMappings
             result.MaterializedEntityType,
             result.MaterializedEntityId,
             result.Kind);
+    }
+
+    public static UserPreferenceResponse ToResponse(this UserPreference preference)
+    {
+        return new UserPreferenceResponse(
+            preference.Id,
+            preference.UserProfileId,
+            preference.PreferenceType,
+            preference.Value,
+            preference.CreatedUtc,
+            preference.UpdatedUtc);
+    }
+
+    public static AuditEventResponse ToResponse(this AuditEvent auditEvent)
+    {
+        return new AuditEventResponse(
+            auditEvent.Id,
+            auditEvent.UserProfileId,
+            auditEvent.EventType,
+            auditEvent.EntityType,
+            auditEvent.EntityId,
+            auditEvent.Description,
+            auditEvent.CreatedUtc);
     }
 }

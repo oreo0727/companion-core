@@ -1,22 +1,24 @@
 using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
 using Companion.Core.Enums;
 using Companion.Core.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/projects")]
+[Authorize]
 public class ProjectsController(IProjectService projectService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<ProjectResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProjectResponse>>> GetProjects(CancellationToken cancellationToken)
     {
-        var projects = await projectService.GetProjectsAsync(CompanionDefaults.LocalUserProfileId, cancellationToken);
+        var projects = await projectService.GetProjectsAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(projects.Select(x => x.ToResponse()));
     }
 
@@ -24,7 +26,7 @@ public class ProjectsController(IProjectService projectService) : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<ProjectSuggestionResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProjectSuggestionResponse>>> GetProjectSuggestions(CancellationToken cancellationToken)
     {
-        var suggestions = await projectService.GetProjectSuggestionsAsync(CompanionDefaults.LocalUserProfileId, cancellationToken);
+        var suggestions = await projectService.GetProjectSuggestionsAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(suggestions.Select(x => x.ToResponse()));
     }
 
@@ -35,7 +37,7 @@ public class ProjectsController(IProjectService projectService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var project = await projectService.CreateProjectAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             new CreateProjectCommand(
                 request.Title,
                 request.Description,
@@ -55,7 +57,7 @@ public class ProjectsController(IProjectService projectService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var project = await projectService.UpdateProjectAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             new UpdateProjectCommand(
                 request.Title,
@@ -73,7 +75,7 @@ public class ProjectsController(IProjectService projectService) : ControllerBase
     public async Task<ActionResult<ProjectResponse>> ApproveSuggestion(Guid id, CancellationToken cancellationToken)
     {
         var project = await projectService.ApproveSuggestionAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             cancellationToken);
 
@@ -86,7 +88,7 @@ public class ProjectsController(IProjectService projectService) : ControllerBase
     public async Task<ActionResult<ProjectSuggestionResponse>> RejectSuggestion(Guid id, CancellationToken cancellationToken)
     {
         var suggestion = await projectService.RejectSuggestionAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             cancellationToken);
 

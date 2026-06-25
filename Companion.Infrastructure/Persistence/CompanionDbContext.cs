@@ -1,11 +1,16 @@
 using Companion.Core.Entities;
 using Companion.Core.Enums;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Companion.Infrastructure.Persistence;
 
-public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : DbContext(options)
+public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
+    public DbSet<ApplicationUser> ApplicationUsers => Set<ApplicationUser>();
+
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
 
     public DbSet<Conversation> Conversations => Set<Conversation>();
@@ -38,18 +43,46 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : 
 
     public DbSet<AiProviderConfiguration> AiProviderConfigurations => Set<AiProviderConfiguration>();
 
+    public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
+
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
+    public DbSet<StoredSecret> StoredSecrets => Set<StoredSecret>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.ToTable("ApplicationUsers");
+            entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.LastLoginUtc);
+            entity.HasOne(x => x.UserProfile)
+                .WithOne(x => x.ApplicationUser)
+                .HasForeignKey<UserProfile>(x => x.ApplicationUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasData(CompanionSeedData.LocalApplicationUser);
+        });
+
+        modelBuilder.Entity<IdentityRole<Guid>>().ToTable("Roles").HasData(CompanionSeedData.Roles);
+        modelBuilder.Entity<IdentityUserRole<Guid>>().ToTable("UserRoles").HasData(CompanionSeedData.LocalUserRoles);
+        modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable("UserClaims");
+        modelBuilder.Entity<IdentityUserLogin<Guid>>().ToTable("UserLogins");
+        modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("UserTokens");
+        modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable("RoleClaims");
+
         modelBuilder.Entity<UserProfile>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.ApplicationUserId).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
             entity.Property(x => x.CreatedUtc).IsRequired();
             entity.Property(x => x.UpdatedUtc).IsRequired();
             entity.HasIndex(x => x.Email).IsUnique();
+            entity.HasIndex(x => x.ApplicationUserId).IsUnique();
             entity.HasData(CompanionSeedData.LocalUser);
         });
 
@@ -342,6 +375,51 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options) : 
                 .IsRequired();
             entity.Property(x => x.CreatedUtc).IsRequired();
             entity.HasIndex(x => new { x.Provider, x.Status });
+        });
+
+        modelBuilder.Entity<UserPreference>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PreferenceType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Value).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.PreferenceType }).IsUnique();
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.Preferences)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasData(CompanionSeedData.UserPreferences);
+        });
+
+        modelBuilder.Entity<AuditEvent>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.EntityType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.EntityId).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.AuditEvents)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<StoredSecret>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Scope).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.EncryptedValue).HasMaxLength(8000).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Scope, x.Name }).IsUnique();
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.StoredSecrets)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<AiProviderConfiguration>(entity =>

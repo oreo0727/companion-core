@@ -1,22 +1,24 @@
 using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
 using Companion.Core.Enums;
 using Companion.Core.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/open-loops")]
+[Authorize]
 public class OpenLoopsController(IOpenLoopService openLoopService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<OpenLoopResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<OpenLoopResponse>>> GetOpenLoops(CancellationToken cancellationToken)
     {
-        var openLoops = await openLoopService.GetOpenLoopsAsync(CompanionDefaults.LocalUserProfileId, cancellationToken);
+        var openLoops = await openLoopService.GetOpenLoopsAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(openLoops.Select(x => x.ToResponse()));
     }
 
@@ -27,7 +29,7 @@ public class OpenLoopsController(IOpenLoopService openLoopService) : ControllerB
         CancellationToken cancellationToken)
     {
         var openLoop = await openLoopService.CreateOpenLoopAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             new CreateOpenLoopCommand(
                 request.Title,
                 request.Description,
@@ -43,7 +45,7 @@ public class OpenLoopsController(IOpenLoopService openLoopService) : ControllerB
     public async Task<ActionResult<OpenLoopResponse>> CloseOpenLoop(Guid id, CancellationToken cancellationToken)
     {
         var openLoop = await openLoopService.CloseOpenLoopAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             cancellationToken);
 

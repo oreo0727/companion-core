@@ -1,13 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/chat")]
+[Authorize]
 public class ChatController(IAgentRuntime agentRuntime) : ControllerBase
 {
     [HttpPost]
@@ -20,7 +22,7 @@ public class ChatController(IAgentRuntime agentRuntime) : ControllerBase
         try
         {
             var result = await agentRuntime.ProcessChatAsync(
-                CompanionDefaults.LocalUserProfileId,
+                User.GetRequiredUserProfileId(),
                 request.Message,
                 request.ConversationId,
                 cancellationToken);

@@ -15,5 +15,8 @@ public interface IMemoryService
 
     Task<MemoryEntry> CreateMemoryAsync(Guid userProfileId, CreateMemoryCommand command, CancellationToken cancellationToken = default);
 
-    Task<MemoryEntry?> ArchiveMemoryAsync(Guid memoryEntryId, CancellationToken cancellationToken = default);
+    Task<MemoryEntry?> ArchiveMemoryAsync(
+        Guid userProfileId,
+        Guid memoryEntryId,
+        CancellationToken cancellationToken = default);
 }

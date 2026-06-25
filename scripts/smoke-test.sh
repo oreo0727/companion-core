@@ -12,10 +12,13 @@ API_LOG="/tmp/companion-api-${RUN_ID}.log"
 WORKER_LOG="/tmp/companion-worker-${RUN_ID}.log"
 MOCK_AI_LOG="/tmp/companion-mock-ai-${RUN_ID}.log"
 CHAT_MESSAGE="Remember that my preference for ${RUN_ID} is concise updates. My goal is ship the ${RUN_ID} project this quarter. I need to follow up with the ${RUN_ID} team tomorrow and send the ${RUN_ID} launch deck."
+LOCAL_ADMIN_EMAIL="${LOCAL_ADMIN_EMAIL:-local.user@companion-core.local}"
+LOCAL_ADMIN_PASSWORD="${LOCAL_ADMIN_PASSWORD:-CompanionDev123!}"
 
 API_PID=""
 WORKER_PID=""
 MOCK_AI_PID=""
+AUTH_TOKEN=""
 
 step() {
   echo
@@ -89,19 +92,38 @@ assert_json() {
 }
 
 http_get() {
-  curl -fsS "$1"
+  local url="$1"
+  local headers=()
+
+  if [[ -n "${AUTH_TOKEN}" && "$url" == "${API_URL}"* ]]; then
+    headers+=(-H "Authorization: Bearer ${AUTH_TOKEN}")
+  fi
+
+  curl -fsS "${headers[@]}" "$url"
 }
 
 http_post_json() {
   local url="$1"
   local body="$2"
-  curl -fsS -X POST "$url" -H 'Content-Type: application/json' -d "$body"
+  local headers=(-H 'Content-Type: application/json')
+
+  if [[ -n "${AUTH_TOKEN}" && "$url" == "${API_URL}"* ]]; then
+    headers+=(-H "Authorization: Bearer ${AUTH_TOKEN}")
+  fi
+
+  curl -fsS -X POST "$url" "${headers[@]}" -d "$body"
 }
 
 http_put_json() {
   local url="$1"
   local body="$2"
-  curl -fsS -X PUT "$url" -H 'Content-Type: application/json' -d "$body"
+  local headers=(-H 'Content-Type: application/json')
+
+  if [[ -n "${AUTH_TOKEN}" && "$url" == "${API_URL}"* ]]; then
+    headers+=(-H "Authorization: Bearer ${AUTH_TOKEN}")
+  fi
+
+  curl -fsS -X PUT "$url" "${headers[@]}" -d "$body"
 }
 
 wait_for_url() {
@@ -148,6 +170,23 @@ start_api() {
   API_PID=$!
   wait_for_url "${API_URL}/healthz" "API health endpoint is reachable"
   wait_for_url "${API_URL}/swagger/v1/swagger.json" "Swagger document is reachable"
+}
+
+authenticate_api() {
+  step "Authenticating seeded local administrator"
+  local login_response
+  local previous_auth_token="${AUTH_TOKEN}"
+  AUTH_TOKEN=""
+  login_response="$(http_post_json "${API_URL}/api/auth/login" "$(cat <<JSON
+{"email":"${LOCAL_ADMIN_EMAIL}","password":"${LOCAL_ADMIN_PASSWORD}"}
+JSON
+)")"
+  AUTH_TOKEN="${previous_auth_token}"
+  AUTH_TOKEN="$(json_eval "$login_response" "data['accessToken']")"
+  [[ -n "${AUTH_TOKEN}" && "${AUTH_TOKEN}" != "null" ]] || fail "Expected a JWT access token from /api/auth/login"
+  local me
+  me="$(http_get "${API_URL}/api/auth/me")"
+  assert_json "$me" "data['capabilities']['canManageAiSettings'] is True" "Seeded local administrator can manage AI settings"
 }
 
 start_worker() {
@@ -220,6 +259,7 @@ dotnet test "${ROOT}/Companion.Tests/Companion.Tests.csproj" >/dev/null
 pass "Parser tests passed"
 
 start_api
+authenticate_api
 start_worker
 start_mock_ai
 
@@ -308,4 +348,4 @@ POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 4B smoke test passed"
+pass "Phase 5 smoke test passed"

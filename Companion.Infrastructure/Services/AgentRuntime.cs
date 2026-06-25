@@ -31,10 +31,13 @@ public class AgentRuntime(
         ("schedule", "ScheduleAction", "Medium")
     ];
 
-    public async Task<IReadOnlyList<AgentRun>> GetRunsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AgentRun>> GetRunsAsync(
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
     {
         return await dbContext.AgentRuns
             .AsNoTracking()
+            .Where(x => x.UserProfileId == userProfileId)
             .OrderByDescending(x => x.CreatedUtc)
             .ToListAsync(cancellationToken);
     }

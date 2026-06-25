@@ -1,4 +1,5 @@
 using Companion.Core.Abstractions;
+using Companion.Core.Constants;
 using Companion.Core.Entities;
 using Companion.Core.Enums;
 using Companion.Core.Models;
@@ -7,12 +8,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Companion.Infrastructure.Services;
 
-public class ApprovalService(CompanionDbContext dbContext, TimeProvider timeProvider) : IApprovalService
+public class ApprovalService(
+    CompanionDbContext dbContext,
+    IAuditService auditService,
+    TimeProvider timeProvider) : IApprovalService
 {
-    public async Task<IReadOnlyList<ApprovalRequest>> GetApprovalsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ApprovalRequest>> GetApprovalsAsync(
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
     {
         return await dbContext.ApprovalRequests
             .AsNoTracking()
+            .Where(x => x.UserProfileId == userProfileId)
             .OrderByDescending(x => x.CreatedUtc)
             .ToListAsync(cancellationToken);
     }
@@ -54,23 +61,43 @@ public class ApprovalService(CompanionDbContext dbContext, TimeProvider timeProv
         return approvalRequest;
     }
 
-    public Task<ApprovalRequest?> ApproveAsync(Guid approvalRequestId, CancellationToken cancellationToken = default)
+    public Task<ApprovalRequest?> ApproveAsync(
+        Guid userProfileId,
+        Guid approvalRequestId,
+        CancellationToken cancellationToken = default)
     {
-        return SetStatusAsync(approvalRequestId, ApprovalRequestStatus.Approved, cancellationToken);
+        return SetStatusAsync(
+            userProfileId,
+            approvalRequestId,
+            ApprovalRequestStatus.Approved,
+            AuditEventTypes.ApprovalApproved,
+            cancellationToken);
     }
 
-    public Task<ApprovalRequest?> RejectAsync(Guid approvalRequestId, CancellationToken cancellationToken = default)
+    public Task<ApprovalRequest?> RejectAsync(
+        Guid userProfileId,
+        Guid approvalRequestId,
+        CancellationToken cancellationToken = default)
     {
-        return SetStatusAsync(approvalRequestId, ApprovalRequestStatus.Rejected, cancellationToken);
+        return SetStatusAsync(
+            userProfileId,
+            approvalRequestId,
+            ApprovalRequestStatus.Rejected,
+            AuditEventTypes.ApprovalRejected,
+            cancellationToken);
     }
 
     private async Task<ApprovalRequest?> SetStatusAsync(
+        Guid userProfileId,
         Guid approvalRequestId,
         ApprovalRequestStatus status,
+        string auditEventType,
         CancellationToken cancellationToken)
     {
         var approvalRequest = await dbContext.ApprovalRequests
-            .FirstOrDefaultAsync(x => x.Id == approvalRequestId, cancellationToken);
+            .FirstOrDefaultAsync(
+                x => x.Id == approvalRequestId && x.UserProfileId == userProfileId,
+                cancellationToken);
 
         if (approvalRequest is null)
         {
@@ -81,6 +108,13 @@ public class ApprovalService(CompanionDbContext dbContext, TimeProvider timeProv
         approvalRequest.ReviewedUtc = timeProvider.GetUtcNow().UtcDateTime;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await auditService.WriteEventAsync(
+            userProfileId,
+            auditEventType,
+            nameof(ApprovalRequest),
+            approvalRequest.Id.ToString(),
+            $"{status} approval '{approvalRequest.Type}'.",
+            cancellationToken);
         return approvalRequest;
     }
 }

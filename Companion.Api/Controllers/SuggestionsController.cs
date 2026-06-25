@@ -1,19 +1,21 @@
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/suggestions")]
+[Authorize]
 public class SuggestionsController(ISuggestionService suggestionService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<SuggestionRecordResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<SuggestionRecordResponse>>> GetSuggestions(CancellationToken cancellationToken)
     {
-        var suggestions = await suggestionService.GetSuggestionsAsync(CompanionDefaults.LocalUserProfileId, cancellationToken);
+        var suggestions = await suggestionService.GetSuggestionsAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(suggestions.Select(x => x.ToResponse()));
     }
 
@@ -23,7 +25,7 @@ public class SuggestionsController(ISuggestionService suggestionService) : Contr
     public async Task<ActionResult<SuggestionActionResponse>> ApproveSuggestion(Guid id, CancellationToken cancellationToken)
     {
         var result = await suggestionService.ApproveSuggestionAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             cancellationToken);
 
@@ -36,7 +38,7 @@ public class SuggestionsController(ISuggestionService suggestionService) : Contr
     public async Task<ActionResult<SuggestionRecordResponse>> RejectSuggestion(Guid id, CancellationToken cancellationToken)
     {
         var result = await suggestionService.RejectSuggestionAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             cancellationToken);
 

@@ -1,22 +1,24 @@
 using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
 using Companion.Core.Enums;
 using Companion.Core.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/tasks")]
+[Authorize]
 public class TasksController(ITaskService taskService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<TaskItemResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<TaskItemResponse>>> GetTasks(CancellationToken cancellationToken)
     {
-        var tasks = await taskService.GetTasksAsync(CompanionDefaults.LocalUserProfileId, cancellationToken);
+        var tasks = await taskService.GetTasksAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(tasks.Select(x => x.ToResponse()));
     }
 
@@ -24,7 +26,7 @@ public class TasksController(ITaskService taskService) : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<TaskItemResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<TaskItemResponse>>> GetOpenTasks(CancellationToken cancellationToken)
     {
-        var tasks = await taskService.GetOpenTasksAsync(CompanionDefaults.LocalUserProfileId, cancellationToken);
+        var tasks = await taskService.GetOpenTasksAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(tasks.Select(x => x.ToResponse()));
     }
 
@@ -35,7 +37,7 @@ public class TasksController(ITaskService taskService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var taskItem = await taskService.CreateTaskAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             new CreateTaskItemCommand(
                 request.Title,
                 request.Description,
@@ -57,7 +59,7 @@ public class TasksController(ITaskService taskService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var taskItem = await taskService.UpdateTaskAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             new UpdateTaskItemCommand(
                 request.Title,

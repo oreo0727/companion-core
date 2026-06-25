@@ -4,6 +4,8 @@ public class UserProfile
 {
     public Guid Id { get; set; }
 
+    public Guid ApplicationUserId { get; set; }
+
     public string DisplayName { get; set; } = string.Empty;
 
     public string Email { get; set; } = string.Empty;
@@ -11,6 +13,8 @@ public class UserProfile
     public DateTime CreatedUtc { get; set; }
 
     public DateTime UpdatedUtc { get; set; }
+
+    public ApplicationUser? ApplicationUser { get; set; }
 
     public ICollection<Conversation> Conversations { get; set; } = new List<Conversation>();
 
@@ -31,4 +35,10 @@ public class UserProfile
     public ICollection<GoalSuggestion> GoalSuggestions { get; set; } = new List<GoalSuggestion>();
 
     public ICollection<ProjectSuggestion> ProjectSuggestions { get; set; } = new List<ProjectSuggestion>();
+
+    public ICollection<UserPreference> Preferences { get; set; } = new List<UserPreference>();
+
+    public ICollection<AuditEvent> AuditEvents { get; set; } = new List<AuditEvent>();
+
+    public ICollection<StoredSecret> StoredSecrets { get; set; } = new List<StoredSecret>();
 }

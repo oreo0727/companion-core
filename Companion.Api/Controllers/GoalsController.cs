@@ -1,22 +1,24 @@
 using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
 using Companion.Core.Enums;
 using Companion.Core.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/goals")]
+[Authorize]
 public class GoalsController(IGoalService goalService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<GoalResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<GoalResponse>>> GetGoals(CancellationToken cancellationToken)
     {
-        var goals = await goalService.GetGoalsAsync(CompanionDefaults.LocalUserProfileId, cancellationToken);
+        var goals = await goalService.GetGoalsAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(goals.Select(x => x.ToResponse()));
     }
 
@@ -24,7 +26,7 @@ public class GoalsController(IGoalService goalService) : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<GoalSuggestionResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<GoalSuggestionResponse>>> GetGoalSuggestions(CancellationToken cancellationToken)
     {
-        var suggestions = await goalService.GetGoalSuggestionsAsync(CompanionDefaults.LocalUserProfileId, cancellationToken);
+        var suggestions = await goalService.GetGoalSuggestionsAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(suggestions.Select(x => x.ToResponse()));
     }
 
@@ -35,7 +37,7 @@ public class GoalsController(IGoalService goalService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var goal = await goalService.CreateGoalAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             new CreateGoalCommand(
                 request.Title,
                 request.Description,
@@ -56,7 +58,7 @@ public class GoalsController(IGoalService goalService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var goal = await goalService.UpdateGoalAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             new UpdateGoalCommand(
                 request.Title,
@@ -75,7 +77,7 @@ public class GoalsController(IGoalService goalService) : ControllerBase
     public async Task<ActionResult<GoalResponse>> ApproveSuggestion(Guid id, CancellationToken cancellationToken)
     {
         var goal = await goalService.ApproveSuggestionAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             cancellationToken);
 
@@ -88,7 +90,7 @@ public class GoalsController(IGoalService goalService) : ControllerBase
     public async Task<ActionResult<GoalSuggestionResponse>> RejectSuggestion(Guid id, CancellationToken cancellationToken)
     {
         var suggestion = await goalService.RejectSuggestionAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             id,
             cancellationToken);
 

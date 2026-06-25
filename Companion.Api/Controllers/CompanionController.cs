@@ -1,12 +1,14 @@
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/companion")]
+[Authorize]
 public class CompanionController(
     IChiefOfStaffService chiefOfStaffService) : ControllerBase
 {
@@ -15,7 +17,7 @@ public class CompanionController(
     public async Task<ActionResult<CompanionBriefingResponse>> GetBriefing(CancellationToken cancellationToken)
     {
         var briefing = await chiefOfStaffService.GetBriefingAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             cancellationToken);
 
         return Ok(briefing.ToResponse());
@@ -26,7 +28,7 @@ public class CompanionController(
     public async Task<ActionResult<CompanionDashboardResponse>> GetDashboard(CancellationToken cancellationToken)
     {
         var dashboard = await chiefOfStaffService.GetDashboardAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             cancellationToken);
 
         return Ok(dashboard.ToResponse());

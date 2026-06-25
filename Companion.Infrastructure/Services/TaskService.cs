@@ -1,4 +1,5 @@
 using Companion.Core.Abstractions;
+using Companion.Core.Constants;
 using Companion.Core.Entities;
 using Companion.Core.Enums;
 using Companion.Core.Models;
@@ -7,7 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Companion.Infrastructure.Services;
 
-public class TaskService(CompanionDbContext dbContext, TimeProvider timeProvider) : ITaskService
+public class TaskService(
+    CompanionDbContext dbContext,
+    IAuditService auditService,
+    TimeProvider timeProvider) : ITaskService
 {
     public async Task<IReadOnlyList<TaskItem>> GetTasksAsync(
         Guid userProfileId,
@@ -62,6 +66,13 @@ public class TaskService(CompanionDbContext dbContext, TimeProvider timeProvider
 
         dbContext.TaskItems.Add(taskItem);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await auditService.WriteEventAsync(
+            userProfileId,
+            AuditEventTypes.TaskCreated,
+            nameof(TaskItem),
+            taskItem.Id.ToString(),
+            $"Created task '{taskItem.Title}'.",
+            cancellationToken);
 
         return taskItem;
     }

@@ -5,7 +5,9 @@ namespace Companion.Core.Abstractions;
 
 public interface IApprovalService
 {
-    Task<IReadOnlyList<ApprovalRequest>> GetApprovalsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ApprovalRequest>> GetApprovalsAsync(
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ApprovalRequest>> GetPendingApprovalsAsync(
         Guid? userProfileId = null,
@@ -13,7 +15,13 @@ public interface IApprovalService
 
     Task<ApprovalRequest> CreateApprovalAsync(CreateApprovalRequestCommand command, CancellationToken cancellationToken = default);
 
-    Task<ApprovalRequest?> ApproveAsync(Guid approvalRequestId, CancellationToken cancellationToken = default);
+    Task<ApprovalRequest?> ApproveAsync(
+        Guid userProfileId,
+        Guid approvalRequestId,
+        CancellationToken cancellationToken = default);
 
-    Task<ApprovalRequest?> RejectAsync(Guid approvalRequestId, CancellationToken cancellationToken = default);
+    Task<ApprovalRequest?> RejectAsync(
+        Guid userProfileId,
+        Guid approvalRequestId,
+        CancellationToken cancellationToken = default);
 }

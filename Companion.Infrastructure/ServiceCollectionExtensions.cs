@@ -1,7 +1,9 @@
 using Companion.Core.Abstractions;
+using Companion.Core.Entities;
 using Companion.Core.Constants;
 using Companion.Infrastructure.Persistence;
 using Companion.Infrastructure.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,11 +25,27 @@ public static class ServiceCollectionExtensions
                 connectionString,
                 npgsql => npgsql.MigrationsAssembly(typeof(CompanionDbContext).Assembly.FullName)));
 
+        services.AddIdentityCore<ApplicationUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = false;
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<CompanionDbContext>();
+
         services.AddHttpClient<OpenAIProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddHttpClient<AnthropicProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddHttpClient<OllamaProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
 
         services.AddScoped<IAiProviderConfigurationService, AiProviderConfigurationService>();
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IUserPreferenceService, UserPreferenceService>();
+        services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<ISecretStore, DataProtectionSecretStore>();
         services.AddScoped<IContextBuilder, ContextBuilder>();
         services.AddScoped<IReasoningEngine, ChiefOfStaffReasoningEngine>();
         services.AddScoped<IMemoryExtractionService, MemoryExtractionService>();

@@ -12,6 +12,7 @@ The script fails fast and verifies:
 
 - API health
 - Swagger availability
+- seeded local administrator authentication
 - `POST /api/chat`
 - persisted user and assistant messages
 - memory, task, goal, and project suggestion creation
@@ -41,6 +42,13 @@ The smoke test exercises:
 5. provider timeout
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
+
+## Seeded Admin
+
+The smoke script logs in through the seeded local administrator account:
+
+- email: `local.user@companion-core.local`
+- password: `CompanionDev123!`
 
 ## Logs
 

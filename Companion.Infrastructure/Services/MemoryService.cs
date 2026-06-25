@@ -1,4 +1,5 @@
 using Companion.Core.Abstractions;
+using Companion.Core.Constants;
 using Companion.Core.Entities;
 using Companion.Core.Models;
 using Companion.Infrastructure.Persistence;
@@ -6,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Companion.Infrastructure.Services;
 
-public class MemoryService(CompanionDbContext dbContext, TimeProvider timeProvider) : IMemoryService
+public class MemoryService(
+    CompanionDbContext dbContext,
+    IAuditService auditService,
+    TimeProvider timeProvider) : IMemoryService
 {
     private static readonly HashSet<string> SearchStopWords =
     [
@@ -123,16 +127,26 @@ public class MemoryService(CompanionDbContext dbContext, TimeProvider timeProvid
 
         dbContext.MemoryEntries.Add(memoryEntry);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await auditService.WriteEventAsync(
+            userProfileId,
+            AuditEventTypes.MemoryCreated,
+            nameof(MemoryEntry),
+            memoryEntry.Id.ToString(),
+            $"Created memory '{memoryEntry.Summary}'.",
+            cancellationToken);
 
         return memoryEntry;
     }
 
     public async Task<MemoryEntry?> ArchiveMemoryAsync(
+        Guid userProfileId,
         Guid memoryEntryId,
         CancellationToken cancellationToken = default)
     {
         var memoryEntry = await dbContext.MemoryEntries
-            .FirstOrDefaultAsync(x => x.Id == memoryEntryId, cancellationToken);
+            .FirstOrDefaultAsync(
+                x => x.Id == memoryEntryId && x.UserProfileId == userProfileId,
+                cancellationToken);
 
         if (memoryEntry is null)
         {

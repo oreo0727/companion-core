@@ -1,6 +1,7 @@
 using Companion.Core.Constants;
 using Companion.Core.Entities;
 using Companion.Core.Enums;
+using Microsoft.AspNetCore.Identity;
 
 namespace Companion.Infrastructure.Persistence;
 
@@ -19,6 +20,11 @@ public static class CompanionSeedData
     public static readonly Guid OpenAiProviderConfigurationId = Guid.Parse("3b678d7f-7d22-4ef2-a653-8a45b0b88011");
     public static readonly Guid AnthropicProviderConfigurationId = Guid.Parse("2d9e33d7-4386-4d20-8d2d-68ccdb554a7d");
     public static readonly Guid OllamaProviderConfigurationId = Guid.Parse("a65cdf3d-b2ee-44d8-9c81-729f60a7a31c");
+    public static readonly Guid ResponseStylePreferenceId = Guid.Parse("34f29331-b2bb-4bb3-a1f7-82d73af1ecc8");
+    public static readonly Guid NotificationPreferenceId = Guid.Parse("535730f9-d610-4060-9282-f8af4de2c220");
+    public static readonly Guid PersonalityPreferenceId = Guid.Parse("de65c017-8a0d-427e-a8b6-9fa383d63e1f");
+    public static readonly Guid AdministratorRoleId = Guid.Parse("1fc75f52-55c1-4222-aeeb-77291e0c6c80");
+    public static readonly Guid UserRoleId = Guid.Parse("0a56a52f-cf4b-4a39-9432-1aa4c03be59f");
 
     public static readonly DateTime UserCreatedUtc = new(2026, 6, 19, 12, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime ConversationCreatedUtc = new(2026, 6, 19, 12, 5, 0, 0, DateTimeKind.Utc);
@@ -32,11 +38,60 @@ public static class CompanionSeedData
     public static readonly UserProfile LocalUser = new()
     {
         Id = CompanionDefaults.LocalUserProfileId,
+        ApplicationUserId = CompanionDefaults.LocalUserProfileId,
         DisplayName = "Local User",
         Email = "local.user@companion-core.local",
         CreatedUtc = UserCreatedUtc,
         UpdatedUtc = UserCreatedUtc
     };
+
+    public static readonly ApplicationUser LocalApplicationUser = new()
+    {
+        Id = CompanionDefaults.LocalUserProfileId,
+        UserName = "local.user@companion-core.local",
+        NormalizedUserName = "LOCAL.USER@COMPANION-CORE.LOCAL",
+        Email = "local.user@companion-core.local",
+        NormalizedEmail = "LOCAL.USER@COMPANION-CORE.LOCAL",
+        EmailConfirmed = true,
+        DisplayName = "Local User",
+        CreatedUtc = UserCreatedUtc,
+        LastLoginUtc = null,
+        SecurityStamp = "4e20587c-39c3-4e5f-8333-ec0d79678d0c",
+        ConcurrencyStamp = "9a4dd6cc-5338-43fa-84de-366623f67835",
+        PasswordHash = "AQAAAAIAAYagAAAAECezyM026CWB+FQT/V8PIpB583Fm8u9AKMVl9aYw2Mx9qhpUUS9xa9+0xRS1aveITA=="
+    };
+
+    public static readonly IdentityRole<Guid>[] Roles =
+    [
+        new IdentityRole<Guid>
+        {
+            Id = AdministratorRoleId,
+            Name = SystemRoles.Administrator,
+            NormalizedName = SystemRoles.Administrator.ToUpperInvariant(),
+            ConcurrencyStamp = "b8ec6f5a-8694-4763-a342-e1eb31b8b5cb"
+        },
+        new IdentityRole<Guid>
+        {
+            Id = UserRoleId,
+            Name = SystemRoles.User,
+            NormalizedName = SystemRoles.User.ToUpperInvariant(),
+            ConcurrencyStamp = "bfd21d45-ec66-47eb-9603-f6459c4d6348"
+        }
+    ];
+
+    public static readonly IdentityUserRole<Guid>[] LocalUserRoles =
+    [
+        new()
+        {
+            UserId = CompanionDefaults.LocalUserProfileId,
+            RoleId = AdministratorRoleId
+        },
+        new()
+        {
+            UserId = CompanionDefaults.LocalUserProfileId,
+            RoleId = UserRoleId
+        }
+    ];
 
     public static readonly Conversation InitialConversation = new()
     {
@@ -232,6 +287,37 @@ public static class CompanionSeedData
             TimeoutSeconds = 30,
             CreatedUtc = AiProviderCreatedUtc,
             UpdatedUtc = AiProviderCreatedUtc
+        }
+    ];
+
+    public static readonly UserPreference[] UserPreferences =
+    [
+        new UserPreference
+        {
+            Id = ResponseStylePreferenceId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            PreferenceType = "ResponseStyle",
+            Value = "Concise",
+            CreatedUtc = UserCreatedUtc,
+            UpdatedUtc = UserCreatedUtc
+        },
+        new UserPreference
+        {
+            Id = NotificationPreferenceId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            PreferenceType = "Notifications",
+            Value = "ImportantOnly",
+            CreatedUtc = UserCreatedUtc,
+            UpdatedUtc = UserCreatedUtc
+        },
+        new UserPreference
+        {
+            Id = PersonalityPreferenceId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            PreferenceType = "AiPersonality",
+            Value = "SupportivePragmatic",
+            CreatedUtc = UserCreatedUtc,
+            UpdatedUtc = UserCreatedUtc
         }
     ];
 }

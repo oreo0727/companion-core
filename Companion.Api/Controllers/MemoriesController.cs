@@ -1,21 +1,23 @@
 using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
 using Companion.Core.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/memories")]
+[Authorize]
 public class MemoriesController(IMemoryService memoryService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<MemoryEntryResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<MemoryEntryResponse>>> GetMemories(CancellationToken cancellationToken)
     {
-        var memories = await memoryService.GetMemoriesAsync(CompanionDefaults.LocalUserProfileId, cancellationToken);
+        var memories = await memoryService.GetMemoriesAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(memories.Select(x => x.ToResponse()));
     }
 
@@ -26,7 +28,7 @@ public class MemoriesController(IMemoryService memoryService) : ControllerBase
         CancellationToken cancellationToken)
     {
         var memory = await memoryService.CreateMemoryAsync(
-            CompanionDefaults.LocalUserProfileId,
+            User.GetRequiredUserProfileId(),
             new CreateMemoryCommand(
                 request.Type,
                 request.Summary,
@@ -48,7 +50,7 @@ public class MemoriesController(IMemoryService memoryService) : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        var memory = await memoryService.ArchiveMemoryAsync(id, cancellationToken);
+        var memory = await memoryService.ArchiveMemoryAsync(User.GetRequiredUserProfileId(), id, cancellationToken);
         return memory is null ? NotFound() : Ok(memory.ToResponse());
     }
 }

@@ -1,21 +1,23 @@
 using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
 using Companion.Core.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/agent-runs")]
+[Authorize]
 public class AgentRunsController(IAgentRuntime agentRuntime) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<AgentRunResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<AgentRunResponse>>> GetAgentRuns(CancellationToken cancellationToken)
     {
-        var agentRuns = await agentRuntime.GetRunsAsync(cancellationToken);
+        var agentRuns = await agentRuntime.GetRunsAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(agentRuns.Select(x => x.ToResponse()));
     }
 
@@ -29,7 +31,7 @@ public class AgentRunsController(IAgentRuntime agentRuntime) : ControllerBase
             new QueueAgentRunCommand(
                 request.AgentName,
                 request.Input,
-                request.UserProfileId ?? CompanionDefaults.LocalUserProfileId,
+                User.GetRequiredUserProfileId(),
                 request.ConversationId,
                 request.MetadataJson),
             cancellationToken);

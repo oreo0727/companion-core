@@ -1,21 +1,23 @@
 using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
+using Companion.Api.Security;
 using Companion.Core.Abstractions;
-using Companion.Core.Constants;
 using Companion.Core.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/approvals")]
+[Authorize]
 public class ApprovalsController(IApprovalService approvalService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<ApprovalRequestResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ApprovalRequestResponse>>> GetApprovals(CancellationToken cancellationToken)
     {
-        var approvals = await approvalService.GetApprovalsAsync(cancellationToken);
+        var approvals = await approvalService.GetApprovalsAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(approvals.Select(x => x.ToResponse()));
     }
 
@@ -27,7 +29,7 @@ public class ApprovalsController(IApprovalService approvalService) : ControllerB
     {
         var approval = await approvalService.CreateApprovalAsync(
             new CreateApprovalRequestCommand(
-                CompanionDefaults.LocalUserProfileId,
+                User.GetRequiredUserProfileId(),
                 request.ConversationId,
                 request.SourceMessageId,
                 request.Type,
@@ -44,7 +46,7 @@ public class ApprovalsController(IApprovalService approvalService) : ControllerB
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApprovalRequestResponse>> Approve(Guid id, CancellationToken cancellationToken)
     {
-        var approval = await approvalService.ApproveAsync(id, cancellationToken);
+        var approval = await approvalService.ApproveAsync(User.GetRequiredUserProfileId(), id, cancellationToken);
         return approval is null ? NotFound() : Ok(approval.ToResponse());
     }
 
@@ -53,7 +55,7 @@ public class ApprovalsController(IApprovalService approvalService) : ControllerB
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApprovalRequestResponse>> Reject(Guid id, CancellationToken cancellationToken)
     {
-        var approval = await approvalService.RejectAsync(id, cancellationToken);
+        var approval = await approvalService.RejectAsync(User.GetRequiredUserProfileId(), id, cancellationToken);
         return approval is null ? NotFound() : Ok(approval.ToResponse());
     }
 }

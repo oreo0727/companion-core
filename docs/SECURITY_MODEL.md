@@ -1,91 +1,118 @@
 # Security Model
 
-## Current Status
+## Overview
 
-Authentication is intentionally out of scope for this first phase. The system assumes a single local user profile seeded into the database for development.
+Phase 5 introduces the trust layer for Companion Core:
 
-That does not mean security is ignored. The current code establishes the boundaries that later security layers will harden, especially around approvals and action provenance.
+- ASP.NET Core Identity-backed accounts
+- JWT bearer authentication
+- role-based authorization
+- per-user data ownership
+- encrypted secret storage
+- durable audit events
 
-## Approval-Centered Control
+The system is still intentionally narrow. It does not yet connect to Gmail, Calendar, voice, mobile, or external action connectors. The current goal is to make the existing planning and reasoning stack safe enough to attach those systems later.
 
-The most important control in this phase is explicit approval tracking.
+## Identity Model
 
-`ApprovalRequest` captures:
+- `ApplicationUser` is the authentication record used by ASP.NET Core Identity.
+- `UserProfile` is the companion-domain record that owns memories, conversations, tasks, goals, projects, approvals, agent runs, preferences, and audit events.
+- Each `UserProfile` maps one-to-one to one `ApplicationUser` through `ApplicationUserId`.
 
-- which user requested the action
-- which conversation the request came from
-- which source message triggered it
-- what kind of action is being requested
-- why the action is being requested
-- the payload associated with the action
-- the assessed risk level
-- whether the request is pending, approved, or rejected
-- when it was created and reviewed
+For local development, migrations seed a default administrator account:
 
-This creates a durable approval trail before real integrations are introduced.
+- email: `local.user@companion-core.local`
+- password: `CompanionDev123!`
 
-Current deterministic approval triggers include:
+That account exists only to unblock local setup and smoke testing. It must not be reused outside local development.
+
+## Authorization Rules
+
+Authenticated users can access only their own:
+
+- memories
+- conversations and messages
+- tasks
+- goals
+- projects
+- approvals
+- suggestions
+- open loops
+- agent runs
+- audit events
+- preferences
+
+`Administrator` is currently reserved for platform-level operations such as `/api/settings/ai`.
+
+Companion does not trust client-supplied profile ids for ownership. The API resolves the active profile from JWT claims and uses that server-side profile id when reading or writing user data.
+
+## Approval Boundary
+
+Risky actions still require approval records before any future connector execution layer can use them.
+
+Current approval triggers remain deterministic:
 
 - `send`
 - `delete`
 - `purchase`
 - `schedule`
 
-The first three are treated as `High` risk and `schedule` is treated as `Medium` risk.
+The approval record captures:
 
-## Service Boundaries
+- requesting user
+- source conversation and message
+- action type
+- reason
+- payload
+- risk level
+- status
+- timestamps
 
-The following interfaces exist specifically so future security and policy behavior can be inserted without rewriting the API surface:
+## Suggestion Safety Rule
 
-- `IConversationService`
-- `IApprovalService`
-- `IMemoryService`
-- `ITaskService`
-- `IGoalService`
-- `IProjectService`
-- `IOpenLoopService`
-- `IChiefOfStaffService`
-- `IAgentRuntime`
-- `IConnectorManager`
+AI output is not allowed to write directly into:
 
-Each can later host authorization checks, policy enforcement, auditing, rate limiting, and richer risk analysis.
+- `MemoryEntry`
+- `Goal`
+- `Project`
+- `TaskItem`
 
-## Why Deterministic Logic Still Helps Security
+AI-generated candidates must become pending suggestions first. Only deterministic rules or explicit approval flows can promote them into first-class user data.
 
-Using deterministic placeholder logic before real AI integration is a security feature, not just an implementation shortcut.
+## Secret Handling
 
-Right now it provides:
+`ISecretStore` stores encrypted secrets at rest in `StoredSecrets`.
 
-- predictable triggering behavior
-- easy-to-audit approval creation
-- easy-to-audit goal and project suggestion creation
-- explicit review points before suggestions become durable planning state
-- no hidden outbound model calls
-- a stable baseline for later regression testing
+- values are protected through ASP.NET Core Data Protection before persistence
+- the abstraction is scoped for future API keys and connector tokens
+- the API does not return raw stored secrets back to clients
 
-This makes it much easier to reason about system behavior before more powerful decision-making is introduced.
+This gives Companion a server-side place for sensitive credentials before external connectors are introduced.
 
-## Future Security Layers
+## Audit Philosophy
 
-Planned expansions include:
+Audit logging is intentionally scoped to events that materially affect trust:
 
-- user authentication and session management
-- per-user data isolation
-- role-aware or policy-aware approvals
-- audit logging for external actions
-- secret storage for connector credentials
-- encrypted sensitive memory payloads
-- risk scoring before agent execution or connector use
-- approval policies that vary by action type, connector, or confidence
+- login
+- logout
+- memory created
+- task created
+- approval approved
+- approval rejected
+- settings changed
+- preference changed
 
-## Trust Assumptions
+`AuditEvent` is append-oriented. The point is to preserve a readable trust trail, not to build a generic analytics event bus.
 
-For now, the trusted boundary is the local development environment plus the private PostgreSQL instance created by Docker Compose.
+## Token Model
 
-Before internet-facing or multi-user deployment, the next required steps are:
+JWT tokens include:
 
-- real authentication
-- HTTPS and reverse-proxy hardening
-- structured authorization
-- connector credential protection
-- stronger audit and observability coverage
+- application user id
+- user profile id
+- email
+- display name
+- role claims
+- security stamp
+
+Logout rotates the user's security stamp. Existing bearer tokens are rejected after that point.
