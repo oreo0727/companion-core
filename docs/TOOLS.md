@@ -32,6 +32,10 @@ The runtime is built around three persisted records:
   Retrieves the authenticated user's upcoming calendar events.
 - `EmailSearch`
   Searches read-only email snapshots for the authenticated user.
+- `CreateReminder`
+  Creates an in-app reminder for the authenticated user.
+- `ListNotifications`
+  Lists in-app notifications for the authenticated user.
 - `CreateTask`
   Creates a task for the authenticated user after approval.
 - `GetBriefing`

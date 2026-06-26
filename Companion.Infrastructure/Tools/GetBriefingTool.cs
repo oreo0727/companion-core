@@ -21,6 +21,8 @@ public class GetBriefingTool(IChiefOfStaffService chiefOfStaffService) : ITool
         {
             openTasks = briefing.OpenTasks.Select(task => new { task.Id, task.Title, Status = task.Status.ToString() }).ToList(),
             pendingApprovals = briefing.PendingApprovals.Select(approval => new { approval.Id, approval.Type, approval.RiskLevel }).ToList(),
+            overdueTasks = briefing.OverdueTasks.Select(task => new { task.Id, task.Title, task.DueDateUtc, Status = task.Status.ToString() }).ToList(),
+            upcomingReminders = briefing.UpcomingReminders.Select(reminder => new { reminder.Id, reminder.Title, reminder.DueUtc, Status = reminder.Status.ToString() }).ToList(),
             goals = briefing.Goals.Select(goal => new { goal.Id, goal.Title, Status = goal.Status.ToString() }).ToList(),
             projects = briefing.Projects.Select(project => new { project.Id, project.Title, Status = project.Status.ToString() }).ToList(),
             upcomingCalendarEvents = briefing.UpcomingCalendarEvents.Select(calendarEvent => new { calendarEvent.Id, calendarEvent.Title, calendarEvent.StartUtc, calendarEvent.EndUtc, calendarEvent.Location }).ToList(),

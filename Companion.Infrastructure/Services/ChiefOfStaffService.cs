@@ -14,6 +14,7 @@ public partial class ChiefOfStaffService(
     IProjectService projectService,
     IOpenLoopService openLoopService,
     IConnectorSyncService connectorSyncService,
+    INotificationService notificationService,
     TimeProvider timeProvider) : IChiefOfStaffService
 {
     private static readonly string[] GoalMarkers =
@@ -135,6 +136,11 @@ public partial class ChiefOfStaffService(
         return new CompanionBriefing(
             context.OpenTasks,
             context.PendingApprovals,
+            context.OpenTasks
+                .Where(x => x.DueDateUtc is not null && x.DueDateUtc < now)
+                .OrderBy(x => x.DueDateUtc)
+                .ToList(),
+            context.UpcomingReminders,
             context.RecentMemories,
             context.Goals,
             context.Projects,
@@ -158,6 +164,8 @@ public partial class ChiefOfStaffService(
             context.Goals.Count,
             context.OpenLoops.Count,
             context.PendingApprovals.Count,
+            context.UnreadNotifications.Count,
+            context.UpcomingReminders.Count,
             BuildInsights(context, now).Take(5).ToList());
     }
 
@@ -252,6 +260,14 @@ public partial class ChiefOfStaffService(
                 daysBack: 14,
                 limit: 12,
                 audit: false,
+                cancellationToken: cancellationToken),
+            await notificationService.GetUpcomingRemindersAsync(
+                userProfileId,
+                daysAhead: 7,
+                cancellationToken: cancellationToken),
+            await notificationService.GetNotificationsAsync(
+                userProfileId,
+                includeRead: false,
                 cancellationToken: cancellationToken),
             await dbContext.OpenLoops
                 .AsNoTracking()
@@ -367,6 +383,33 @@ public partial class ChiefOfStaffService(
                 "Load",
                 $"You are carrying {context.OpenLoops.Count} open loops right now.",
                 72));
+        }
+
+        var overdueTasks = context.OpenTasks
+            .Where(x => x.DueDateUtc is not null && x.DueDateUtc < now)
+            .ToList();
+        if (overdueTasks.Count > 0)
+        {
+            insights.Add(new CompanionInsight(
+                "Deadline",
+                $"You have {overdueTasks.Count} overdue task(s).",
+                90));
+        }
+
+        if (context.UpcomingReminders.Count > 0)
+        {
+            insights.Add(new CompanionInsight(
+                "Reminder",
+                $"You have {context.UpcomingReminders.Count} upcoming reminder(s).",
+                68));
+        }
+
+        if (context.UnreadNotifications.Count > 0)
+        {
+            insights.Add(new CompanionInsight(
+                "Notification",
+                $"You have {context.UnreadNotifications.Count} unread notification(s).",
+                66));
         }
 
         var todaysEvents = context.UpcomingCalendarEvents
@@ -692,6 +735,8 @@ public partial class ChiefOfStaffService(
         IReadOnlyList<Project> Projects,
         IReadOnlyList<CalendarEventSnapshot> UpcomingCalendarEvents,
         IReadOnlyList<EmailMessageSnapshot> ImportantRecentEmails,
+        IReadOnlyList<Reminder> UpcomingReminders,
+        IReadOnlyList<Notification> UnreadNotifications,
         IReadOnlyList<OpenLoop> OpenLoops,
         IReadOnlyList<ProjectSuggestion> ProjectSuggestions,
         IReadOnlyList<GoalSuggestion> GoalSuggestions,

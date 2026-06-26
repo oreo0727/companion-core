@@ -11,6 +11,7 @@ public class ContextBuilder(
     CompanionDbContext dbContext,
     IChiefOfStaffService chiefOfStaffService,
     IConnectorSyncService connectorSyncService,
+    INotificationService notificationService,
     IKnowledgeSearchService knowledgeSearchService,
     TimeProvider timeProvider) : IContextBuilder
 {
@@ -72,6 +73,14 @@ public class ContextBuilder(
             daysBack: 14,
             limit: 8,
             audit: false,
+            cancellationToken: cancellationToken);
+        var upcomingReminders = await notificationService.GetUpcomingRemindersAsync(
+            userProfileId,
+            daysAhead: 7,
+            cancellationToken: cancellationToken);
+        var unreadNotifications = await notificationService.GetNotificationsAsync(
+            userProfileId,
+            includeRead: false,
             cancellationToken: cancellationToken);
         var relevantKnowledge = await SelectRelevantKnowledgeAsync(userProfileId, recentMessages, conversation.ActiveTopic, cancellationToken);
         var openTasks = await dbContext.TaskItems
@@ -138,6 +147,8 @@ public class ContextBuilder(
             activeProjects,
             upcomingCalendarEvents,
             importantRecentEmails,
+            upcomingReminders,
+            unreadNotifications,
             relevantKnowledge,
             openTasks,
             openLoops,

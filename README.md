@@ -1,6 +1,6 @@
 # Companion Core
 
-Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 9 adds a safe read-only email connector so Companion can incorporate important recent email context without sending, deleting, or archiving mail.
+Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 10 adds internal in-app notifications and reminders without SMS, mobile push, or email sending.
 
 ## What This Phase Includes
 
@@ -18,6 +18,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Internal tool runtime with `ToolDefinition`, `ToolPermission`, `ToolExecution`, and approval-aware execution
 - Knowledge import, chunking, keyword retrieval, and context injection
 - Read-only connector framework with connector definitions, user connections, sync runs, calendar snapshots, and email snapshots
+- Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Swagger-enabled API and Docker Compose bootstrap with an optional Ollama profile
 
@@ -135,6 +136,10 @@ The API is authenticated by default.
 - `POST /api/approvals/{id}/reject`
 - `GET /api/agent-runs`
 - `POST /api/agent-runs`
+- `GET /api/notifications`
+- `POST /api/notifications/{id}/read`
+- `GET /api/reminders`
+- `POST /api/reminders`
 - `GET /api/tools`
 - `GET /api/tools/executions`
 - `POST /api/tools/{id}/execute`
@@ -160,6 +165,7 @@ The current chat loop is provider-driven with a deterministic fallback.
 - The reasoning payload may include internal `toolRequests`.
 - Tool requests are executed only after permission and approval checks.
 - Upcoming calendar events and important recent email are retrieved from connector snapshots and added to the bounded prompt context.
+- Upcoming reminders and unread notifications are included in context.
 - Relevant knowledge chunks are retrieved and added to the bounded prompt context.
 - The extraction pass creates candidate memories, goals, projects, and tasks.
 - Candidates are stored as suggestions and require approval before they become first-class entities.
@@ -215,6 +221,8 @@ The current built-in tool set is intentionally narrow:
 - `KnowledgeSearch`
 - `CalendarEvents`
 - `EmailSearch`
+- `CreateReminder`
+- `ListNotifications`
 - `CreateTask`
 - `GetBriefing`
 
@@ -241,7 +249,7 @@ The migrations seed:
 
 ## Current Constraints
 
-- No voice, mobile, email sending, email deleting, email archiving, or desktop control yet
+- No voice, mobile, SMS, push notifications, email sending, email deleting, email archiving, or desktop control yet
 - No destructive connector actions; current connectors are read-only local calendar and local email importers
 - No external knowledge connectors yet; imports are direct API submissions only
 - Provider calls use plain `HttpClient` and require external model availability plus valid configuration
@@ -262,6 +270,7 @@ The migrations seed:
 - [Calendar Connector](docs/CALENDAR_CONNECTOR.md)
 - [Email Connector](docs/EMAIL_CONNECTOR.md)
 - [Knowledge Layer](docs/KNOWLEDGE.md)
+- [Notifications](docs/NOTIFICATIONS.md)
 - [Tool Runtime](docs/TOOLS.md)
 - [Retrieval](docs/RETRIEVAL.md)
 - [Chat Pipeline](docs/CHAT_PIPELINE.md)

@@ -157,6 +157,34 @@ public sealed record AgentRunResponse(
     DateTime? StartedUtc,
     DateTime? CompletedUtc);
 
+public sealed record NotificationResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Type,
+    string Title,
+    string Body,
+    NotificationSeverity Severity,
+    NotificationStatus Status,
+    string? EntityType,
+    string? EntityId,
+    string? MetadataJson,
+    DateTime CreatedUtc,
+    DateTime? ReadUtc);
+
+public sealed record ReminderResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string Title,
+    string? Description,
+    DateTime DueUtc,
+    ReminderStatus Status,
+    string SourceType,
+    string? SourceId,
+    Guid? NotificationId,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc,
+    DateTime? CompletedUtc);
+
 public sealed record ToolDefinitionResponse(
     Guid Id,
     string Name,
@@ -398,6 +426,8 @@ public sealed record AuthSessionResponse(
 public sealed record CompanionBriefingResponse(
     IReadOnlyList<TaskItemResponse> OpenTasks,
     IReadOnlyList<ApprovalRequestResponse> PendingApprovals,
+    IReadOnlyList<TaskItemResponse> OverdueTasks,
+    IReadOnlyList<ReminderResponse> UpcomingReminders,
     IReadOnlyList<MemoryEntryResponse> RecentMemories,
     IReadOnlyList<GoalResponse> Goals,
     IReadOnlyList<ProjectResponse> Projects,
@@ -413,6 +443,8 @@ public sealed record CompanionDashboardResponse(
     int ActiveGoals,
     int OpenLoops,
     int PendingApprovals,
+    int UnreadNotifications,
+    int UpcomingReminders,
     IReadOnlyList<CompanionInsightResponse> TopInsights);
 
 public static class CompanionApiMappings
@@ -607,6 +639,40 @@ public static class CompanionApiMappings
             agentRun.CreatedUtc,
             agentRun.StartedUtc,
             agentRun.CompletedUtc);
+    }
+
+    public static NotificationResponse ToResponse(this Notification notification)
+    {
+        return new NotificationResponse(
+            notification.Id,
+            notification.UserProfileId,
+            notification.Type,
+            notification.Title,
+            notification.Body,
+            notification.Severity,
+            notification.Status,
+            notification.EntityType,
+            notification.EntityId,
+            notification.MetadataJson,
+            notification.CreatedUtc,
+            notification.ReadUtc);
+    }
+
+    public static ReminderResponse ToResponse(this Reminder reminder)
+    {
+        return new ReminderResponse(
+            reminder.Id,
+            reminder.UserProfileId,
+            reminder.Title,
+            reminder.Description,
+            reminder.DueUtc,
+            reminder.Status,
+            reminder.SourceType,
+            reminder.SourceId,
+            reminder.NotificationId,
+            reminder.CreatedUtc,
+            reminder.UpdatedUtc,
+            reminder.CompletedUtc);
     }
 
     public static ToolDefinitionResponse ToResponse(this ToolDefinition definition)
@@ -826,6 +892,8 @@ public static class CompanionApiMappings
         return new CompanionBriefingResponse(
             briefing.OpenTasks.Select(x => x.ToResponse()).ToList(),
             briefing.PendingApprovals.Select(x => x.ToResponse()).ToList(),
+            briefing.OverdueTasks.Select(x => x.ToResponse()).ToList(),
+            briefing.UpcomingReminders.Select(x => x.ToResponse()).ToList(),
             briefing.RecentMemories.Select(x => x.ToResponse()).ToList(),
             briefing.Goals.Select(x => x.ToResponse()).ToList(),
             briefing.Projects.Select(x => x.ToResponse()).ToList(),
@@ -844,6 +912,8 @@ public static class CompanionApiMappings
             dashboard.ActiveGoals,
             dashboard.OpenLoops,
             dashboard.PendingApprovals,
+            dashboard.UnreadNotifications,
+            dashboard.UpcomingReminders,
             dashboard.TopInsights.Select(x => x.ToResponse()).ToList());
     }
 

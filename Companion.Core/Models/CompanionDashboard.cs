@@ -5,4 +5,6 @@ public sealed record CompanionDashboard(
     int ActiveGoals,
     int OpenLoops,
     int PendingApprovals,
+    int UnreadNotifications,
+    int UpcomingReminders,
     IReadOnlyList<CompanionInsight> TopInsights);

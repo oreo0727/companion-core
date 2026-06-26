@@ -45,6 +45,12 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
 
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<Reminder> Reminders => Set<Reminder>();
+
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     public DbSet<StoredSecret> StoredSecrets => Set<StoredSecret>();
@@ -414,6 +420,74 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
                 .HasForeignKey(x => x.UserProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasData(CompanionSeedData.UserPreferences);
+        });
+
+        modelBuilder.Entity<NotificationPreference>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PreferenceType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.InAppEnabled).IsRequired();
+            entity.Property(x => x.LeadTimeMinutes).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.PreferenceType }).IsUnique();
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.NotificationPreferences)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasData(CompanionSeedData.NotificationPreferences);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Type).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Body).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.Severity)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.EntityType).HasMaxLength(100);
+            entity.Property(x => x.EntityId).HasMaxLength(100);
+            entity.Property(x => x.MetadataJson).HasMaxLength(4000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.CreatedUtc });
+            entity.HasIndex(x => new { x.UserProfileId, x.Type, x.EntityType, x.EntityId });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.Notifications)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Reminder>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.DueUtc).IsRequired();
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.SourceType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.SourceId).HasMaxLength(100);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.DueUtc });
+            entity.HasIndex(x => new { x.UserProfileId, x.SourceType, x.SourceId });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.Reminders)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Notification)
+                .WithMany()
+                .HasForeignKey(x => x.NotificationId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<AuditEvent>(entity =>

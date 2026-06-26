@@ -5,6 +5,8 @@ namespace Companion.Core.Models;
 public sealed record CompanionBriefing(
     IReadOnlyList<TaskItem> OpenTasks,
     IReadOnlyList<ApprovalRequest> PendingApprovals,
+    IReadOnlyList<TaskItem> OverdueTasks,
+    IReadOnlyList<Reminder> UpcomingReminders,
     IReadOnlyList<MemoryEntry> RecentMemories,
     IReadOnlyList<Goal> Goals,
     IReadOnlyList<Project> Projects,

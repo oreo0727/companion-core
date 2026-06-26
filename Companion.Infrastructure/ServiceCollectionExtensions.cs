@@ -45,6 +45,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAiProviderConfigurationService, AiProviderConfigurationService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IUserPreferenceService, UserPreferenceService>();
+        services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<ISecretStore, DataProtectionSecretStore>();
         services.AddScoped<IChunkingService, ChunkingService>();
@@ -62,6 +63,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITool, KnowledgeSearchTool>();
         services.AddScoped<ITool, CalendarEventsTool>();
         services.AddScoped<ITool, EmailSearchTool>();
+        services.AddScoped<ITool, CreateReminderTool>();
+        services.AddScoped<ITool, ListNotificationsTool>();
         services.AddScoped<IToolRegistry, ToolRegistry>();
         services.AddScoped<IToolExecutor, ToolExecutor>();
         services.AddScoped<IContextBuilder, ContextBuilder>();

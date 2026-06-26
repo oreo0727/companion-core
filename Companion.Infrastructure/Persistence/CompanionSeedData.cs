@@ -31,12 +31,16 @@ public static class CompanionSeedData
     public static readonly Guid KnowledgeSearchToolDefinitionId = Guid.Parse("fb6c3e11-6546-4df0-bbf5-f974e0d307ec");
     public static readonly Guid CalendarEventsToolDefinitionId = Guid.Parse("0ddf4583-81b6-4e2d-a3d6-738066b13d8c");
     public static readonly Guid EmailSearchToolDefinitionId = Guid.Parse("8b91435f-f204-44de-a541-997b07c654d6");
+    public static readonly Guid CreateReminderToolDefinitionId = Guid.Parse("1c82899c-debe-4f89-8c20-63c13804c81c");
+    public static readonly Guid ListNotificationsToolDefinitionId = Guid.Parse("a442411b-d69f-4e6a-a76e-7aa4ef8cc388");
     public static readonly Guid MemorySearchToolPermissionId = Guid.Parse("1a9f7783-8d03-4769-ab39-f9b8dc7bd3b4");
     public static readonly Guid CreateTaskToolPermissionId = Guid.Parse("b4608125-c91c-4a2a-ae17-68a4b0f4f6df");
     public static readonly Guid GetBriefingToolPermissionId = Guid.Parse("f2a6cdb9-212d-4f0f-92a1-0e2db84cf90f");
     public static readonly Guid KnowledgeSearchToolPermissionId = Guid.Parse("ab0c3178-4f4c-4634-b25d-fcdafb4fbb6c");
     public static readonly Guid CalendarEventsToolPermissionId = Guid.Parse("e1fc039a-1ca6-426b-9a9a-29873fe46f76");
     public static readonly Guid EmailSearchToolPermissionId = Guid.Parse("f0dce30f-e80a-4c77-950c-9ef69eab0754");
+    public static readonly Guid CreateReminderToolPermissionId = Guid.Parse("1bfd0877-5b0c-451d-b0e4-a426b2ea8f7d");
+    public static readonly Guid ListNotificationsToolPermissionId = Guid.Parse("2f34893c-23fb-429a-ac70-68007e702136");
     public static readonly Guid LocalCalendarConnectorDefinitionId = Guid.Parse("fb132d85-476e-48d2-81cb-4e6a1bf09cf5");
     public static readonly Guid LocalEmailConnectorDefinitionId = Guid.Parse("745e49ef-a388-4544-a416-8299d0fdadc0");
 
@@ -336,6 +340,50 @@ public static class CompanionSeedData
         }
     ];
 
+    public static readonly NotificationPreference[] NotificationPreferences =
+    [
+        new NotificationPreference
+        {
+            Id = Guid.Parse("877a581f-50da-40ee-87f9-789cbb8d9c54"),
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            PreferenceType = "TaskDue",
+            InAppEnabled = true,
+            LeadTimeMinutes = 1440,
+            CreatedUtc = UserCreatedUtc,
+            UpdatedUtc = UserCreatedUtc
+        },
+        new NotificationPreference
+        {
+            Id = Guid.Parse("a1331ba2-78d7-40ab-85fd-51d5b5e350f0"),
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            PreferenceType = "ApprovalPending",
+            InAppEnabled = true,
+            LeadTimeMinutes = 0,
+            CreatedUtc = UserCreatedUtc,
+            UpdatedUtc = UserCreatedUtc
+        },
+        new NotificationPreference
+        {
+            Id = Guid.Parse("dafd4e25-0a90-43c3-833e-aa4900a4da22"),
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            PreferenceType = "CalendarEvent",
+            InAppEnabled = true,
+            LeadTimeMinutes = 60,
+            CreatedUtc = UserCreatedUtc,
+            UpdatedUtc = UserCreatedUtc
+        },
+        new NotificationPreference
+        {
+            Id = Guid.Parse("1c72af38-7524-4261-93d3-f53cc9deff4e"),
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            PreferenceType = "ManualReminder",
+            InAppEnabled = true,
+            LeadTimeMinutes = 0,
+            CreatedUtc = UserCreatedUtc,
+            UpdatedUtc = UserCreatedUtc
+        }
+    ];
+
     public static readonly ToolDefinition[] ToolDefinitions =
     [
         new ToolDefinition
@@ -403,6 +451,28 @@ public static class CompanionSeedData
             RequiresApproval = false,
             Enabled = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = CreateReminderToolDefinitionId,
+            Name = ToolNames.CreateReminder,
+            Description = "Create an in-app reminder for the authenticated user.",
+            Category = ToolCategories.Notifications,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = ListNotificationsToolDefinitionId,
+            Name = ToolNames.ListNotifications,
+            Description = "List in-app notifications for the authenticated user.",
+            Category = ToolCategories.Notifications,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
@@ -453,6 +523,22 @@ public static class CompanionSeedData
             Id = EmailSearchToolPermissionId,
             UserProfileId = CompanionDefaults.LocalUserProfileId,
             ToolDefinitionId = EmailSearchToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = CreateReminderToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = CreateReminderToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = ListNotificationsToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = ListNotificationsToolDefinitionId,
             Allowed = true,
             CreatedUtc = ToolCreatedUtc
         }

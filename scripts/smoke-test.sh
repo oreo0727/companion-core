@@ -7,7 +7,7 @@ API_URL="http://127.0.0.1:${API_PORT}"
 MOCK_AI_PORT="${MOCK_AI_PORT:-19090}"
 MOCK_AI_URL="http://127.0.0.1:${MOCK_AI_PORT}"
 WORKER_POLL_SECONDS="${WORKER_POLL_SECONDS:-1}"
-RUN_ID="${RUN_ID:-phase9-$(date +%s)}"
+RUN_ID="${RUN_ID:-phase10-$(date +%s)}"
 API_LOG="/tmp/companion-api-${RUN_ID}.log"
 WORKER_LOG="/tmp/companion-worker-${RUN_ID}.log"
 MOCK_AI_LOG="/tmp/companion-mock-ai-${RUN_ID}.log"
@@ -206,6 +206,7 @@ start_worker() {
   step "Starting worker"
   DOTNET_ENVIRONMENT=Development \
   AgentRunWorker__PollIntervalSeconds="${WORKER_POLL_SECONDS}" \
+  ReminderWorker__PollIntervalSeconds="${WORKER_POLL_SECONDS}" \
   dotnet run --no-launch-profile --project "${ROOT}/Companion.Worker" >"${WORKER_LOG}" 2>&1 &
   WORKER_PID=$!
   sleep 3
@@ -312,6 +313,8 @@ assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'GetBriefing') == 1" "
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'KnowledgeSearch') == 1" "KnowledgeSearch is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CalendarEvents') == 1" "CalendarEvents is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'EmailSearch') == 1" "EmailSearch is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CreateReminder') == 1" "CreateReminder is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'ListNotifications') == 1" "ListNotifications is discoverable"
 
 GET_BRIEFING_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'GetBriefing')")"
 CREATE_TASK_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CreateTask')")"
@@ -319,10 +322,13 @@ MEMORY_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['na
 KNOWLEDGE_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'KnowledgeSearch')")"
 CALENDAR_EVENTS_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CalendarEvents')")"
 EMAIL_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'EmailSearch')")"
+CREATE_REMINDER_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CreateReminder')")"
+LIST_NOTIFICATIONS_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'ListNotifications')")"
 SMOKE_TASK_TITLE="Smoke task ${RUN_ID}"
 KNOWLEDGE_TERM="knowledge-${RUN_ID}"
 CALENDAR_TITLE="Calendar review ${RUN_ID}"
 EMAIL_SUBJECT="Urgent invoice deadline ${RUN_ID}"
+REMINDER_TITLE="Reminder ${RUN_ID}"
 
 GET_BRIEFING_EXECUTION="$(http_post_json "${API_URL}/api/tools/${GET_BRIEFING_TOOL_ID}/execute" '{"input":{}}')"
 assert_json "$GET_BRIEFING_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "Low-risk tool executes immediately"
@@ -405,6 +411,36 @@ assert_json "$BRIEFING_WITH_EMAIL" "sum(1 for x in data['chiefOfStaffInsights'] 
 
 EMAIL_TOOL_EXECUTION="$(http_post_json "${API_URL}/api/tools/${EMAIL_SEARCH_TOOL_ID}/execute" '{"input":{"query":"deadline","limit":5}}')"
 assert_json "$EMAIL_TOOL_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "EmailSearch tool executes immediately"
+
+step "Creating and processing reminders"
+REMINDER_RESPONSE="$(http_post_json "${API_URL}/api/reminders" "$(cat <<JSON
+{"title":"${REMINDER_TITLE}","description":"Smoke reminder","dueUtc":"$(date -u -d '-1 minute' +%Y-%m-%dT%H:%M:%SZ)"}
+JSON
+)")"
+assert_json "$REMINDER_RESPONSE" "data['title'] == '${REMINDER_TITLE}' and data['status'] == 'Scheduled'" "Reminder API creates a scheduled reminder"
+
+REMINDERS="$(http_get "${API_URL}/api/reminders")"
+assert_json "$REMINDERS" "sum(1 for x in data if x['title'] == '${REMINDER_TITLE}') == 1" "Reminder API lists scheduled reminders"
+
+sleep 2
+NOTIFICATIONS="$(http_get "${API_URL}/api/notifications")"
+assert_json "$NOTIFICATIONS" "sum(1 for x in data if x['title'] == '${REMINDER_TITLE}' and x['status'] == 'Unread') == 1" "Worker creates an in-app notification for due reminder"
+NOTIFICATION_ID="$(json_eval "$NOTIFICATIONS" "next(x['id'] for x in data if x['title'] == '${REMINDER_TITLE}')")"
+
+READ_NOTIFICATION="$(http_post "${API_URL}/api/notifications/${NOTIFICATION_ID}/read")"
+assert_json "$READ_NOTIFICATION" "data['status'] == 'Read'" "Notification can be marked read"
+
+CREATE_REMINDER_TOOL_EXECUTION="$(http_post_json "${API_URL}/api/tools/${CREATE_REMINDER_TOOL_ID}/execute" "$(cat <<JSON
+{"input":{"title":"Tool ${REMINDER_TITLE}","description":"Created through tool","dueUtc":"$(date -u -d '+10 minutes' +%Y-%m-%dT%H:%M:%SZ)"}}
+JSON
+)")"
+assert_json "$CREATE_REMINDER_TOOL_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "CreateReminder tool executes immediately"
+
+LIST_NOTIFICATIONS_TOOL_EXECUTION="$(http_post_json "${API_URL}/api/tools/${LIST_NOTIFICATIONS_TOOL_ID}/execute" '{"input":{"includeRead":true}}')"
+assert_json "$LIST_NOTIFICATIONS_TOOL_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "ListNotifications tool executes immediately"
+
+BRIEFING_WITH_REMINDERS="$(http_get "${API_URL}/api/companion/briefing")"
+assert_json "$BRIEFING_WITH_REMINDERS" "isinstance(data['upcomingReminders'], list) and isinstance(data['overdueTasks'], list) and isinstance(data['pendingApprovals'], list)" "Briefing includes reminder, overdue task, and pending approval sections"
 
 step "Fetching baseline counts"
 BASE_SUGGESTIONS="$(http_get "${API_URL}/api/suggestions")"
@@ -513,4 +549,4 @@ POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 9 smoke test passed"
+pass "Phase 10 smoke test passed"

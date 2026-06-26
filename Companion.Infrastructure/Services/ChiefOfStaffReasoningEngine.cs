@@ -185,6 +185,22 @@ public class ChiefOfStaffReasoningEngine(
                     x.HasAttachments,
                     x.IsAnswered
                 }),
+                upcomingReminders = context.UpcomingReminders.Select(x => new
+                {
+                    x.Title,
+                    x.Description,
+                    x.DueUtc,
+                    status = x.Status.ToString(),
+                    x.SourceType
+                }),
+                unreadNotifications = context.UnreadNotifications.Select(x => new
+                {
+                    x.Type,
+                    x.Title,
+                    x.Body,
+                    severity = x.Severity.ToString(),
+                    x.CreatedUtc
+                }),
                 relevantKnowledge = context.RelevantKnowledge.Select(x => new
                 {
                     source = x.Source.Name,

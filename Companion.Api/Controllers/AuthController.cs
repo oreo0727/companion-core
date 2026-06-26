@@ -86,6 +86,12 @@ public class AuthController(
         await userPreferenceService.SetPreferenceAsync(profile.Id, "ResponseStyle", "Balanced", cancellationToken);
         await userPreferenceService.SetPreferenceAsync(profile.Id, "Notifications", "ImportantOnly", cancellationToken);
         await userPreferenceService.SetPreferenceAsync(profile.Id, "AiPersonality", "SupportivePragmatic", cancellationToken);
+        dbContext.NotificationPreferences.AddRange(
+            CreateNotificationPreference(profile.Id, "TaskDue", 1440),
+            CreateNotificationPreference(profile.Id, "ApprovalPending", 0),
+            CreateNotificationPreference(profile.Id, "CalendarEvent", 60),
+            CreateNotificationPreference(profile.Id, "ManualReminder", 0));
+        await dbContext.SaveChangesAsync(cancellationToken);
         await auditService.WriteEventAsync(
             profile.Id,
             "Registration",
@@ -221,6 +227,24 @@ public class AuthController(
         {
             ModelState.AddModelError(error.Code, error.Description);
         }
+    }
+
+    private static NotificationPreference CreateNotificationPreference(
+        Guid userProfileId,
+        string preferenceType,
+        int leadTimeMinutes)
+    {
+        var now = DateTime.UtcNow;
+        return new NotificationPreference
+        {
+            Id = Guid.NewGuid(),
+            UserProfileId = userProfileId,
+            PreferenceType = preferenceType,
+            InAppEnabled = true,
+            LeadTimeMinutes = leadTimeMinutes,
+            CreatedUtc = now,
+            UpdatedUtc = now
+        };
     }
 }
 

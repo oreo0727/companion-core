@@ -25,6 +25,9 @@ The script fails fast and verifies:
 - local email import
 - email message retrieval
 - email search
+- reminder creation
+- worker-created in-app notifications
+- notification read flow
 - `POST /api/chat`
 - persisted user and assistant messages
 - memory, task, goal, and project suggestion creation
@@ -61,6 +64,7 @@ It also exercises:
 9. knowledge import and retrieval through API and tool paths
 10. local calendar import, briefing inclusion, sync recording, and calendar tool retrieval
 11. local email import, briefing inclusion, search, and email tool retrieval
+12. scheduled reminders, worker-created notifications, notification read audit, and notification tools
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

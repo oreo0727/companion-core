@@ -10,6 +10,8 @@ public static class AuditEventTypes
     public const string ApprovalRejected = "ApprovalRejected";
     public const string SettingsChanged = "SettingsChanged";
     public const string PreferenceChanged = "PreferenceChanged";
+    public const string ReminderCreated = "ReminderCreated";
+    public const string NotificationRead = "NotificationRead";
     public const string KnowledgeDocumentImported = "KnowledgeDocumentImported";
     public const string KnowledgeSearchPerformed = "KnowledgeSearchPerformed";
     public const string ConnectorConnected = "ConnectorConnected";

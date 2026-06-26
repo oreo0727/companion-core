@@ -38,6 +38,12 @@ public class UserProfile
 
     public ICollection<UserPreference> Preferences { get; set; } = new List<UserPreference>();
 
+    public ICollection<NotificationPreference> NotificationPreferences { get; set; } = new List<NotificationPreference>();
+
+    public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+
+    public ICollection<Reminder> Reminders { get; set; } = new List<Reminder>();
+
     public ICollection<AuditEvent> AuditEvents { get; set; } = new List<AuditEvent>();
 
     public ICollection<StoredSecret> StoredSecrets { get; set; } = new List<StoredSecret>();
