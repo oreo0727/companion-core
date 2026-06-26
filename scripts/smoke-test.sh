@@ -126,6 +126,17 @@ http_post() {
   curl -fsS -X POST "$url" "${headers[@]}"
 }
 
+http_delete() {
+  local url="$1"
+  local headers=()
+
+  if [[ -n "${AUTH_TOKEN}" && "$url" == "${API_URL}"* ]]; then
+    headers+=(-H "Authorization: Bearer ${AUTH_TOKEN}")
+  fi
+
+  curl -fsS -X DELETE "$url" "${headers[@]}"
+}
+
 http_put_json() {
   local url="$1"
   local body="$2"
@@ -311,6 +322,33 @@ step "Verifying connector discovery"
 CONNECTORS="$(http_get "${API_URL}/api/connectors")"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'LocalCalendar') == 1" "LocalCalendar connector is discoverable"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'LocalEmail') == 1" "LocalEmail connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'GoogleCalendar' and x['definition']['supportsOAuth'] is True) == 1" "GoogleCalendar OAuth connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'OutlookMail' and x['definition']['supportsOAuth'] is True) == 1" "OutlookMail OAuth connector is discoverable"
+
+step "Verifying OAuth foundation"
+OAUTH_PROVIDERS="$(http_get "${API_URL}/api/oauth/providers")"
+assert_json "$OAUTH_PROVIDERS" "sum(1 for x in data if x['provider'] == 'Google') == 1" "Google OAuth provider is discoverable"
+assert_json "$OAUTH_PROVIDERS" "sum(1 for x in data if x['provider'] == 'Microsoft') == 1" "Microsoft OAuth provider is discoverable"
+OAUTH_AUTHORIZATION="$(http_post_json "${API_URL}/api/oauth/Google/authorize" "$(cat <<JSON
+{"connectorProvider":"GoogleCalendar","displayName":"Smoke Google Calendar ${RUN_ID}","redirectUri":"http://localhost:3000/connectors/oauth/callback","scopes":["openid","https://www.googleapis.com/auth/calendar.readonly"]}
+JSON
+)")"
+assert_json "$OAUTH_AUTHORIZATION" "'code_challenge=' in data['authorizationUrl'] and data['provider'] == 'Google'" "OAuth authorization URL includes PKCE challenge"
+OAUTH_STATE="$(json_eval "$OAUTH_AUTHORIZATION" "data['state']")"
+OAUTH_CALLBACK="$(http_post_json "${API_URL}/api/oauth/Google/callback" "$(cat <<JSON
+{"state":"${OAUTH_STATE}","code":"code-${RUN_ID}","accessToken":"access-${RUN_ID}","refreshToken":"refresh-${RUN_ID}","expiresUtc":"$(date -u -d '+1 hour' +%Y-%m-%dT%H:%M:%SZ)","subject":"google-${RUN_ID}","displayName":"Smoke Google Calendar ${RUN_ID}","scopes":["openid","https://www.googleapis.com/auth/calendar.readonly"]}
+JSON
+)")"
+assert_json "$OAUTH_CALLBACK" "data['status'] == 'Connected' and data['subject'] == 'google-${RUN_ID}'" "OAuth callback creates connected encrypted-token connection"
+OAUTH_CONNECTION_ID="$(json_eval "$OAUTH_CALLBACK" "data['connectionId']")"
+OAUTH_CONNECTIONS="$(http_get "${API_URL}/api/oauth/connections")"
+assert_json "$OAUTH_CONNECTIONS" "sum(1 for x in data if x['connectionId'] == '${OAUTH_CONNECTION_ID}') == 1" "OAuth connections endpoint lists granted consent"
+OAUTH_DISCONNECT="$(http_delete "${API_URL}/api/oauth/connections/${OAUTH_CONNECTION_ID}")"
+assert_json "$OAUTH_DISCONNECT" "data['status'] == 'Disconnected' and data['revokedUtc'] is not None" "OAuth disconnect revokes consent"
+OAUTH_AUDIT="$(http_get "${API_URL}/api/audit")"
+assert_json "$OAUTH_AUDIT" "sum(1 for x in data if x['eventType'] == 'OAuthAuthorizationStarted') >= 1" "OAuth authorization start is audited"
+assert_json "$OAUTH_AUDIT" "sum(1 for x in data if x['eventType'] == 'OAuthConsentGranted') >= 1" "OAuth consent grant is audited"
+assert_json "$OAUTH_AUDIT" "sum(1 for x in data if x['eventType'] == 'OAuthConsentRevoked') >= 1" "OAuth consent revoke is audited"
 
 step "Verifying tool discovery and execution"
 TOOLS="$(http_get "${API_URL}/api/tools")"
@@ -556,4 +594,4 @@ POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 11 smoke test passed"
+pass "Phase 12 smoke test passed"

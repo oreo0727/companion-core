@@ -43,6 +43,14 @@ public static class CompanionSeedData
     public static readonly Guid ListNotificationsToolPermissionId = Guid.Parse("2f34893c-23fb-429a-ac70-68007e702136");
     public static readonly Guid LocalCalendarConnectorDefinitionId = Guid.Parse("fb132d85-476e-48d2-81cb-4e6a1bf09cf5");
     public static readonly Guid LocalEmailConnectorDefinitionId = Guid.Parse("745e49ef-a388-4544-a416-8299d0fdadc0");
+    public static readonly Guid GoogleCalendarConnectorDefinitionId = Guid.Parse("9fbe2c8b-64d0-4f33-99dd-d5ed38e3f112");
+    public static readonly Guid GoogleDriveConnectorDefinitionId = Guid.Parse("239e0f35-92c9-4ad8-a835-94238efee721");
+    public static readonly Guid GmailConnectorDefinitionId = Guid.Parse("3799b2f4-9691-4d92-a5ff-b36b8bc7c47d");
+    public static readonly Guid MicrosoftCalendarConnectorDefinitionId = Guid.Parse("179c4f6c-476a-457a-8c51-9466aa9c2d73");
+    public static readonly Guid OneDriveConnectorDefinitionId = Guid.Parse("bc0465b0-d97b-4cc6-b363-f10104766a24");
+    public static readonly Guid OutlookMailConnectorDefinitionId = Guid.Parse("e2942c91-6a65-47b0-8978-a914c5b8bcf4");
+    public static readonly Guid GoogleOAuthProviderConfigurationId = Guid.Parse("eec80fab-e287-435d-b6f1-a98d1967a115");
+    public static readonly Guid MicrosoftOAuthProviderConfigurationId = Guid.Parse("b5e7a2aa-9845-4f95-b02f-5213d4289cb8");
 
     public static readonly DateTime UserCreatedUtc = new(2026, 6, 19, 12, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime ConversationCreatedUtc = new(2026, 6, 19, 12, 5, 0, 0, DateTimeKind.Utc);
@@ -53,6 +61,7 @@ public static class CompanionSeedData
     public static readonly DateTime OpenLoopCreatedUtc = new(2026, 6, 19, 12, 25, 0, DateTimeKind.Utc);
     public static readonly DateTime AiProviderCreatedUtc = new(2026, 6, 19, 12, 30, 0, DateTimeKind.Utc);
     public static readonly DateTime ToolCreatedUtc = new(2026, 6, 25, 20, 0, 0, DateTimeKind.Utc);
+    public static readonly DateTime OAuthCreatedUtc = new(2026, 6, 26, 21, 0, 0, DateTimeKind.Utc);
 
     public static readonly UserProfile LocalUser = new()
     {
@@ -569,6 +578,112 @@ public static class CompanionSeedData
             RiskLevel = ConnectorRiskLevel.Low,
             Enabled = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = GoogleCalendarConnectorDefinitionId,
+            Name = "Google Calendar",
+            Provider = ConnectorProviders.GoogleCalendar,
+            Description = "Read-only Google Calendar connector prepared for OAuth-based event synchronization.",
+            Category = ConnectorCategories.Calendar,
+            SupportsOAuth = true,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = OAuthCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = GoogleDriveConnectorDefinitionId,
+            Name = "Google Drive",
+            Provider = ConnectorProviders.GoogleDrive,
+            Description = "Read-only Google Drive connector prepared for OAuth-based document synchronization.",
+            Category = ConnectorCategories.Files,
+            SupportsOAuth = true,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = OAuthCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = GmailConnectorDefinitionId,
+            Name = "Gmail",
+            Provider = ConnectorProviders.Gmail,
+            Description = "Read-only Gmail connector prepared for OAuth-based message synchronization.",
+            Category = ConnectorCategories.Email,
+            SupportsOAuth = true,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = OAuthCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = MicrosoftCalendarConnectorDefinitionId,
+            Name = "Microsoft Calendar",
+            Provider = ConnectorProviders.MicrosoftCalendar,
+            Description = "Read-only Microsoft Calendar connector prepared for OAuth-based event synchronization.",
+            Category = ConnectorCategories.Calendar,
+            SupportsOAuth = true,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = OAuthCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = OneDriveConnectorDefinitionId,
+            Name = "OneDrive",
+            Provider = ConnectorProviders.OneDrive,
+            Description = "Read-only OneDrive connector prepared for OAuth-based document synchronization.",
+            Category = ConnectorCategories.Files,
+            SupportsOAuth = true,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = OAuthCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = OutlookMailConnectorDefinitionId,
+            Name = "Outlook Mail",
+            Provider = ConnectorProviders.OutlookMail,
+            Description = "Read-only Outlook Mail connector prepared for OAuth-based message synchronization.",
+            Category = ConnectorCategories.Email,
+            SupportsOAuth = true,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = OAuthCreatedUtc
+        }
+    ];
+
+    public static readonly OAuthProviderConfiguration[] OAuthProviderConfigurations =
+    [
+        new OAuthProviderConfiguration
+        {
+            Id = GoogleOAuthProviderConfigurationId,
+            Provider = OAuthProviders.Google,
+            DisplayName = "Google",
+            AuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth",
+            TokenEndpoint = "https://oauth2.googleapis.com/token",
+            RevocationEndpoint = "https://oauth2.googleapis.com/revoke",
+            DefaultScopes = "openid email profile",
+            ClientIdSecretName = "OAuth:Google:ClientId",
+            ClientSecretSecretName = "OAuth:Google:ClientSecret",
+            Enabled = true,
+            CreatedUtc = OAuthCreatedUtc,
+            UpdatedUtc = OAuthCreatedUtc
+        },
+        new OAuthProviderConfiguration
+        {
+            Id = MicrosoftOAuthProviderConfigurationId,
+            Provider = OAuthProviders.Microsoft,
+            DisplayName = "Microsoft",
+            AuthorizationEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+            TokenEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+            RevocationEndpoint = null,
+            DefaultScopes = "openid email profile offline_access",
+            ClientIdSecretName = "OAuth:Microsoft:ClientId",
+            ClientSecretSecretName = "OAuth:Microsoft:ClientSecret",
+            Enabled = true,
+            CreatedUtc = OAuthCreatedUtc,
+            UpdatedUtc = OAuthCreatedUtc
         }
     ];
 }

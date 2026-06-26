@@ -2,6 +2,7 @@
 
 Phase 8 adds a read-only connector framework for user-owned external data snapshots.
 Phase 9 extends that framework with read-only email snapshots.
+Phase 12 adds OAuth-capable Google and Microsoft connector definitions.
 
 ## Connector Model
 
@@ -30,6 +31,7 @@ This phase is intentionally non-destructive.
 - no connector deletes during import
 
 The local calendar and local email connectors only create or update internal snapshots.
+Google and Microsoft connector definitions are present for consent and token lifecycle; production read sync arrives in Phase 13.
 
 ## Registry And Sync Flow
 
@@ -62,3 +64,7 @@ The connector layer writes:
 - `CalendarEventsViewed`
 - `EmailMessagesViewed`
 - `EmailSearchPerformed`
+- `OAuthAuthorizationStarted`
+- `OAuthConsentGranted`
+- `OAuthConsentRevoked`
+- `ConnectorDisconnected`

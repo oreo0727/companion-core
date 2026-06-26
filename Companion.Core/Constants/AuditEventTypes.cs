@@ -15,8 +15,12 @@ public static class AuditEventTypes
     public const string KnowledgeDocumentImported = "KnowledgeDocumentImported";
     public const string KnowledgeSearchPerformed = "KnowledgeSearchPerformed";
     public const string ConnectorConnected = "ConnectorConnected";
+    public const string ConnectorDisconnected = "ConnectorDisconnected";
     public const string ConnectorSyncStarted = "ConnectorSyncStarted";
     public const string ConnectorSyncCompleted = "ConnectorSyncCompleted";
+    public const string OAuthAuthorizationStarted = "OAuthAuthorizationStarted";
+    public const string OAuthConsentGranted = "OAuthConsentGranted";
+    public const string OAuthConsentRevoked = "OAuthConsentRevoked";
     public const string CalendarEventsViewed = "CalendarEventsViewed";
     public const string EmailMessagesViewed = "EmailMessagesViewed";
     public const string EmailSearchPerformed = "EmailSearchPerformed";

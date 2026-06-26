@@ -23,4 +23,6 @@ public class ConnectorDefinition
     public DateTime CreatedUtc { get; set; }
 
     public ICollection<ConnectorConnection> Connections { get; set; } = new List<ConnectorConnection>();
+
+    public ICollection<OAuthConsentGrant> OAuthConsentGrants { get; set; } = new List<OAuthConsentGrant>();
 }

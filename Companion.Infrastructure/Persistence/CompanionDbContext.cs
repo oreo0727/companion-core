@@ -61,6 +61,12 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<ConnectorSyncRun> ConnectorSyncRuns => Set<ConnectorSyncRun>();
 
+    public DbSet<OAuthProviderConfiguration> OAuthProviderConfigurations => Set<OAuthProviderConfiguration>();
+
+    public DbSet<OAuthAuthorizationRequest> OAuthAuthorizationRequests => Set<OAuthAuthorizationRequest>();
+
+    public DbSet<OAuthConsentGrant> OAuthConsentGrants => Set<OAuthConsentGrant>();
+
     public DbSet<CalendarEventSnapshot> CalendarEventSnapshots => Set<CalendarEventSnapshot>();
 
     public DbSet<EmailMessageSnapshot> EmailMessageSnapshots => Set<EmailMessageSnapshot>();
@@ -577,6 +583,69 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
                 .WithMany(x => x.SyncRuns)
                 .HasForeignKey(x => x.ConnectorConnectionId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OAuthProviderConfiguration>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Provider).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.AuthorizationEndpoint).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.TokenEndpoint).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.RevocationEndpoint).HasMaxLength(1000);
+            entity.Property(x => x.DefaultScopes).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.ClientIdSecretName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.ClientSecretSecretName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Enabled).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => x.Provider).IsUnique();
+            entity.HasData(CompanionSeedData.OAuthProviderConfigurations);
+        });
+
+        modelBuilder.Entity<OAuthAuthorizationRequest>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Provider).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.ConnectorProvider).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.State).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.RedirectUri).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Scopes).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.CodeVerifierEncrypted).HasMaxLength(8000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.ExpiresUtc).IsRequired();
+            entity.HasIndex(x => x.State).IsUnique();
+            entity.HasIndex(x => new { x.UserProfileId, x.Provider, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.OAuthAuthorizationRequests)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OAuthConsentGrant>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Provider).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Subject).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Scopes).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.ConsentUtc).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Provider, x.Subject });
+            entity.HasIndex(x => new { x.UserProfileId, x.ConnectorConnectionId });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.OAuthConsentGrants)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorDefinition)
+                .WithMany(x => x.OAuthConsentGrants)
+                .HasForeignKey(x => x.ConnectorDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorConnection)
+                .WithMany(x => x.OAuthConsentGrants)
+                .HasForeignKey(x => x.ConnectorConnectionId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<CalendarEventSnapshot>(entity =>

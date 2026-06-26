@@ -295,6 +295,38 @@ public sealed record LocalEmailImportResponse(
     ConnectorSyncRunResponse SyncRun,
     int MessagesImported);
 
+public sealed record OAuthProviderResponse(
+    Guid Id,
+    string Provider,
+    string DisplayName,
+    string AuthorizationEndpoint,
+    IReadOnlyList<string> DefaultScopes,
+    bool Enabled,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc);
+
+public sealed record OAuthAuthorizationResponse(
+    Guid AuthorizationRequestId,
+    string Provider,
+    string ConnectorProvider,
+    string AuthorizationUrl,
+    string State,
+    IReadOnlyList<string> Scopes,
+    DateTime ExpiresUtc);
+
+public sealed record OAuthConnectionResponse(
+    Guid ConnectionId,
+    Guid ConnectorDefinitionId,
+    string Provider,
+    string ConnectorProvider,
+    string DisplayName,
+    string Status,
+    IReadOnlyList<string> Scopes,
+    string Subject,
+    DateTime? ExpiresUtc,
+    DateTime ConsentUtc,
+    DateTime? RevokedUtc);
+
 public sealed record KnowledgeSourceResponse(
     Guid Id,
     Guid UserProfileId,
@@ -823,6 +855,47 @@ public static class CompanionApiMappings
             result.Connection.ToResponse(),
             result.SyncRun.ToResponse(),
             result.MessagesImported);
+    }
+
+    public static OAuthProviderResponse ToResponse(this OAuthProviderSummary provider)
+    {
+        return new OAuthProviderResponse(
+            provider.Id,
+            provider.Provider,
+            provider.DisplayName,
+            provider.AuthorizationEndpoint,
+            provider.DefaultScopes,
+            provider.Enabled,
+            provider.CreatedUtc,
+            provider.UpdatedUtc);
+    }
+
+    public static OAuthAuthorizationResponse ToResponse(this OAuthAuthorizationResult result)
+    {
+        return new OAuthAuthorizationResponse(
+            result.AuthorizationRequestId,
+            result.Provider,
+            result.ConnectorProvider,
+            result.AuthorizationUrl,
+            result.State,
+            result.Scopes,
+            result.ExpiresUtc);
+    }
+
+    public static OAuthConnectionResponse ToResponse(this OAuthConnectionSummary connection)
+    {
+        return new OAuthConnectionResponse(
+            connection.ConnectionId,
+            connection.ConnectorDefinitionId,
+            connection.Provider,
+            connection.ConnectorProvider,
+            connection.DisplayName,
+            connection.Status,
+            connection.Scopes,
+            connection.Subject,
+            connection.ExpiresUtc,
+            connection.ConsentUtc,
+            connection.RevokedUtc);
     }
 
     public static KnowledgeSourceResponse ToResponse(this KnowledgeSourceSummary source)

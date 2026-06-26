@@ -56,6 +56,10 @@ public class UserProfile
 
     public ICollection<ConnectorSyncRun> ConnectorSyncRuns { get; set; } = new List<ConnectorSyncRun>();
 
+    public ICollection<OAuthAuthorizationRequest> OAuthAuthorizationRequests { get; set; } = new List<OAuthAuthorizationRequest>();
+
+    public ICollection<OAuthConsentGrant> OAuthConsentGrants { get; set; } = new List<OAuthConsentGrant>();
+
     public ICollection<CalendarEventSnapshot> CalendarEventSnapshots { get; set; } = new List<CalendarEventSnapshot>();
 
     public ICollection<EmailMessageSnapshot> EmailMessageSnapshots { get; set; } = new List<EmailMessageSnapshot>();

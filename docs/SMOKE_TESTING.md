@@ -20,6 +20,8 @@ The script fails fast and verifies:
 - knowledge import
 - knowledge search
 - connector discovery
+- OAuth provider discovery
+- OAuth authorization, callback, disconnect, and audit
 - local calendar import
 - calendar event retrieval
 - local email import
@@ -75,6 +77,7 @@ It also exercises:
 11. local email import, briefing inclusion, search, and email tool retrieval
 12. scheduled reminders, worker-created notifications, notification read audit, and notification tools
 13. Next.js web console typecheck and production build
+14. OAuth provider discovery, consent grant, encrypted-token connection, disconnect, and audit
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

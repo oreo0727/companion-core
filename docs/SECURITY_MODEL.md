@@ -89,6 +89,8 @@ AI-generated candidates must become pending suggestions first. Only deterministi
 
 This gives Companion a server-side place for sensitive credentials before external connectors are introduced.
 
+OAuth access and refresh tokens are also encrypted with ASP.NET Core Data Protection before they are stored on connector connections. OAuth API responses expose connection status, scopes, subject, and expiry only.
+
 ## Audit Philosophy
 
 Audit logging is intentionally scoped to events that materially affect trust:

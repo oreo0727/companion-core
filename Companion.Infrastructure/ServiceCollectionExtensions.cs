@@ -55,6 +55,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConnector, LocalEmailReadConnector>();
         services.AddScoped<IConnectorRegistry, ConnectorRegistry>();
         services.AddScoped<IConnectorSyncService, ConnectorSyncService>();
+        services.AddScoped<IOAuthService, OAuthService>();
         services.AddScoped<IKnowledgeImporter, KnowledgeImporter>();
         services.AddScoped<IKnowledgeSearchService, KnowledgeSearchService>();
         services.AddScoped<ITool, MemorySearchTool>();

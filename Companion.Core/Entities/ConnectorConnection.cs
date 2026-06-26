@@ -33,4 +33,6 @@ public class ConnectorConnection
     public ICollection<CalendarEventSnapshot> CalendarEvents { get; set; } = new List<CalendarEventSnapshot>();
 
     public ICollection<EmailMessageSnapshot> EmailMessages { get; set; } = new List<EmailMessageSnapshot>();
+
+    public ICollection<OAuthConsentGrant> OAuthConsentGrants { get; set; } = new List<OAuthConsentGrant>();
 }
