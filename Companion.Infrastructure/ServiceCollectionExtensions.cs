@@ -123,6 +123,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IReasoningEngine, ChiefOfStaffReasoningEngine>();
         services.AddScoped<IAgentCatalog, AgentCatalog>();
         services.AddScoped<IMultiAgentOrchestrator, MultiAgentOrchestrator>();
+        services.AddScoped<IAdaptiveLearningService, AdaptiveLearningService>();
         services.AddScoped<IMemoryExtractionService, MemoryExtractionService>();
         services.AddScoped<ISuggestionService, SuggestionService>();
         services.AddScoped<IAIProvider>(serviceProvider => serviceProvider.GetRequiredService<OpenAIProvider>());

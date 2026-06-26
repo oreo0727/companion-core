@@ -1,6 +1,7 @@
 using Companion.Core.Abstractions;
 using Companion.Core.Constants;
 using Companion.Core.Entities;
+using Companion.Core.Models;
 using Companion.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,7 @@ namespace Companion.Infrastructure.Services;
 public class UserPreferenceService(
     CompanionDbContext dbContext,
     IAuditService auditService,
+    IAdaptiveLearningService learningService,
     TimeProvider timeProvider) : IUserPreferenceService
 {
     public async Task<IReadOnlyList<UserPreference>> GetPreferencesAsync(
@@ -64,6 +66,15 @@ public class UserPreferenceService(
             nameof(UserPreference),
             preference.Id.ToString(),
             $"Updated preference '{normalizedType}'.",
+            cancellationToken);
+        await learningService.RecordEventAsync(
+            userProfileId,
+            new RecordLearningEventCommand(
+                LearningEventTypes.PreferenceEvolved,
+                nameof(UserPreference),
+                preference.Id.ToString(),
+                $"Preference evolved: {normalizedType}",
+                1m),
             cancellationToken);
 
         return preference;

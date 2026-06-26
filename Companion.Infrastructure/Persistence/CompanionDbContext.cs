@@ -39,6 +39,10 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<AgentDefinition> AgentDefinitions => Set<AgentDefinition>();
 
+    public DbSet<LearningEvent> LearningEvents => Set<LearningEvent>();
+
+    public DbSet<ConversationRating> ConversationRatings => Set<ConversationRating>();
+
     public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
 
     public DbSet<ConnectorAccount> ConnectorAccounts => Set<ConnectorAccount>();
@@ -409,6 +413,40 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
             entity.Property(x => x.CreatedUtc).IsRequired();
             entity.HasIndex(x => x.Name).IsUnique();
             entity.HasData(CompanionSeedData.AgentDefinitions);
+        });
+
+        modelBuilder.Entity<LearningEvent>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.SourceType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.SourceId).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Signal).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Weight).HasPrecision(6, 2).IsRequired();
+            entity.Property(x => x.MetadataJson).HasMaxLength(4000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.EventType, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.LearningEvents)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ConversationRating>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Rating).IsRequired();
+            entity.Property(x => x.Comment).HasMaxLength(1000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.ConversationId, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.ConversationRatings)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Conversation)
+                .WithMany()
+                .HasForeignKey(x => x.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ApprovalRequest>(entity =>

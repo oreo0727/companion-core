@@ -691,6 +691,21 @@ DASHBOARD="$(http_get "${API_URL}/api/companion/dashboard")"
 assert_json "$BRIEFING" "isinstance(data['openTasks'], list)" "Briefing endpoint works"
 assert_json "$DASHBOARD" "isinstance(data['topInsights'], list)" "Dashboard endpoint works"
 
+step "Recording adaptive learning signals"
+IGNORED_SUGGESTION_ID="$(json_eval "$UPDATED_SUGGESTIONS" "next((x['id'] for x in data if x['status'] == 'Pending'), None)")"
+[[ "${IGNORED_SUGGESTION_ID}" != "null" ]] || fail "No pending suggestion available for learning ignore signal"
+IGNORED_SUGGESTION="$(http_post "${API_URL}/api/suggestions/${IGNORED_SUGGESTION_ID}/ignore")"
+assert_json "$IGNORED_SUGGESTION" "data['id'] == '${IGNORED_SUGGESTION_ID}'" "Ignored suggestion learning signal is accepted"
+CONVERSATION_RATING="$(http_post_json "${API_URL}/api/learning/ratings" "$(cat <<JSON
+{"conversationId":"${CONVERSATION_ID}","rating":5,"comment":"Helpful smoke-test response."}
+JSON
+)")"
+assert_json "$CONVERSATION_RATING" "data['conversationId'] == '${CONVERSATION_ID}' and data['rating'] == 5" "Conversation rating is recorded"
+LEARNING_PROFILE="$(http_get "${API_URL}/api/learning/profile")"
+assert_json "$LEARNING_PROFILE" "data['ignoredSuggestions'] >= 1 and data['conversationRatingCount'] >= 1 and data['toolUsageCount'] >= 1" "Learning profile aggregates behavioral signals"
+LEARNING_EVENTS="$(http_get "${API_URL}/api/learning/events")"
+assert_json "$LEARNING_EVENTS" "sum(1 for x in data if x['eventType'] == 'SuggestionIgnored') >= 1 and sum(1 for x in data if x['eventType'] == 'ConversationRated') >= 1 and sum(1 for x in data if x['eventType'] == 'ToolUsed') >= 1" "Learning events include suggestion, rating, and tool signals"
+
 step "Scenario B: Ollama enabled but model unavailable"
 CHAT_UNAVAILABLE_MESSAGE="Check Ollama missing model fallback for ${RUN_ID}."
 set_mock_mode missing-model
@@ -769,4 +784,4 @@ AGENT_AUDIT="$(http_get "${API_URL}/api/audit")"
 assert_json "$AGENT_AUDIT" "sum(1 for x in data if x['eventType'] == 'AgentRunDelegated') >= 3 and sum(1 for x in data if x['eventType'] == 'AgentRunCompleted') >= 4" "Agent orchestration is audited"
 
 step "Smoke test completed"
-pass "Phase 18 smoke test passed"
+pass "Phase 19 smoke test passed"

@@ -14,6 +14,7 @@ public class ToolExecutor(
     IToolRegistry toolRegistry,
     IApprovalService approvalService,
     IAuditService auditService,
+    IAdaptiveLearningService learningService,
     TimeProvider timeProvider) : IToolExecutor
 {
     public async Task<ToolDefinition?> GetDefinitionAsync(Guid toolDefinitionId, CancellationToken cancellationToken = default)
@@ -183,6 +184,12 @@ public class ToolExecutor(
             execution.InputJson,
             execution.Error,
             cancellationToken);
+        await RecordToolLearningAsync(
+            execution,
+            execution.ToolDefinition?.Name ?? payload.ToolName,
+            LearningEventTypes.ToolFailed,
+            -1m,
+            cancellationToken);
 
         return execution;
     }
@@ -259,6 +266,12 @@ public class ToolExecutor(
                 execution.InputJson,
                 result.Summary,
                 cancellationToken);
+            await RecordToolLearningAsync(
+                execution,
+                definition.Name,
+                LearningEventTypes.ToolUsed,
+                1m,
+                cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -275,7 +288,38 @@ public class ToolExecutor(
                 execution.InputJson,
                 ex.Message,
                 cancellationToken);
+            await RecordToolLearningAsync(
+                execution,
+                definition.Name,
+                LearningEventTypes.ToolFailed,
+                -1m,
+                cancellationToken);
         }
+    }
+
+    private async Task RecordToolLearningAsync(
+        ToolExecution execution,
+        string toolName,
+        string eventType,
+        decimal weight,
+        CancellationToken cancellationToken)
+    {
+        await learningService.RecordEventAsync(
+            execution.UserProfileId,
+            new RecordLearningEventCommand(
+                eventType,
+                nameof(ToolExecution),
+                execution.Id.ToString(),
+                $"Tool {toolName} finished with status {execution.Status}.",
+                weight,
+                JsonSerializer.Serialize(new
+                {
+                    toolName,
+                    execution.Status,
+                    execution.AgentRunId,
+                    execution.CompletedUtc
+                })),
+            cancellationToken);
     }
 
     private async Task WriteAuditAsync(

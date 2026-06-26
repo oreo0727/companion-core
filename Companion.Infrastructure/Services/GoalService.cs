@@ -1,4 +1,5 @@
 using Companion.Core.Abstractions;
+using Companion.Core.Constants;
 using Companion.Core.Entities;
 using Companion.Core.Enums;
 using Companion.Core.Models;
@@ -7,7 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Companion.Infrastructure.Services;
 
-public class GoalService(CompanionDbContext dbContext, TimeProvider timeProvider) : IGoalService
+public class GoalService(
+    CompanionDbContext dbContext,
+    IAdaptiveLearningService learningService,
+    TimeProvider timeProvider) : IGoalService
 {
     public async Task<IReadOnlyList<Goal>> GetGoalsAsync(
         Guid userProfileId,
@@ -79,6 +83,7 @@ public class GoalService(CompanionDbContext dbContext, TimeProvider timeProvider
             return null;
         }
 
+        var previousStatus = goal.Status;
         goal.Title = PlanningText.NormalizeTitle(command.Title);
         goal.Description = PlanningText.NormalizeDescription(command.Description);
         goal.Status = command.Status ?? goal.Status;
@@ -87,6 +92,19 @@ public class GoalService(CompanionDbContext dbContext, TimeProvider timeProvider
         goal.UpdatedUtc = timeProvider.GetUtcNow().UtcDateTime;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (previousStatus != GoalStatus.Completed && goal.Status == GoalStatus.Completed)
+        {
+            await learningService.RecordEventAsync(
+                userProfileId,
+                new RecordLearningEventCommand(
+                    LearningEventTypes.GoalCompleted,
+                    nameof(Goal),
+                    goal.Id.ToString(),
+                    $"Goal completed: {goal.Title}",
+                    3m),
+                cancellationToken);
+        }
+
         return goal;
     }
 

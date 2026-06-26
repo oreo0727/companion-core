@@ -77,4 +77,8 @@ public class UserProfile
     public ICollection<ToolExecution> ToolExecutions { get; set; } = new List<ToolExecution>();
 
     public ICollection<ToolPermission> ToolPermissions { get; set; } = new List<ToolPermission>();
+
+    public ICollection<LearningEvent> LearningEvents { get; set; } = new List<LearningEvent>();
+
+    public ICollection<ConversationRating> ConversationRatings { get; set; } = new List<ConversationRating>();
 }

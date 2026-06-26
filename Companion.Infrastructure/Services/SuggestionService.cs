@@ -1,4 +1,5 @@
 using Companion.Core.Abstractions;
+using Companion.Core.Constants;
 using Companion.Core.Entities;
 using Companion.Core.Enums;
 using Companion.Core.Models;
@@ -13,6 +14,7 @@ public class SuggestionService(
     ITaskService taskService,
     IGoalService goalService,
     IProjectService projectService,
+    IAdaptiveLearningService learningService,
     TimeProvider timeProvider) : ISuggestionService
 {
     public async Task<IReadOnlyList<MemorySuggestion>> CaptureMemorySuggestionsAsync(
@@ -179,7 +181,9 @@ public class SuggestionService(
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            return new SuggestionActionResult(ToRecord(memorySuggestion), nameof(MemoryEntry), memory.Id, SuggestionKind.Memory);
+            var record = ToRecord(memorySuggestion);
+            await RecordSuggestionOutcomeAsync(userProfileId, record, LearningEventTypes.SuggestionAccepted, 2m, cancellationToken);
+            return new SuggestionActionResult(record, nameof(MemoryEntry), memory.Id, SuggestionKind.Memory);
         }
 
         var goal = await goalService.ApproveSuggestionAsync(userProfileId, suggestionId, cancellationToken);
@@ -188,7 +192,9 @@ public class SuggestionService(
             var suggestion = await dbContext.GoalSuggestions
                 .AsNoTracking()
                 .FirstAsync(x => x.Id == suggestionId, cancellationToken);
-            return new SuggestionActionResult(ToRecord(suggestion), nameof(Goal), goal.Id, SuggestionKind.Goal);
+            var record = ToRecord(suggestion);
+            await RecordSuggestionOutcomeAsync(userProfileId, record, LearningEventTypes.SuggestionAccepted, 2m, cancellationToken);
+            return new SuggestionActionResult(record, nameof(Goal), goal.Id, SuggestionKind.Goal);
         }
 
         var project = await projectService.ApproveSuggestionAsync(userProfileId, suggestionId, cancellationToken);
@@ -197,7 +203,9 @@ public class SuggestionService(
             var suggestion = await dbContext.ProjectSuggestions
                 .AsNoTracking()
                 .FirstAsync(x => x.Id == suggestionId, cancellationToken);
-            return new SuggestionActionResult(ToRecord(suggestion), nameof(Project), project.Id, SuggestionKind.Project);
+            var record = ToRecord(suggestion);
+            await RecordSuggestionOutcomeAsync(userProfileId, record, LearningEventTypes.SuggestionAccepted, 2m, cancellationToken);
+            return new SuggestionActionResult(record, nameof(Project), project.Id, SuggestionKind.Project);
         }
 
         var taskSuggestion = await dbContext.TaskSuggestions
@@ -213,7 +221,9 @@ public class SuggestionService(
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            return new SuggestionActionResult(ToRecord(taskSuggestion), nameof(TaskItem), task.Id, SuggestionKind.Task);
+            var record = ToRecord(taskSuggestion);
+            await RecordSuggestionOutcomeAsync(userProfileId, record, LearningEventTypes.SuggestionAccepted, 2m, cancellationToken);
+            return new SuggestionActionResult(record, nameof(TaskItem), task.Id, SuggestionKind.Task);
         }
 
         return null;
@@ -237,19 +247,25 @@ public class SuggestionService(
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            return ToRecord(memorySuggestion);
+            var record = ToRecord(memorySuggestion);
+            await RecordSuggestionOutcomeAsync(userProfileId, record, LearningEventTypes.SuggestionRejected, -1m, cancellationToken);
+            return record;
         }
 
         var goalSuggestion = await goalService.RejectSuggestionAsync(userProfileId, suggestionId, cancellationToken);
         if (goalSuggestion is not null)
         {
-            return ToRecord(goalSuggestion);
+            var record = ToRecord(goalSuggestion);
+            await RecordSuggestionOutcomeAsync(userProfileId, record, LearningEventTypes.SuggestionRejected, -1m, cancellationToken);
+            return record;
         }
 
         var projectSuggestion = await projectService.RejectSuggestionAsync(userProfileId, suggestionId, cancellationToken);
         if (projectSuggestion is not null)
         {
-            return ToRecord(projectSuggestion);
+            var record = ToRecord(projectSuggestion);
+            await RecordSuggestionOutcomeAsync(userProfileId, record, LearningEventTypes.SuggestionRejected, -1m, cancellationToken);
+            return record;
         }
 
         var taskSuggestion = await dbContext.TaskSuggestions
@@ -263,10 +279,28 @@ public class SuggestionService(
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            return ToRecord(taskSuggestion);
+            var record = ToRecord(taskSuggestion);
+            await RecordSuggestionOutcomeAsync(userProfileId, record, LearningEventTypes.SuggestionRejected, -1m, cancellationToken);
+            return record;
         }
 
         return null;
+    }
+
+    public async Task<SuggestionRecord?> MarkSuggestionIgnoredAsync(
+        Guid userProfileId,
+        Guid suggestionId,
+        CancellationToken cancellationToken = default)
+    {
+        var record = (await GetSuggestionsAsync(userProfileId, cancellationToken))
+            .FirstOrDefault(x => x.Id == suggestionId);
+        if (record is null)
+        {
+            return null;
+        }
+
+        await RecordSuggestionOutcomeAsync(userProfileId, record, LearningEventTypes.SuggestionIgnored, -0.25m, cancellationToken);
+        return record;
     }
 
     private async Task<MemoryEntry> EnsureMemoryFromSuggestionAsync(
@@ -328,6 +362,30 @@ public class SuggestionService(
                 suggestion.Priority,
                 suggestion.DueDateUtc,
                 null),
+            cancellationToken);
+    }
+
+    private async Task RecordSuggestionOutcomeAsync(
+        Guid userProfileId,
+        SuggestionRecord record,
+        string eventType,
+        decimal weight,
+        CancellationToken cancellationToken)
+    {
+        await learningService.RecordEventAsync(
+            userProfileId,
+            new RecordLearningEventCommand(
+                eventType,
+                record.Kind.ToString(),
+                record.Id.ToString(),
+                $"{eventType} {record.Kind} suggestion: {record.Title}",
+                weight,
+                System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    record.Status,
+                    record.CreatedUtc,
+                    record.ReviewedUtc
+                })),
             cancellationToken);
     }
 

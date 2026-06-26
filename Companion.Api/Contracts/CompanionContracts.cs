@@ -172,6 +172,40 @@ public sealed record AgentDefinitionResponse(
     bool Enabled,
     DateTime CreatedUtc);
 
+public sealed record LearningEventResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string EventType,
+    string SourceType,
+    string SourceId,
+    string Signal,
+    decimal Weight,
+    string? MetadataJson,
+    DateTime CreatedUtc);
+
+public sealed record ConversationRatingResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConversationId,
+    int Rating,
+    string? Comment,
+    DateTime CreatedUtc);
+
+public sealed record LearningProfileResponse(
+    Guid UserProfileId,
+    int AcceptedSuggestions,
+    int RejectedSuggestions,
+    int IgnoredSuggestions,
+    int ToolUsageCount,
+    int FailedToolUsageCount,
+    int ConversationRatingCount,
+    decimal AverageConversationRating,
+    int CompletedGoals,
+    int CompletedProjects,
+    int PreferenceEvolutionEvents,
+    IReadOnlyList<string> StrongSignals,
+    DateTime GeneratedUtc);
+
 public sealed record NotificationResponse(
     Guid Id,
     Guid UserProfileId,
@@ -805,6 +839,49 @@ public static class CompanionApiMappings
             definition.MemoryWeight,
             definition.Enabled,
             definition.CreatedUtc);
+    }
+
+    public static LearningEventResponse ToResponse(this LearningEvent learningEvent)
+    {
+        return new LearningEventResponse(
+            learningEvent.Id,
+            learningEvent.UserProfileId,
+            learningEvent.EventType,
+            learningEvent.SourceType,
+            learningEvent.SourceId,
+            learningEvent.Signal,
+            learningEvent.Weight,
+            learningEvent.MetadataJson,
+            learningEvent.CreatedUtc);
+    }
+
+    public static ConversationRatingResponse ToResponse(this ConversationRating rating)
+    {
+        return new ConversationRatingResponse(
+            rating.Id,
+            rating.UserProfileId,
+            rating.ConversationId,
+            rating.Rating,
+            rating.Comment,
+            rating.CreatedUtc);
+    }
+
+    public static LearningProfileResponse ToResponse(this LearningProfile profile)
+    {
+        return new LearningProfileResponse(
+            profile.UserProfileId,
+            profile.AcceptedSuggestions,
+            profile.RejectedSuggestions,
+            profile.IgnoredSuggestions,
+            profile.ToolUsageCount,
+            profile.FailedToolUsageCount,
+            profile.ConversationRatingCount,
+            profile.AverageConversationRating,
+            profile.CompletedGoals,
+            profile.CompletedProjects,
+            profile.PreferenceEvolutionEvents,
+            profile.StrongSignals,
+            profile.GeneratedUtc);
     }
 
     public static NotificationResponse ToResponse(this Notification notification)

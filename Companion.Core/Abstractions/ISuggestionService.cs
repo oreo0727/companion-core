@@ -28,4 +28,9 @@ public interface ISuggestionService
         Guid userProfileId,
         Guid suggestionId,
         CancellationToken cancellationToken = default);
+
+    Task<SuggestionRecord?> MarkSuggestionIgnoredAsync(
+        Guid userProfileId,
+        Guid suggestionId,
+        CancellationToken cancellationToken = default);
 }

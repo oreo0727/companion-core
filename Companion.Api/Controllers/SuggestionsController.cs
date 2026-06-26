@@ -44,4 +44,17 @@ public class SuggestionsController(ISuggestionService suggestionService) : Contr
 
         return result is null ? NotFound() : Ok(result.ToResponse());
     }
+
+    [HttpPost("{id:guid}/ignore")]
+    [ProducesResponseType(typeof(SuggestionRecordResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SuggestionRecordResponse>> IgnoreSuggestion(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await suggestionService.MarkSuggestionIgnoredAsync(
+            User.GetRequiredUserProfileId(),
+            id,
+            cancellationToken);
+
+        return result is null ? NotFound() : Ok(result.ToResponse());
+    }
 }

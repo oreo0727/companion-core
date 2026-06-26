@@ -1,4 +1,5 @@
 using Companion.Core.Abstractions;
+using Companion.Core.Constants;
 using Companion.Core.Entities;
 using Companion.Core.Enums;
 using Companion.Core.Models;
@@ -7,7 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Companion.Infrastructure.Services;
 
-public class ProjectService(CompanionDbContext dbContext, TimeProvider timeProvider) : IProjectService
+public class ProjectService(
+    CompanionDbContext dbContext,
+    IAdaptiveLearningService learningService,
+    TimeProvider timeProvider) : IProjectService
 {
     public async Task<IReadOnlyList<Project>> GetProjectsAsync(
         Guid userProfileId,
@@ -77,6 +81,7 @@ public class ProjectService(CompanionDbContext dbContext, TimeProvider timeProvi
             return null;
         }
 
+        var previousStatus = project.Status;
         project.Title = PlanningText.NormalizeTitle(command.Title);
         project.Description = PlanningText.NormalizeDescription(command.Description);
         project.Status = command.Status ?? project.Status;
@@ -84,6 +89,19 @@ public class ProjectService(CompanionDbContext dbContext, TimeProvider timeProvi
         project.UpdatedUtc = timeProvider.GetUtcNow().UtcDateTime;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (previousStatus != ProjectStatus.Completed && project.Status == ProjectStatus.Completed)
+        {
+            await learningService.RecordEventAsync(
+                userProfileId,
+                new RecordLearningEventCommand(
+                    LearningEventTypes.ProjectCompleted,
+                    nameof(Project),
+                    project.Id.ToString(),
+                    $"Project completed: {project.Title}",
+                    3m),
+                cancellationToken);
+        }
+
         return project;
     }
 
