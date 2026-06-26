@@ -1,6 +1,6 @@
 # Companion Core
 
-Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 10 adds internal in-app notifications and reminders without SMS, mobile push, or email sending.
+Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 11 adds the first production-quality web console for operating the platform.
 
 ## What This Phase Includes
 
@@ -20,6 +20,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Read-only connector framework with connector definitions, user connections, sync runs, calendar snapshots, and email snapshots
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
+- Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture
 - Swagger-enabled API and Docker Compose bootstrap with an optional Ollama profile
 
 ## Solution Layout
@@ -32,6 +33,8 @@ Companion Core is the backend spine of a private AI companion platform. It is in
   REST API for chat, conversations, memories, tasks, goals, projects, open loops, approvals, agent runs, settings, suggestions, briefing, and dashboard
 - `Companion.Worker`
   Background processor for pending specialist-agent runs
+- `Companion.Web`
+  React, TypeScript, Next.js, Tailwind, and TanStack Query admin console
 
 ## Quick Start
 
@@ -49,6 +52,7 @@ docker compose --profile ollama up --build
 
 Once the containers are running:
 
+- Web console: `http://localhost:3000`
 - Swagger UI: `http://localhost:8080/swagger`
 - PostgreSQL remains internal to Docker Compose; the API and worker connect to it over the compose network
 - Local development admin: `local.user@companion-core.local` / `CompanionDev123!`
@@ -76,11 +80,25 @@ dotnet run --project Companion.Api
 dotnet run --project Companion.Worker
 ```
 
-6. Run the smoke test:
+6. Run the web console:
+
+```bash
+cd Companion.Web
+npm install
+npm run dev
+```
+
+7. Run the smoke test:
 
 ```bash
 ./scripts/smoke-test.sh
 ```
+
+Useful local URLs:
+
+- Web console: `http://localhost:3000`
+- API Swagger: `http://localhost:8080/swagger`
+- Tailscale web console from another device: `http://100.71.8.121:3000` when the dev server is bound to `0.0.0.0`
 
 ### Authentication
 
@@ -89,6 +107,23 @@ The API is authenticated by default.
 - Register with `POST /api/auth/register`
 - Or log into the seeded local admin with `POST /api/auth/login`
 - Send the returned bearer token as `Authorization: Bearer <token>`
+
+### Web Console
+
+The web app lives in `Companion.Web` and calls the API through `NEXT_PUBLIC_API_BASE_URL`, defaulting to `http://localhost:8080`.
+
+```bash
+cd Companion.Web
+npm ci
+npm run typecheck
+npm run build
+```
+
+To expose the development server to another machine on the LAN or Tailscale:
+
+```bash
+npm run dev -- --hostname 0.0.0.0
+```
 
 ## API Surface
 
@@ -250,6 +285,7 @@ The migrations seed:
 ## Current Constraints
 
 - No voice, mobile, SMS, push notifications, email sending, email deleting, email archiving, or desktop control yet
+- The current web app is an admin console, not a mobile app
 - No destructive connector actions; current connectors are read-only local calendar and local email importers
 - No external knowledge connectors yet; imports are direct API submissions only
 - Provider calls use plain `HttpClient` and require external model availability plus valid configuration
@@ -272,6 +308,7 @@ The migrations seed:
 - [Knowledge Layer](docs/KNOWLEDGE.md)
 - [Notifications](docs/NOTIFICATIONS.md)
 - [Tool Runtime](docs/TOOLS.md)
+- [Web Application](docs/WEB_APPLICATION.md)
 - [Retrieval](docs/RETRIEVAL.md)
 - [Chat Pipeline](docs/CHAT_PIPELINE.md)
 - [Memory Model](docs/MEMORY_MODEL.md)

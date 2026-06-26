@@ -6,3 +6,7 @@
 *.suo
 *.db
 *.log
+Companion.Web/.next/
+Companion.Web/node_modules/
+Companion.Web/out/
+Companion.Web/tsconfig.tsbuildinfo

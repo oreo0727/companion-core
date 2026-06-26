@@ -42,3 +42,17 @@ With a fresh PostgreSQL volume, `companion-api` and `companion-worker` can both 
 ### Fix
 
 Database initialization now takes a PostgreSQL advisory lock before running migrations. That keeps startup concurrent, but serializes schema changes so only one process applies migrations at a time while the other waits and then proceeds cleanly.
+
+## Web Console Development
+
+`Companion.Web` is a Next.js application that runs separately from the ASP.NET Core API. The API exposes CORS for the local web origins through `Cors:AllowedOrigins`.
+
+Use these checks before committing UI work:
+
+```bash
+npm --prefix Companion.Web ci
+npm --prefix Companion.Web run typecheck
+npm --prefix Companion.Web run build
+```
+
+Docker Compose builds `companion-web` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080`, which is the browser-visible API URL.

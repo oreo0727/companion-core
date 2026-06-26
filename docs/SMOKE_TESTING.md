@@ -44,7 +44,16 @@ The script fails fast and verifies:
 - password `postgres`
 - `curl`
 - `dotnet`
+- `npm`
 - `python3`
+
+The script also runs the Phase 11 web verification:
+
+```bash
+npm --prefix Companion.Web ci
+npm --prefix Companion.Web run typecheck
+npm --prefix Companion.Web run build
+```
 
 ## Provider Scenarios Covered
 
@@ -65,6 +74,7 @@ It also exercises:
 10. local calendar import, briefing inclusion, sync recording, and calendar tool retrieval
 11. local email import, briefing inclusion, search, and email tool retrieval
 12. scheduled reminders, worker-created notifications, notification read audit, and notification tools
+13. Next.js web console typecheck and production build
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

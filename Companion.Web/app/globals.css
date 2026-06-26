@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: 248 250 252;
+  --surface-muted: 241 245 249;
+  --surface-raised: 255 255 255;
+  --line: 203 213 225;
+  --ink: 15 23 42;
+  --ink-muted: 71 85 105;
+  --accent: 20 184 166;
+  --accent-strong: 13 148 136;
+}
+
+.dark {
+  --surface: 10 15 13;
+  --surface-muted: 18 24 22;
+  --surface-raised: 24 31 29;
+  --line: 51 65 75;
+  --ink: 226 232 240;
+  --ink-muted: 148 163 184;
+  --accent: 45 212 191;
+  --accent-strong: 20 184 166;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  background: rgb(var(--surface));
+  color: rgb(var(--ink));
+  letter-spacing: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.25);
+}
