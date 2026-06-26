@@ -33,6 +33,15 @@ public static class CompanionSeedData
     public static readonly Guid EmailSearchToolDefinitionId = Guid.Parse("8b91435f-f204-44de-a541-997b07c654d6");
     public static readonly Guid CreateReminderToolDefinitionId = Guid.Parse("1c82899c-debe-4f89-8c20-63c13804c81c");
     public static readonly Guid ListNotificationsToolDefinitionId = Guid.Parse("a442411b-d69f-4e6a-a76e-7aa4ef8cc388");
+    public static readonly Guid DesktopReadFileToolDefinitionId = Guid.Parse("0086f4b6-8f10-436c-a822-ed38fc987e2f");
+    public static readonly Guid DesktopWriteFileToolDefinitionId = Guid.Parse("75d850c8-c6f7-4bb0-bfe5-468f9f5ea0f8");
+    public static readonly Guid DesktopLaunchApplicationToolDefinitionId = Guid.Parse("93c0a78b-4afe-4ad3-bccb-ee725ddf1076");
+    public static readonly Guid DesktopCaptureScreenshotToolDefinitionId = Guid.Parse("3d7ff051-b995-45e6-8553-c594af5e3cee");
+    public static readonly Guid DesktopGetClipboardToolDefinitionId = Guid.Parse("7ab17af0-8d4e-4718-bec4-985afc4a4dcc");
+    public static readonly Guid DesktopSetClipboardToolDefinitionId = Guid.Parse("35b5ef75-d468-4dd1-bbd1-4460b440813d");
+    public static readonly Guid DesktopRunTerminalToolDefinitionId = Guid.Parse("c4da3dc9-9e2a-4f46-819e-25f41decd3d6");
+    public static readonly Guid DesktopSendKeyboardToolDefinitionId = Guid.Parse("ba153e06-3886-4c99-b590-2b224c470029");
+    public static readonly Guid DesktopMoveMouseToolDefinitionId = Guid.Parse("66a6ba23-ba4b-460d-a702-471f8a45c11c");
     public static readonly Guid MemorySearchToolPermissionId = Guid.Parse("1a9f7783-8d03-4769-ab39-f9b8dc7bd3b4");
     public static readonly Guid CreateTaskToolPermissionId = Guid.Parse("b4608125-c91c-4a2a-ae17-68a4b0f4f6df");
     public static readonly Guid GetBriefingToolPermissionId = Guid.Parse("f2a6cdb9-212d-4f0f-92a1-0e2db84cf90f");
@@ -41,6 +50,15 @@ public static class CompanionSeedData
     public static readonly Guid EmailSearchToolPermissionId = Guid.Parse("f0dce30f-e80a-4c77-950c-9ef69eab0754");
     public static readonly Guid CreateReminderToolPermissionId = Guid.Parse("1bfd0877-5b0c-451d-b0e4-a426b2ea8f7d");
     public static readonly Guid ListNotificationsToolPermissionId = Guid.Parse("2f34893c-23fb-429a-ac70-68007e702136");
+    public static readonly Guid DesktopReadFileToolPermissionId = Guid.Parse("77ff1312-5cee-4fcf-a518-07e249ff725b");
+    public static readonly Guid DesktopWriteFileToolPermissionId = Guid.Parse("9a431edf-1413-4501-821a-2a98b3c18085");
+    public static readonly Guid DesktopLaunchApplicationToolPermissionId = Guid.Parse("8acda4f9-9eae-44c4-9630-aff2ff778807");
+    public static readonly Guid DesktopCaptureScreenshotToolPermissionId = Guid.Parse("0d4653e4-34f1-4751-94b1-541fc69d2794");
+    public static readonly Guid DesktopGetClipboardToolPermissionId = Guid.Parse("8f1c72ae-fd11-43f0-b453-eb1379063334");
+    public static readonly Guid DesktopSetClipboardToolPermissionId = Guid.Parse("e95d5f67-3033-4678-be92-d84850d058c0");
+    public static readonly Guid DesktopRunTerminalToolPermissionId = Guid.Parse("2b301feb-a801-48d9-84a5-726d1e21742e");
+    public static readonly Guid DesktopSendKeyboardToolPermissionId = Guid.Parse("647f4e14-d051-464e-9256-d39008ad702c");
+    public static readonly Guid DesktopMoveMouseToolPermissionId = Guid.Parse("7c321bae-cebe-4885-a65d-7dc4b12a7084");
     public static readonly Guid LocalCalendarConnectorDefinitionId = Guid.Parse("fb132d85-476e-48d2-81cb-4e6a1bf09cf5");
     public static readonly Guid LocalEmailConnectorDefinitionId = Guid.Parse("745e49ef-a388-4544-a416-8299d0fdadc0");
     public static readonly Guid GoogleCalendarConnectorDefinitionId = Guid.Parse("9fbe2c8b-64d0-4f33-99dd-d5ed38e3f112");
@@ -482,6 +500,105 @@ public static class CompanionSeedData
             RequiresApproval = false,
             Enabled = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = DesktopReadFileToolDefinitionId,
+            Name = ToolNames.DesktopReadFile,
+            Description = "Read a file from the configured desktop automation root after approval.",
+            Category = ToolCategories.Desktop,
+            RiskLevel = ToolRiskLevel.Medium,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = DesktopWriteFileToolDefinitionId,
+            Name = ToolNames.DesktopWriteFile,
+            Description = "Write a file inside the configured desktop automation root after approval.",
+            Category = ToolCategories.Desktop,
+            RiskLevel = ToolRiskLevel.High,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = DesktopLaunchApplicationToolDefinitionId,
+            Name = ToolNames.DesktopLaunchApplication,
+            Description = "Launch a local desktop application after approval.",
+            Category = ToolCategories.Desktop,
+            RiskLevel = ToolRiskLevel.High,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = DesktopCaptureScreenshotToolDefinitionId,
+            Name = ToolNames.DesktopCaptureScreenshot,
+            Description = "Capture a screenshot when host screenshot tooling is available.",
+            Category = ToolCategories.Desktop,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = DesktopGetClipboardToolDefinitionId,
+            Name = ToolNames.DesktopGetClipboard,
+            Description = "Read current clipboard text after approval.",
+            Category = ToolCategories.Desktop,
+            RiskLevel = ToolRiskLevel.Medium,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = DesktopSetClipboardToolDefinitionId,
+            Name = ToolNames.DesktopSetClipboard,
+            Description = "Set clipboard text after approval.",
+            Category = ToolCategories.Desktop,
+            RiskLevel = ToolRiskLevel.High,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = DesktopRunTerminalToolDefinitionId,
+            Name = ToolNames.DesktopRunTerminal,
+            Description = "Run a terminal command after approval and host configuration.",
+            Category = ToolCategories.Desktop,
+            RiskLevel = ToolRiskLevel.High,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = DesktopSendKeyboardToolDefinitionId,
+            Name = ToolNames.DesktopSendKeyboard,
+            Description = "Send keyboard input after approval and host configuration.",
+            Category = ToolCategories.Desktop,
+            RiskLevel = ToolRiskLevel.High,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = DesktopMoveMouseToolDefinitionId,
+            Name = ToolNames.DesktopMoveMouse,
+            Description = "Move or click the mouse after approval and host configuration.",
+            Category = ToolCategories.Desktop,
+            RiskLevel = ToolRiskLevel.High,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
@@ -548,6 +665,78 @@ public static class CompanionSeedData
             Id = ListNotificationsToolPermissionId,
             UserProfileId = CompanionDefaults.LocalUserProfileId,
             ToolDefinitionId = ListNotificationsToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = DesktopReadFileToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = DesktopReadFileToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = DesktopWriteFileToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = DesktopWriteFileToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = DesktopLaunchApplicationToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = DesktopLaunchApplicationToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = DesktopCaptureScreenshotToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = DesktopCaptureScreenshotToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = DesktopGetClipboardToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = DesktopGetClipboardToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = DesktopSetClipboardToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = DesktopSetClipboardToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = DesktopRunTerminalToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = DesktopRunTerminalToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = DesktopSendKeyboardToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = DesktopSendKeyboardToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = DesktopMoveMouseToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = DesktopMoveMouseToolDefinitionId,
             Allowed = true,
             CreatedUtc = ToolCreatedUtc
         }

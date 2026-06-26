@@ -9,4 +9,5 @@ public static class ToolCategories
     public const string Calendar = "Calendar";
     public const string Email = "Email";
     public const string Notifications = "Notifications";
+    public const string Desktop = "Desktop";
 }

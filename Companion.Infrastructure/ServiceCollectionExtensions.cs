@@ -85,6 +85,15 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITool, EmailSearchTool>();
         services.AddScoped<ITool, CreateReminderTool>();
         services.AddScoped<ITool, ListNotificationsTool>();
+        services.AddScoped<ITool, DesktopReadFileTool>();
+        services.AddScoped<ITool, DesktopWriteFileTool>();
+        services.AddScoped<ITool, DesktopLaunchApplicationTool>();
+        services.AddScoped<ITool, DesktopCaptureScreenshotTool>();
+        services.AddScoped<ITool, DesktopGetClipboardTool>();
+        services.AddScoped<ITool, DesktopSetClipboardTool>();
+        services.AddScoped<ITool, DesktopRunTerminalTool>();
+        services.AddScoped<ITool, DesktopSendKeyboardTool>();
+        services.AddScoped<ITool, DesktopMoveMouseTool>();
         services.AddScoped<IToolRegistry, ToolRegistry>();
         services.AddScoped<IToolExecutor, ToolExecutor>();
         services.AddScoped<IContextBuilder, ContextBuilder>();
@@ -105,6 +114,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IApprovalService, ApprovalService>();
         services.AddScoped<IAgentRuntime, AgentRuntime>();
         services.AddScoped<IConnectorManager, ConnectorManager>();
+        services.AddSingleton<IDesktopConnector, LocalDesktopConnector>();
         services.AddScoped<ISpeechToTextProvider, OpenAISpeechToTextProvider>();
         services.AddScoped<ISpeechToTextProvider, AzureSpeechToTextProvider>();
         services.AddScoped<ISpeechToTextProvider, LocalWhisperSpeechToTextProvider>();

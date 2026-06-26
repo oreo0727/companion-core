@@ -30,6 +30,8 @@ public sealed class ToolRuntimeIntegrationTests(PostgresTestApiFactory factory) 
         Assert.Contains("MemorySearch", toolNames);
         Assert.Contains("CreateTask", toolNames);
         Assert.Contains("GetBriefing", toolNames);
+        Assert.Contains("DesktopCaptureScreenshot", toolNames);
+        Assert.Contains("DesktopWriteFile", toolNames);
     }
 
     [Fact]
@@ -164,6 +166,68 @@ public sealed class ToolRuntimeIntegrationTests(PostgresTestApiFactory factory) 
             auditDocument.RootElement.EnumerateArray(),
             x => x.GetProperty("eventType").GetString() == "ToolExecutionFailed" &&
                  x.GetProperty("description").GetString()!.Contains("Tool=MemorySearch", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DesktopLowRiskTool_ExecutesImmediately()
+    {
+        using var client = factory.CreateClient();
+        var token = await LoginSeedAdminAsync(client);
+        using var authenticatedClient = factory.CreateClient();
+        authenticatedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var toolId = await GetToolIdByNameAsync(authenticatedClient, "DesktopCaptureScreenshot");
+
+        using var executeResponse = await authenticatedClient.PostAsJsonAsync($"/api/tools/{toolId}/execute", new
+        {
+            input = new { }
+        });
+
+        executeResponse.EnsureSuccessStatusCode();
+        using var executeDocument = JsonDocument.Parse(await executeResponse.Content.ReadAsStringAsync());
+        Assert.Equal("Completed", executeDocument.RootElement.GetProperty("execution").GetProperty("status").GetString());
+        Assert.True(executeDocument.RootElement.GetProperty("executedImmediately").GetBoolean());
+    }
+
+    [Fact]
+    public async Task DesktopHighRiskTool_RequiresApproval_AndWritesInsideAutomationRoot()
+    {
+        using var client = factory.CreateClient();
+        var token = await LoginSeedAdminAsync(client);
+        using var authenticatedClient = factory.CreateClient();
+        authenticatedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var toolId = await GetToolIdByNameAsync(authenticatedClient, "DesktopWriteFile");
+        var fileName = $"phase16-{Guid.NewGuid():N}.txt";
+
+        using var executeResponse = await authenticatedClient.PostAsJsonAsync($"/api/tools/{toolId}/execute", new
+        {
+            input = new
+            {
+                path = fileName,
+                content = "desktop automation approval path",
+                overwrite = true
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.Accepted, executeResponse.StatusCode);
+        using var executeDocument = JsonDocument.Parse(await executeResponse.Content.ReadAsStringAsync());
+        var approvalRequestId = executeDocument.RootElement.GetProperty("approvalRequestId").GetGuid();
+        var executionId = executeDocument.RootElement.GetProperty("execution").GetProperty("id").GetGuid();
+        Assert.Equal("AwaitingApproval", executeDocument.RootElement.GetProperty("execution").GetProperty("status").GetString());
+
+        using var approveResponse = await authenticatedClient.PostAsync($"/api/approvals/{approvalRequestId}/approve", null);
+        approveResponse.EnsureSuccessStatusCode();
+
+        using var executionsResponse = await authenticatedClient.GetAsync("/api/tools/executions");
+        executionsResponse.EnsureSuccessStatusCode();
+        using var executionsDocument = JsonDocument.Parse(await executionsResponse.Content.ReadAsStringAsync());
+        Assert.Contains(
+            executionsDocument.RootElement.EnumerateArray(),
+            x => x.GetProperty("id").GetGuid() == executionId &&
+                 x.GetProperty("status").GetString() == "Completed");
+
+        var writtenPath = Path.Combine(Path.GetTempPath(), "companion-desktop", fileName);
+        Assert.True(File.Exists(writtenPath));
+        Assert.Equal("desktop automation approval path", await File.ReadAllTextAsync(writtenPath));
     }
 
     private static async Task<Guid> GetToolIdByNameAsync(HttpClient client, string toolName)

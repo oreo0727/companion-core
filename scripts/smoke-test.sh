@@ -468,6 +468,9 @@ assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CalendarEvents') == 1
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'EmailSearch') == 1" "EmailSearch is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CreateReminder') == 1" "CreateReminder is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'ListNotifications') == 1" "ListNotifications is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'DesktopCaptureScreenshot') == 1" "DesktopCaptureScreenshot is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'DesktopWriteFile') == 1" "DesktopWriteFile is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'DesktopRunTerminal') == 1" "DesktopRunTerminal is discoverable"
 
 GET_BRIEFING_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'GetBriefing')")"
 CREATE_TASK_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CreateTask')")"
@@ -477,14 +480,20 @@ CALENDAR_EVENTS_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['
 EMAIL_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'EmailSearch')")"
 CREATE_REMINDER_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CreateReminder')")"
 LIST_NOTIFICATIONS_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'ListNotifications')")"
+DESKTOP_SCREENSHOT_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'DesktopCaptureScreenshot')")"
+DESKTOP_WRITE_FILE_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'DesktopWriteFile')")"
 SMOKE_TASK_TITLE="Smoke task ${RUN_ID}"
 KNOWLEDGE_TERM="knowledge-${RUN_ID}"
 CALENDAR_TITLE="Calendar review ${RUN_ID}"
 EMAIL_SUBJECT="Urgent invoice deadline ${RUN_ID}"
 REMINDER_TITLE="Reminder ${RUN_ID}"
+DESKTOP_FILE_NAME="smoke-${RUN_ID}.txt"
 
 GET_BRIEFING_EXECUTION="$(http_post_json "${API_URL}/api/tools/${GET_BRIEFING_TOOL_ID}/execute" '{"input":{}}')"
 assert_json "$GET_BRIEFING_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "Low-risk tool executes immediately"
+
+DESKTOP_SCREENSHOT_EXECUTION="$(http_post_json "${API_URL}/api/tools/${DESKTOP_SCREENSHOT_TOOL_ID}/execute" '{"input":{}}')"
+assert_json "$DESKTOP_SCREENSHOT_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "Low-risk desktop screenshot tool completes safely"
 
 CREATE_TASK_EXECUTION="$(http_post_json "${API_URL}/api/tools/${CREATE_TASK_TOOL_ID}/execute" "$(cat <<JSON
 {"input":{"title":"${SMOKE_TASK_TITLE}","description":"Created by the phase 9 smoke test."}}
@@ -495,8 +504,18 @@ CREATE_TASK_APPROVAL_ID="$(json_eval "$CREATE_TASK_EXECUTION" "data['approvalReq
 CREATE_TASK_EXECUTION_ID="$(json_eval "$CREATE_TASK_EXECUTION" "data['execution']['id']")"
 http_post "${API_URL}/api/approvals/${CREATE_TASK_APPROVAL_ID}/approve" >/dev/null
 
+DESKTOP_WRITE_EXECUTION="$(http_post_json "${API_URL}/api/tools/${DESKTOP_WRITE_FILE_TOOL_ID}/execute" "$(cat <<JSON
+{"input":{"path":"${DESKTOP_FILE_NAME}","content":"desktop smoke ${RUN_ID}","overwrite":true}}
+JSON
+)")"
+assert_json "$DESKTOP_WRITE_EXECUTION" "data['executedImmediately'] is False and data['execution']['status'] == 'AwaitingApproval'" "High-risk desktop write waits for approval"
+DESKTOP_WRITE_APPROVAL_ID="$(json_eval "$DESKTOP_WRITE_EXECUTION" "data['approvalRequestId']")"
+DESKTOP_WRITE_EXECUTION_ID="$(json_eval "$DESKTOP_WRITE_EXECUTION" "data['execution']['id']")"
+http_post "${API_URL}/api/approvals/${DESKTOP_WRITE_APPROVAL_ID}/approve" >/dev/null
+
 TOOL_EXECUTIONS="$(http_get "${API_URL}/api/tools/executions")"
 assert_json "$TOOL_EXECUTIONS" "next((x['status'] == 'Completed' for x in data if x['id'] == '${CREATE_TASK_EXECUTION_ID}'), False)" "Approved tool execution completes"
+assert_json "$TOOL_EXECUTIONS" "next((x['status'] == 'Completed' for x in data if x['id'] == '${DESKTOP_WRITE_EXECUTION_ID}'), False)" "Approved desktop write execution completes"
 
 TASKS_AFTER_TOOL="$(http_get "${API_URL}/api/tasks")"
 assert_json "$TASKS_AFTER_TOOL" "sum(1 for x in data if x['title'] == '${SMOKE_TASK_TITLE}') == 1" "Approved tool execution creates the task"
@@ -702,4 +721,4 @@ POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 15 smoke test passed"
+pass "Phase 16 smoke test passed"

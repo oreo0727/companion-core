@@ -25,6 +25,7 @@ The script fails fast and verifies:
 - production Google/Microsoft read connector sync into snapshots
 - voice provider discovery and session lifecycle
 - mobile Expo dependency installation and typecheck
+- desktop automation tool discovery, low-risk execution, and approval-gated write execution
 - local calendar import
 - calendar event retrieval
 - local email import
@@ -83,7 +84,8 @@ It also exercises:
 14. OAuth provider discovery, consent grant, encrypted-token connection, disconnect, and audit
 15. Google Calendar, Google Drive, Gmail, Microsoft Calendar, OneDrive, and Outlook Mail snapshot sync
 16. mobile Expo app installs and typechecks
-17. voice wake/session, transcription, conversation chunks, speech synthesis, interruption, and history
+17. desktop automation tools, screenshot execution, and approved file write
+18. voice wake/session, transcription, conversation chunks, speech synthesis, interruption, and history
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

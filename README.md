@@ -22,6 +22,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Production read connectors for Google Calendar, Google Drive, Gmail, Microsoft Calendar, OneDrive, and Outlook Mail
 - Voice platform architecture with STT/TTS abstractions, sessions, interruption, wake sessions, conversation history, and streaming-ready responses
 - React Native Expo mobile app for chat, voice, dashboard, tasks, approvals, notifications, briefings, offline cache, and biometric local unlock
+- Desktop automation tool runtime for approved file, screenshot, clipboard, terminal, keyboard, mouse, and application-launch actions
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture
@@ -303,7 +304,8 @@ The migrations seed:
 
 ## Current Constraints
 
-- No SMS, push notifications, email sending, email deleting, email archiving, or desktop control yet
+- No SMS, push notifications, email sending, email deleting, or email archiving yet
+- Desktop automation exists behind tool permissions, approvals, allowed-root path controls, and audited dry-run defaults for process/input execution
 - Voice architecture exists, and the mobile app uses simulated transcript input until real device audio capture is wired in
 - The web app is an admin console; the Expo app is the mobile client
 - No destructive connector actions; current connectors are read-only local calendar and local email importers
@@ -323,6 +325,7 @@ The migrations seed:
 - [Context Builder](docs/CONTEXT_BUILDER.md)
 - [Data Ownership](docs/DATA_OWNERSHIP.md)
 - [Developer Notes](docs/DEV_NOTES.md)
+- [Desktop Automation](docs/DESKTOP_AUTOMATION.md)
 - [Connectors](docs/CONNECTORS.md)
 - [Calendar Connector](docs/CALENDAR_CONNECTOR.md)
 - [Email Connector](docs/EMAIL_CONNECTOR.md)
