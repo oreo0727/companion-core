@@ -1,0 +1,407 @@
+using System.Net.Http.Headers;
+using System.Text.Json;
+using Companion.Core.Abstractions;
+using Companion.Core.Constants;
+using Companion.Core.Entities;
+using Companion.Core.Enums;
+using Companion.Core.Models;
+using Companion.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace Companion.Infrastructure.Services;
+
+public abstract class OAuthReadConnectorBase(
+    HttpClient httpClient,
+    CompanionDbContext dbContext,
+    IOAuthTokenProtector tokenProtector,
+    TimeProvider timeProvider) : IConnector
+{
+    public abstract string Name { get; }
+
+    public abstract string Provider { get; }
+
+    public ConnectorRiskLevel RiskLevel => ConnectorRiskLevel.Low;
+
+    protected abstract string Endpoint { get; }
+
+    public Task<ConnectorTestResult> TestConnectionAsync(ConnectorSyncContext context)
+    {
+        if (context.Payload is not null)
+        {
+            return Task.FromResult(new ConnectorTestResult(true, null));
+        }
+
+        return Task.FromResult(
+            tokenProtector.Unprotect(context.Connection.AccessTokenEncrypted) is null
+                ? new ConnectorTestResult(false, "OAuth access token is missing or could not be decrypted.")
+                : new ConnectorTestResult(true, null));
+    }
+
+    public async Task<ConnectorSyncResult> SyncAsync(ConnectorSyncContext context)
+    {
+        using var document = context.Payload is null
+            ? await FetchProviderDocumentAsync(context)
+            : JsonDocument.Parse(context.Payload.Value.GetRawText());
+
+        return await SyncDocumentAsync(context, document.RootElement);
+    }
+
+    protected abstract Task<ConnectorSyncResult> SyncDocumentAsync(ConnectorSyncContext context, JsonElement root);
+
+    protected DateTime UtcNow => timeProvider.GetUtcNow().UtcDateTime;
+
+    protected CompanionDbContext DbContext => dbContext;
+
+    private async Task<JsonDocument> FetchProviderDocumentAsync(ConnectorSyncContext context)
+    {
+        var accessToken = tokenProtector.Unprotect(context.Connection.AccessTokenEncrypted)
+            ?? throw new InvalidOperationException("OAuth access token is missing or could not be decrypted.");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, Endpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        using var response = await httpClient.SendAsync(request, context.CancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(context.CancellationToken);
+        return await JsonDocument.ParseAsync(stream, cancellationToken: context.CancellationToken);
+    }
+
+    protected static IEnumerable<JsonElement> ReadArray(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (TryGetPropertyCaseInsensitive(root, name, out var value) && value.ValueKind == JsonValueKind.Array)
+            {
+                return value.EnumerateArray();
+            }
+        }
+
+        return root.ValueKind == JsonValueKind.Array ? root.EnumerateArray() : [];
+    }
+
+    protected static string? ReadString(JsonElement element, params string[] paths)
+    {
+        foreach (var path in paths)
+        {
+            if (TryReadPath(element, path, out var value))
+            {
+                var text = value.ValueKind switch
+                {
+                    JsonValueKind.String => value.GetString(),
+                    JsonValueKind.Number => value.GetRawText(),
+                    JsonValueKind.True => "true",
+                    JsonValueKind.False => "false",
+                    _ => null
+                };
+
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    return text.Trim();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    protected static bool ReadBool(JsonElement element, params string[] paths)
+    {
+        foreach (var path in paths)
+        {
+            if (!TryReadPath(element, path, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                return value.GetBoolean();
+            }
+
+            if (value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out var parsed))
+            {
+                return parsed;
+            }
+        }
+
+        return false;
+    }
+
+    protected static DateTime? ReadUtc(JsonElement element, params string[] paths)
+    {
+        foreach (var path in paths)
+        {
+            if (!TryReadPath(element, path, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.String && value.TryGetDateTime(out var parsed))
+            {
+                return parsed.ToUniversalTime();
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var unixMs))
+            {
+                return DateTimeOffset.FromUnixTimeMilliseconds(unixMs).UtcDateTime;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryReadPath(JsonElement element, string path, out JsonElement value)
+    {
+        value = element;
+        foreach (var part in path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!TryGetPropertyCaseInsensitive(value, part, out value))
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryGetPropertyCaseInsensitive(JsonElement element, string propertyName, out JsonElement value)
+    {
+        if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty(propertyName, out value))
+        {
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = property.Value;
+                    return true;
+                }
+            }
+        }
+
+        value = default;
+        return false;
+    }
+}
+
+public abstract class CalendarOAuthReadConnector(
+    HttpClient httpClient,
+    CompanionDbContext dbContext,
+    IOAuthTokenProtector tokenProtector,
+    TimeProvider timeProvider) : OAuthReadConnectorBase(httpClient, dbContext, tokenProtector, timeProvider), ICalendarReadConnector
+{
+    protected override async Task<ConnectorSyncResult> SyncDocumentAsync(ConnectorSyncContext context, JsonElement root)
+    {
+        var now = UtcNow;
+        var imported = 0;
+
+        foreach (var item in ReadArray(root, "events", "items", "value"))
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            var title = ReadString(item, "title", "summary", "subject");
+            var startUtc = ReadUtc(item, "startUtc", "start.dateTime", "start.date", "start");
+            var endUtc = ReadUtc(item, "endUtc", "end.dateTime", "end.date", "end");
+            if (string.IsNullOrWhiteSpace(title) || startUtc is null || endUtc is null || endUtc < startUtc)
+            {
+                continue;
+            }
+
+            var externalId = ReadString(item, "externalId", "id", "iCalUId") ?? $"{title}-{startUtc:O}";
+            var snapshot = await DbContext.CalendarEventSnapshots.FirstOrDefaultAsync(
+                x => x.ConnectorConnectionId == context.Connection.Id && x.ExternalId == externalId,
+                context.CancellationToken);
+
+            if (snapshot is null)
+            {
+                snapshot = new CalendarEventSnapshot
+                {
+                    Id = Guid.NewGuid(),
+                    UserProfileId = context.UserProfileId,
+                    ConnectorConnectionId = context.Connection.Id,
+                    ExternalId = externalId,
+                    CreatedUtc = now
+                };
+                DbContext.CalendarEventSnapshots.Add(snapshot);
+            }
+
+            snapshot.Title = title;
+            snapshot.Description = ReadString(item, "description", "bodyPreview", "body.content");
+            snapshot.Location = ReadString(item, "location", "location.displayName");
+            snapshot.StartUtc = startUtc.Value;
+            snapshot.EndUtc = endUtc.Value;
+            snapshot.IsAllDay = ReadBool(item, "isAllDay");
+            snapshot.UpdatedUtc = now;
+            imported++;
+        }
+
+        await DbContext.SaveChangesAsync(context.CancellationToken);
+        return new ConnectorSyncResult(imported, $"Synced {imported} calendar event snapshot(s).");
+    }
+}
+
+public abstract class EmailOAuthReadConnector(
+    HttpClient httpClient,
+    CompanionDbContext dbContext,
+    IOAuthTokenProtector tokenProtector,
+    TimeProvider timeProvider) : OAuthReadConnectorBase(httpClient, dbContext, tokenProtector, timeProvider), IEmailReadConnector
+{
+    protected override async Task<ConnectorSyncResult> SyncDocumentAsync(ConnectorSyncContext context, JsonElement root)
+    {
+        var now = UtcNow;
+        var imported = 0;
+
+        foreach (var item in ReadArray(root, "messages", "items", "value"))
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            var subject = ReadString(item, "subject", "snippet");
+            var fromAddress = ReadString(item, "fromAddress", "from.emailAddress.address", "sender.emailAddress.address", "from");
+            var receivedUtc = ReadUtc(item, "receivedUtc", "receivedDateTime", "internalDate", "date");
+            if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(fromAddress) || receivedUtc is null)
+            {
+                continue;
+            }
+
+            var externalId = ReadString(item, "externalId", "id", "internetMessageId") ?? $"{fromAddress}-{subject}-{receivedUtc:O}";
+            var snapshot = await DbContext.EmailMessageSnapshots.FirstOrDefaultAsync(
+                x => x.ConnectorConnectionId == context.Connection.Id && x.ExternalId == externalId,
+                context.CancellationToken);
+
+            if (snapshot is null)
+            {
+                snapshot = new EmailMessageSnapshot
+                {
+                    Id = Guid.NewGuid(),
+                    UserProfileId = context.UserProfileId,
+                    ConnectorConnectionId = context.Connection.Id,
+                    ExternalId = externalId,
+                    CreatedUtc = now
+                };
+                DbContext.EmailMessageSnapshots.Add(snapshot);
+            }
+
+            snapshot.Subject = subject;
+            snapshot.FromName = ReadString(item, "fromName", "from.emailAddress.name", "sender.emailAddress.name");
+            snapshot.FromAddress = fromAddress;
+            snapshot.ToAddresses = ReadString(item, "toAddresses", "toRecipients");
+            snapshot.Preview = ReadString(item, "preview", "snippet", "bodyPreview");
+            snapshot.Body = ReadString(item, "body", "body.content");
+            snapshot.ReceivedUtc = receivedUtc.Value;
+            snapshot.IsRead = ReadBool(item, "isRead");
+            snapshot.HasAttachments = ReadBool(item, "hasAttachments");
+            snapshot.IsAnswered = ReadBool(item, "isAnswered");
+            snapshot.UpdatedUtc = now;
+            imported++;
+        }
+
+        await DbContext.SaveChangesAsync(context.CancellationToken);
+        return new ConnectorSyncResult(imported, $"Synced {imported} email message snapshot(s).");
+    }
+}
+
+public abstract class FileOAuthReadConnector(
+    HttpClient httpClient,
+    CompanionDbContext dbContext,
+    IOAuthTokenProtector tokenProtector,
+    TimeProvider timeProvider) : OAuthReadConnectorBase(httpClient, dbContext, tokenProtector, timeProvider), IFileReadConnector
+{
+    protected override async Task<ConnectorSyncResult> SyncDocumentAsync(ConnectorSyncContext context, JsonElement root)
+    {
+        var now = UtcNow;
+        var imported = 0;
+
+        foreach (var item in ReadArray(root, "files", "items", "value"))
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            var name = ReadString(item, "name", "title");
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var externalId = ReadString(item, "externalId", "id") ?? name;
+            var snapshot = await DbContext.FileDocumentSnapshots.FirstOrDefaultAsync(
+                x => x.ConnectorConnectionId == context.Connection.Id && x.ExternalId == externalId,
+                context.CancellationToken);
+
+            if (snapshot is null)
+            {
+                snapshot = new FileDocumentSnapshot
+                {
+                    Id = Guid.NewGuid(),
+                    UserProfileId = context.UserProfileId,
+                    ConnectorConnectionId = context.Connection.Id,
+                    ExternalId = externalId,
+                    CreatedUtc = now
+                };
+                DbContext.FileDocumentSnapshots.Add(snapshot);
+            }
+
+            snapshot.Name = name;
+            snapshot.MimeType = ReadString(item, "mimeType", "file.mimeType");
+            snapshot.WebUrl = ReadString(item, "webUrl", "webViewLink");
+            snapshot.PreviewText = ReadString(item, "previewText", "description");
+            snapshot.ModifiedUtc = ReadUtc(item, "modifiedUtc", "modifiedTime", "lastModifiedDateTime");
+            snapshot.UpdatedUtc = now;
+            imported++;
+        }
+
+        await DbContext.SaveChangesAsync(context.CancellationToken);
+        return new ConnectorSyncResult(imported, $"Synced {imported} file document snapshot(s).");
+    }
+}
+
+public sealed class GoogleCalendarReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)
+    : CalendarOAuthReadConnector(httpClient, dbContext, tokenProtector, timeProvider)
+{
+    public override string Name => "Google Calendar";
+    public override string Provider => ConnectorProviders.GoogleCalendar;
+    protected override string Endpoint => "https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime";
+}
+
+public sealed class GmailReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)
+    : EmailOAuthReadConnector(httpClient, dbContext, tokenProtector, timeProvider)
+{
+    public override string Name => "Gmail";
+    public override string Provider => ConnectorProviders.Gmail;
+    protected override string Endpoint => "https://gmail.googleapis.com/gmail/v1/users/me/messages";
+}
+
+public sealed class GoogleDriveReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)
+    : FileOAuthReadConnector(httpClient, dbContext, tokenProtector, timeProvider)
+{
+    public override string Name => "Google Drive";
+    public override string Provider => ConnectorProviders.GoogleDrive;
+    protected override string Endpoint => "https://www.googleapis.com/drive/v3/files?fields=files(id,name,mimeType,webViewLink,modifiedTime,description)";
+}
+
+public sealed class MicrosoftCalendarReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)
+    : CalendarOAuthReadConnector(httpClient, dbContext, tokenProtector, timeProvider)
+{
+    public override string Name => "Microsoft Calendar";
+    public override string Provider => ConnectorProviders.MicrosoftCalendar;
+    protected override string Endpoint => "https://graph.microsoft.com/v1.0/me/events";
+}
+
+public sealed class OutlookMailReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)
+    : EmailOAuthReadConnector(httpClient, dbContext, tokenProtector, timeProvider)
+{
+    public override string Name => "Outlook Mail";
+    public override string Provider => ConnectorProviders.OutlookMail;
+    protected override string Endpoint => "https://graph.microsoft.com/v1.0/me/messages";
+}
+
+public sealed class OneDriveReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)
+    : FileOAuthReadConnector(httpClient, dbContext, tokenProtector, timeProvider)
+{
+    public override string Name => "OneDrive";
+    public override string Provider => ConnectorProviders.OneDrive;
+    protected override string Endpoint => "https://graph.microsoft.com/v1.0/me/drive/root/children";
+}

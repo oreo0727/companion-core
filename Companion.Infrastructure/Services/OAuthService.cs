@@ -14,10 +14,10 @@ namespace Companion.Infrastructure.Services;
 public class OAuthService(
     CompanionDbContext dbContext,
     IDataProtectionProvider dataProtectionProvider,
+    IOAuthTokenProtector tokenProtector,
     IAuditService auditService,
     TimeProvider timeProvider) : IOAuthService
 {
-    private readonly IDataProtector tokenProtector = dataProtectionProvider.CreateProtector("companion.oauth-tokens.v1");
     private readonly IDataProtector verifierProtector = dataProtectionProvider.CreateProtector("companion.oauth-verifiers.v1");
 
     public async Task<IReadOnlyList<OAuthProviderSummary>> GetProvidersAsync(CancellationToken cancellationToken = default)

@@ -41,6 +41,12 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<OpenAIProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddHttpClient<AnthropicProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
         services.AddHttpClient<OllamaProvider>(client => client.Timeout = Timeout.InfiniteTimeSpan);
+        services.AddHttpClient<GoogleCalendarReadConnector>();
+        services.AddHttpClient<GoogleDriveReadConnector>();
+        services.AddHttpClient<GmailReadConnector>();
+        services.AddHttpClient<MicrosoftCalendarReadConnector>();
+        services.AddHttpClient<OneDriveReadConnector>();
+        services.AddHttpClient<OutlookMailReadConnector>();
 
         services.AddScoped<IAiProviderConfigurationService, AiProviderConfigurationService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
@@ -48,11 +54,24 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<ISecretStore, DataProtectionSecretStore>();
+        services.AddSingleton<IOAuthTokenProtector, OAuthTokenProtector>();
         services.AddScoped<IChunkingService, ChunkingService>();
         services.AddScoped<ICalendarReadConnector, LocalCalendarReadConnector>();
         services.AddScoped<IEmailReadConnector, LocalEmailReadConnector>();
+        services.AddScoped<ICalendarReadConnector>(serviceProvider => serviceProvider.GetRequiredService<GoogleCalendarReadConnector>());
+        services.AddScoped<ICalendarReadConnector>(serviceProvider => serviceProvider.GetRequiredService<MicrosoftCalendarReadConnector>());
+        services.AddScoped<IEmailReadConnector>(serviceProvider => serviceProvider.GetRequiredService<GmailReadConnector>());
+        services.AddScoped<IEmailReadConnector>(serviceProvider => serviceProvider.GetRequiredService<OutlookMailReadConnector>());
+        services.AddScoped<IFileReadConnector>(serviceProvider => serviceProvider.GetRequiredService<GoogleDriveReadConnector>());
+        services.AddScoped<IFileReadConnector>(serviceProvider => serviceProvider.GetRequiredService<OneDriveReadConnector>());
         services.AddScoped<IConnector, LocalCalendarReadConnector>();
         services.AddScoped<IConnector, LocalEmailReadConnector>();
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<GoogleCalendarReadConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<GoogleDriveReadConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<GmailReadConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<MicrosoftCalendarReadConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<OneDriveReadConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<OutlookMailReadConnector>());
         services.AddScoped<IConnectorRegistry, ConnectorRegistry>();
         services.AddScoped<IConnectorSyncService, ConnectorSyncService>();
         services.AddScoped<IOAuthService, OAuthService>();

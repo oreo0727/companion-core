@@ -103,6 +103,146 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
         Assert.Contains("OAuthConsentRevoked", eventTypes);
     }
 
+    [Fact]
+    public async Task ProductionReadConnectors_SyncIntoSnapshots()
+    {
+        using var authenticatedClient = await CreateSeedAdminClientAsync();
+        var suffix = Guid.NewGuid().ToString("N");
+
+        var googleCalendarConnectionId = await ConnectOAuthAsync(authenticatedClient, "Google", "GoogleCalendar", $"Google Calendar {suffix}");
+        var googleDriveConnectionId = await ConnectOAuthAsync(authenticatedClient, "Google", "GoogleDrive", $"Google Drive {suffix}");
+        var gmailConnectionId = await ConnectOAuthAsync(authenticatedClient, "Google", "Gmail", $"Gmail {suffix}");
+        var microsoftCalendarConnectionId = await ConnectOAuthAsync(authenticatedClient, "Microsoft", "MicrosoftCalendar", $"Microsoft Calendar {suffix}");
+        var oneDriveConnectionId = await ConnectOAuthAsync(authenticatedClient, "Microsoft", "OneDrive", $"OneDrive {suffix}");
+        var outlookConnectionId = await ConnectOAuthAsync(authenticatedClient, "Microsoft", "OutlookMail", $"Outlook {suffix}");
+
+        var googleCalendarTitle = $"Google planning {suffix}";
+        await SyncAsync(authenticatedClient, googleCalendarConnectionId, new
+        {
+            items = new[]
+            {
+                new
+                {
+                    id = $"gcal-{suffix}",
+                    summary = googleCalendarTitle,
+                    description = "Google calendar read sync.",
+                    location = "Online",
+                    start = new { dateTime = DateTime.UtcNow.AddHours(2) },
+                    end = new { dateTime = DateTime.UtcNow.AddHours(3) }
+                }
+            }
+        });
+
+        var microsoftCalendarTitle = $"Microsoft planning {suffix}";
+        await SyncAsync(authenticatedClient, microsoftCalendarConnectionId, new
+        {
+            value = new[]
+            {
+                new
+                {
+                    id = $"mcal-{suffix}",
+                    subject = microsoftCalendarTitle,
+                    bodyPreview = "Microsoft calendar read sync.",
+                    location = new { displayName = "Teams" },
+                    start = new { dateTime = DateTime.UtcNow.AddHours(4) },
+                    end = new { dateTime = DateTime.UtcNow.AddHours(5) }
+                }
+            }
+        });
+
+        var gmailSubject = $"Gmail bill {suffix}";
+        await SyncAsync(authenticatedClient, gmailConnectionId, new
+        {
+            messages = new[]
+            {
+                new
+                {
+                    id = $"gmail-{suffix}",
+                    subject = gmailSubject,
+                    fromAddress = "billing@example.com",
+                    fromName = "Billing",
+                    toAddresses = "local.user@companion-core.local",
+                    preview = "Payment deadline.",
+                    body = "Invoice attached.",
+                    receivedUtc = DateTime.UtcNow.AddHours(-1),
+                    isRead = false,
+                    hasAttachments = true,
+                    isAnswered = false
+                }
+            }
+        });
+
+        var outlookSubject = $"Outlook followup {suffix}";
+        await SyncAsync(authenticatedClient, outlookConnectionId, new
+        {
+            value = new[]
+            {
+                new
+                {
+                    id = $"outlook-{suffix}",
+                    subject = outlookSubject,
+                    from = new { emailAddress = new { name = "Client", address = "client@example.com" } },
+                    toAddresses = "local.user@companion-core.local",
+                    bodyPreview = "Can you respond?",
+                    receivedDateTime = DateTime.UtcNow.AddHours(-2),
+                    isRead = false,
+                    hasAttachments = false,
+                    isAnswered = false
+                }
+            }
+        });
+
+        var googleDriveName = $"Drive Spec {suffix}.md";
+        await SyncAsync(authenticatedClient, googleDriveConnectionId, new
+        {
+            files = new[]
+            {
+                new
+                {
+                    id = $"drive-{suffix}",
+                    name = googleDriveName,
+                    mimeType = "text/markdown",
+                    webViewLink = "https://drive.example/spec",
+                    modifiedTime = DateTime.UtcNow.AddMinutes(-30),
+                    description = "Drive document preview."
+                }
+            }
+        });
+
+        var oneDriveName = $"OneDrive Notes {suffix}.docx";
+        await SyncAsync(authenticatedClient, oneDriveConnectionId, new
+        {
+            value = new[]
+            {
+                new
+                {
+                    id = $"onedrive-{suffix}",
+                    name = oneDriveName,
+                    file = new { mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+                    webUrl = "https://onedrive.example/notes",
+                    lastModifiedDateTime = DateTime.UtcNow.AddMinutes(-20)
+                }
+            }
+        });
+
+        using var calendarResponse = await authenticatedClient.GetAsync("/api/calendar/events?daysAhead=7");
+        calendarResponse.EnsureSuccessStatusCode();
+        using var calendarDocument = JsonDocument.Parse(await calendarResponse.Content.ReadAsStringAsync());
+        Assert.Contains(calendarDocument.RootElement.EnumerateArray(), x => x.GetProperty("title").GetString() == googleCalendarTitle);
+        Assert.Contains(calendarDocument.RootElement.EnumerateArray(), x => x.GetProperty("title").GetString() == microsoftCalendarTitle);
+
+        using var emailResponse = await authenticatedClient.GetAsync("/api/email/search?query=bill");
+        emailResponse.EnsureSuccessStatusCode();
+        using var emailDocument = JsonDocument.Parse(await emailResponse.Content.ReadAsStringAsync());
+        Assert.Contains(emailDocument.RootElement.EnumerateArray(), x => x.GetProperty("subject").GetString() == gmailSubject);
+
+        using var fileResponse = await authenticatedClient.GetAsync("/api/files/documents?limit=50");
+        fileResponse.EnsureSuccessStatusCode();
+        using var fileDocument = JsonDocument.Parse(await fileResponse.Content.ReadAsStringAsync());
+        Assert.Contains(fileDocument.RootElement.EnumerateArray(), x => x.GetProperty("name").GetString() == googleDriveName);
+        Assert.Contains(fileDocument.RootElement.EnumerateArray(), x => x.GetProperty("name").GetString() == oneDriveName);
+    }
+
     private async Task<HttpClient> CreateSeedAdminClientAsync()
     {
         var client = factory.CreateClient();
@@ -121,5 +261,47 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
         authenticatedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         client.Dispose();
         return authenticatedClient;
+    }
+
+    private static async Task<Guid> ConnectOAuthAsync(
+        HttpClient authenticatedClient,
+        string provider,
+        string connectorProvider,
+        string displayName)
+    {
+        using var authorizeResponse = await authenticatedClient.PostAsJsonAsync($"/api/oauth/{provider}/authorize", new
+        {
+            connectorProvider,
+            displayName,
+            redirectUri = "http://localhost:3000/connectors/oauth/callback",
+            scopes = new[] { "openid", "profile" }
+        });
+        authorizeResponse.EnsureSuccessStatusCode();
+        using var authorizeDocument = JsonDocument.Parse(await authorizeResponse.Content.ReadAsStringAsync());
+        var state = authorizeDocument.RootElement.GetProperty("state").GetString();
+
+        using var callbackResponse = await authenticatedClient.PostAsJsonAsync($"/api/oauth/{provider}/callback", new
+        {
+            state,
+            code = $"code-{Guid.NewGuid():N}",
+            accessToken = $"access-{Guid.NewGuid():N}",
+            refreshToken = $"refresh-{Guid.NewGuid():N}",
+            expiresUtc = DateTime.UtcNow.AddHours(1),
+            subject = $"{provider}-{connectorProvider}-{Guid.NewGuid():N}",
+            displayName,
+            scopes = new[] { "openid", "profile" }
+        });
+        callbackResponse.EnsureSuccessStatusCode();
+        using var callbackDocument = JsonDocument.Parse(await callbackResponse.Content.ReadAsStringAsync());
+        return callbackDocument.RootElement.GetProperty("connectionId").GetGuid();
+    }
+
+    private static async Task SyncAsync(HttpClient authenticatedClient, Guid connectionId, object payload)
+    {
+        using var response = await authenticatedClient.PostAsJsonAsync($"/api/connectors/{connectionId}/sync", payload);
+        response.EnsureSuccessStatusCode();
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Completed", document.RootElement.GetProperty("status").GetString());
+        Assert.True(document.RootElement.GetProperty("itemsSynced").GetInt32() >= 1);
     }
 }

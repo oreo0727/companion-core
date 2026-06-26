@@ -281,6 +281,20 @@ public sealed record EmailMessageSnapshotResponse(
     DateTime UpdatedUtc,
     string? ConnectorDisplayName);
 
+public sealed record FileDocumentSnapshotResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConnectorConnectionId,
+    string ExternalId,
+    string Name,
+    string? MimeType,
+    string? WebUrl,
+    string? PreviewText,
+    DateTime? ModifiedUtc,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc,
+    string? ConnectorDisplayName);
+
 public sealed record ConnectorCatalogEntryResponse(
     ConnectorDefinitionResponse Definition,
     IReadOnlyList<ConnectorConnectionResponse> Connections);
@@ -824,6 +838,23 @@ public static class CompanionApiMappings
             snapshot.IsRead,
             snapshot.HasAttachments,
             snapshot.IsAnswered,
+            snapshot.CreatedUtc,
+            snapshot.UpdatedUtc,
+            snapshot.ConnectorConnection?.DisplayName);
+    }
+
+    public static FileDocumentSnapshotResponse ToResponse(this FileDocumentSnapshot snapshot)
+    {
+        return new FileDocumentSnapshotResponse(
+            snapshot.Id,
+            snapshot.UserProfileId,
+            snapshot.ConnectorConnectionId,
+            snapshot.ExternalId,
+            snapshot.Name,
+            snapshot.MimeType,
+            snapshot.WebUrl,
+            snapshot.PreviewText,
+            snapshot.ModifiedUtc,
             snapshot.CreatedUtc,
             snapshot.UpdatedUtc,
             snapshot.ConnectorConnection?.DisplayName);

@@ -71,6 +71,8 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<EmailMessageSnapshot> EmailMessageSnapshots => Set<EmailMessageSnapshot>();
 
+    public DbSet<FileDocumentSnapshot> FileDocumentSnapshots => Set<FileDocumentSnapshot>();
+
     public DbSet<KnowledgeSource> KnowledgeSources => Set<KnowledgeSource>();
 
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
@@ -692,6 +694,28 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.ConnectorConnection)
                 .WithMany(x => x.EmailMessages)
+                .HasForeignKey(x => x.ConnectorConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FileDocumentSnapshot>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalId).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.MimeType).HasMaxLength(300);
+            entity.Property(x => x.WebUrl).HasMaxLength(1000);
+            entity.Property(x => x.PreviewText).HasMaxLength(4000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.ConnectorConnectionId, x.ExternalId }).IsUnique();
+            entity.HasIndex(x => new { x.UserProfileId, x.ModifiedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.FileDocumentSnapshots)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorConnection)
+                .WithMany(x => x.FileDocuments)
                 .HasForeignKey(x => x.ConnectorConnectionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

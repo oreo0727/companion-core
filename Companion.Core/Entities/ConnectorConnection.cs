@@ -34,5 +34,7 @@ public class ConnectorConnection
 
     public ICollection<EmailMessageSnapshot> EmailMessages { get; set; } = new List<EmailMessageSnapshot>();
 
+    public ICollection<FileDocumentSnapshot> FileDocuments { get; set; } = new List<FileDocumentSnapshot>();
+
     public ICollection<OAuthConsentGrant> OAuthConsentGrants { get; set; } = new List<OAuthConsentGrant>();
 }

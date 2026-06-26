@@ -64,6 +64,8 @@ public class UserProfile
 
     public ICollection<EmailMessageSnapshot> EmailMessageSnapshots { get; set; } = new List<EmailMessageSnapshot>();
 
+    public ICollection<FileDocumentSnapshot> FileDocumentSnapshots { get; set; } = new List<FileDocumentSnapshot>();
+
     public ICollection<ToolExecution> ToolExecutions { get; set; } = new List<ToolExecution>();
 
     public ICollection<ToolPermission> ToolPermissions { get; set; } = new List<ToolPermission>();

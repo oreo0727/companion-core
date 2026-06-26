@@ -185,6 +185,26 @@ reset_all_providers() {
   set_provider "Ollama" "http://ollama:11434" false 30 "llama3" >/dev/null
 }
 
+oauth_connect() {
+  local provider="$1"
+  local connector_provider="$2"
+  local display_name="$3"
+
+  local authorization
+  authorization="$(http_post_json "${API_URL}/api/oauth/${provider}/authorize" "$(cat <<JSON
+{"connectorProvider":"${connector_provider}","displayName":"${display_name}","redirectUri":"http://localhost:3000/connectors/oauth/callback","scopes":["openid","profile"]}
+JSON
+)")"
+  local state
+  state="$(json_eval "$authorization" "data['state']")"
+  local callback
+  callback="$(http_post_json "${API_URL}/api/oauth/${provider}/callback" "$(cat <<JSON
+{"state":"${state}","code":"code-${RUN_ID}-${connector_provider}","accessToken":"access-${RUN_ID}-${connector_provider}","refreshToken":"refresh-${RUN_ID}-${connector_provider}","expiresUtc":"$(date -u -d '+1 hour' +%Y-%m-%dT%H:%M:%SZ)","subject":"${provider}-${connector_provider}-${RUN_ID}","displayName":"${display_name}","scopes":["openid","profile"]}
+JSON
+)")"
+  json_eval "$callback" "data['connectionId']"
+}
+
 start_api() {
   step "Starting API"
   ASPNETCORE_ENVIRONMENT=Development \
@@ -323,6 +343,10 @@ CONNECTORS="$(http_get "${API_URL}/api/connectors")"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'LocalCalendar') == 1" "LocalCalendar connector is discoverable"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'LocalEmail') == 1" "LocalEmail connector is discoverable"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'GoogleCalendar' and x['definition']['supportsOAuth'] is True) == 1" "GoogleCalendar OAuth connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'GoogleDrive' and x['definition']['supportsOAuth'] is True) == 1" "GoogleDrive OAuth connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'Gmail' and x['definition']['supportsOAuth'] is True) == 1" "Gmail OAuth connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'MicrosoftCalendar' and x['definition']['supportsOAuth'] is True) == 1" "MicrosoftCalendar OAuth connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'OneDrive' and x['definition']['supportsOAuth'] is True) == 1" "OneDrive OAuth connector is discoverable"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'OutlookMail' and x['definition']['supportsOAuth'] is True) == 1" "OutlookMail OAuth connector is discoverable"
 
 step "Verifying OAuth foundation"
@@ -349,6 +373,63 @@ OAUTH_AUDIT="$(http_get "${API_URL}/api/audit")"
 assert_json "$OAUTH_AUDIT" "sum(1 for x in data if x['eventType'] == 'OAuthAuthorizationStarted') >= 1" "OAuth authorization start is audited"
 assert_json "$OAUTH_AUDIT" "sum(1 for x in data if x['eventType'] == 'OAuthConsentGranted') >= 1" "OAuth consent grant is audited"
 assert_json "$OAUTH_AUDIT" "sum(1 for x in data if x['eventType'] == 'OAuthConsentRevoked') >= 1" "OAuth consent revoke is audited"
+
+step "Verifying production read connector snapshot sync"
+GOOGLE_CALENDAR_CONNECTION_ID="$(oauth_connect "Google" "GoogleCalendar" "Production Google Calendar ${RUN_ID}")"
+GOOGLE_DRIVE_CONNECTION_ID="$(oauth_connect "Google" "GoogleDrive" "Production Google Drive ${RUN_ID}")"
+GMAIL_CONNECTION_ID="$(oauth_connect "Google" "Gmail" "Production Gmail ${RUN_ID}")"
+MICROSOFT_CALENDAR_CONNECTION_ID="$(oauth_connect "Microsoft" "MicrosoftCalendar" "Production Microsoft Calendar ${RUN_ID}")"
+ONEDRIVE_CONNECTION_ID="$(oauth_connect "Microsoft" "OneDrive" "Production OneDrive ${RUN_ID}")"
+OUTLOOK_CONNECTION_ID="$(oauth_connect "Microsoft" "OutlookMail" "Production Outlook ${RUN_ID}")"
+PRODUCTION_GOOGLE_EVENT="Production Google event ${RUN_ID}"
+PRODUCTION_MICROSOFT_EVENT="Production Microsoft event ${RUN_ID}"
+PRODUCTION_GMAIL_SUBJECT="Production Gmail invoice ${RUN_ID}"
+PRODUCTION_OUTLOOK_SUBJECT="Production Outlook followup ${RUN_ID}"
+PRODUCTION_DRIVE_FILE="Production Drive ${RUN_ID}.md"
+PRODUCTION_ONEDRIVE_FILE="Production OneDrive ${RUN_ID}.docx"
+
+GOOGLE_CALENDAR_SYNC="$(http_post_json "${API_URL}/api/connectors/${GOOGLE_CALENDAR_CONNECTION_ID}/sync" "$(cat <<JSON
+{"items":[{"id":"gcal-${RUN_ID}","summary":"${PRODUCTION_GOOGLE_EVENT}","description":"Production Google calendar sync","location":"Online","start":{"dateTime":"$(date -u -d '+2 hour' +%Y-%m-%dT%H:%M:%SZ)"},"end":{"dateTime":"$(date -u -d '+3 hour' +%Y-%m-%dT%H:%M:%SZ)"}}]}
+JSON
+)")"
+assert_json "$GOOGLE_CALENDAR_SYNC" "data['status'] == 'Completed' and data['itemsSynced'] == 1" "Google Calendar production connector syncs event snapshots"
+
+MICROSOFT_CALENDAR_SYNC="$(http_post_json "${API_URL}/api/connectors/${MICROSOFT_CALENDAR_CONNECTION_ID}/sync" "$(cat <<JSON
+{"value":[{"id":"mcal-${RUN_ID}","subject":"${PRODUCTION_MICROSOFT_EVENT}","bodyPreview":"Production Microsoft calendar sync","location":{"displayName":"Teams"},"start":{"dateTime":"$(date -u -d '+4 hour' +%Y-%m-%dT%H:%M:%SZ)"},"end":{"dateTime":"$(date -u -d '+5 hour' +%Y-%m-%dT%H:%M:%SZ)"}}]}
+JSON
+)")"
+assert_json "$MICROSOFT_CALENDAR_SYNC" "data['status'] == 'Completed' and data['itemsSynced'] == 1" "Microsoft Calendar production connector syncs event snapshots"
+
+GMAIL_SYNC="$(http_post_json "${API_URL}/api/connectors/${GMAIL_CONNECTION_ID}/sync" "$(cat <<JSON
+{"messages":[{"id":"gmail-${RUN_ID}","subject":"${PRODUCTION_GMAIL_SUBJECT}","fromName":"Billing","fromAddress":"billing@example.com","toAddresses":"${LOCAL_ADMIN_EMAIL}","preview":"Payment deadline","body":"Invoice attached","receivedUtc":"$(date -u -d '-1 hour' +%Y-%m-%dT%H:%M:%SZ)","isRead":false,"hasAttachments":true,"isAnswered":false}]}
+JSON
+)")"
+assert_json "$GMAIL_SYNC" "data['status'] == 'Completed' and data['itemsSynced'] == 1" "Gmail production connector syncs email snapshots"
+
+OUTLOOK_SYNC="$(http_post_json "${API_URL}/api/connectors/${OUTLOOK_CONNECTION_ID}/sync" "$(cat <<JSON
+{"value":[{"id":"outlook-${RUN_ID}","subject":"${PRODUCTION_OUTLOOK_SUBJECT}","from":{"emailAddress":{"name":"Client","address":"client@example.com"}},"toAddresses":"${LOCAL_ADMIN_EMAIL}","bodyPreview":"Please respond","receivedDateTime":"$(date -u -d '-2 hour' +%Y-%m-%dT%H:%M:%SZ)","isRead":false,"hasAttachments":false,"isAnswered":false}]}
+JSON
+)")"
+assert_json "$OUTLOOK_SYNC" "data['status'] == 'Completed' and data['itemsSynced'] == 1" "Outlook production connector syncs email snapshots"
+
+GOOGLE_DRIVE_SYNC="$(http_post_json "${API_URL}/api/connectors/${GOOGLE_DRIVE_CONNECTION_ID}/sync" "$(cat <<JSON
+{"files":[{"id":"drive-${RUN_ID}","name":"${PRODUCTION_DRIVE_FILE}","mimeType":"text/markdown","webViewLink":"https://drive.example/${RUN_ID}","modifiedTime":"$(date -u -d '-30 minutes' +%Y-%m-%dT%H:%M:%SZ)","description":"Drive preview"}]}
+JSON
+)")"
+assert_json "$GOOGLE_DRIVE_SYNC" "data['status'] == 'Completed' and data['itemsSynced'] == 1" "Google Drive production connector syncs file snapshots"
+
+ONEDRIVE_SYNC="$(http_post_json "${API_URL}/api/connectors/${ONEDRIVE_CONNECTION_ID}/sync" "$(cat <<JSON
+{"value":[{"id":"onedrive-${RUN_ID}","name":"${PRODUCTION_ONEDRIVE_FILE}","file":{"mimeType":"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},"webUrl":"https://onedrive.example/${RUN_ID}","lastModifiedDateTime":"$(date -u -d '-20 minutes' +%Y-%m-%dT%H:%M:%SZ)"}]}
+JSON
+)")"
+assert_json "$ONEDRIVE_SYNC" "data['status'] == 'Completed' and data['itemsSynced'] == 1" "OneDrive production connector syncs file snapshots"
+
+PRODUCTION_CALENDAR_EVENTS="$(http_get "${API_URL}/api/calendar/events")"
+assert_json "$PRODUCTION_CALENDAR_EVENTS" "sum(1 for x in data if x['title'] == '${PRODUCTION_GOOGLE_EVENT}') == 1 and sum(1 for x in data if x['title'] == '${PRODUCTION_MICROSOFT_EVENT}') == 1" "Production calendar snapshots are readable"
+PRODUCTION_EMAIL_SEARCH="$(http_get "${API_URL}/api/email/search?query=Production")"
+assert_json "$PRODUCTION_EMAIL_SEARCH" "sum(1 for x in data if x['subject'] == '${PRODUCTION_GMAIL_SUBJECT}') == 1 and sum(1 for x in data if x['subject'] == '${PRODUCTION_OUTLOOK_SUBJECT}') == 1" "Production email snapshots are searchable"
+PRODUCTION_FILES="$(http_get "${API_URL}/api/files/documents?limit=50")"
+assert_json "$PRODUCTION_FILES" "sum(1 for x in data if x['name'] == '${PRODUCTION_DRIVE_FILE}') == 1 and sum(1 for x in data if x['name'] == '${PRODUCTION_ONEDRIVE_FILE}') == 1" "Production file snapshots are readable"
 
 step "Verifying tool discovery and execution"
 TOOLS="$(http_get "${API_URL}/api/tools")"
@@ -594,4 +675,4 @@ POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 12 smoke test passed"
+pass "Phase 13 smoke test passed"

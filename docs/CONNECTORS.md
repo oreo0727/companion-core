@@ -18,6 +18,8 @@ The connector layer uses four persisted records:
   Stores read-only calendar data materialized from a connection.
 - `EmailMessageSnapshot`
   Stores read-only email data materialized from a connection.
+- `FileDocumentSnapshot`
+  Stores read-only file/document metadata materialized from Drive and OneDrive connections.
 
 ## Read-Only Boundary
 
@@ -32,6 +34,7 @@ This phase is intentionally non-destructive.
 
 The local calendar and local email connectors only create or update internal snapshots.
 Google and Microsoft connector definitions are present for consent and token lifecycle; production read sync arrives in Phase 13.
+Phase 13 implements read sync for Google Calendar, Google Drive, Gmail, Microsoft Calendar, OneDrive, and Outlook Mail.
 
 ## Registry And Sync Flow
 
@@ -53,6 +56,7 @@ All connector connections, calendar snapshots, and email snapshots belong to a `
 - no cross-user event retrieval
 - no cross-user email retrieval
 - no shared connection state
+- no cross-user file document retrieval
 
 ## Audit
 

@@ -22,6 +22,7 @@ The script fails fast and verifies:
 - connector discovery
 - OAuth provider discovery
 - OAuth authorization, callback, disconnect, and audit
+- production Google/Microsoft read connector sync into snapshots
 - local calendar import
 - calendar event retrieval
 - local email import
@@ -78,6 +79,7 @@ It also exercises:
 12. scheduled reminders, worker-created notifications, notification read audit, and notification tools
 13. Next.js web console typecheck and production build
 14. OAuth provider discovery, consent grant, encrypted-token connection, disconnect, and audit
+15. Google Calendar, Google Drive, Gmail, Microsoft Calendar, OneDrive, and Outlook Mail snapshot sync
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text;
 using Companion.Api.Contracts;
 using Companion.Api.Security;
 using Companion.Core.Abstractions;
@@ -80,7 +81,14 @@ public class ConnectorsController(IConnectorSyncService connectorSyncService) : 
     {
         try
         {
-            var syncRun = await connectorSyncService.SyncAsync(User.GetRequiredUserProfileId(), id, cancellationToken);
+            string? payloadJson = null;
+            if (Request.ContentLength > 0)
+            {
+                using var reader = new StreamReader(Request.Body, Encoding.UTF8);
+                payloadJson = await reader.ReadToEndAsync(cancellationToken);
+            }
+
+            var syncRun = await connectorSyncService.SyncAsync(User.GetRequiredUserProfileId(), id, payloadJson, cancellationToken);
             return Ok(syncRun.ToResponse());
         }
         catch (KeyNotFoundException)

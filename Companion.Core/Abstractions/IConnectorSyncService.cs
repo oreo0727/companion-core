@@ -24,6 +24,12 @@ public interface IConnectorSyncService
         Guid connectorConnectionId,
         CancellationToken cancellationToken = default);
 
+    Task<ConnectorSyncRun> SyncAsync(
+        Guid userProfileId,
+        Guid connectorConnectionId,
+        string? payloadJson,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<CalendarEventSnapshot>> GetUpcomingCalendarEventsAsync(
         Guid userProfileId,
         int daysAhead = 7,
@@ -40,6 +46,12 @@ public interface IConnectorSyncService
     Task<IReadOnlyList<EmailMessageSnapshot>> SearchEmailMessagesAsync(
         Guid userProfileId,
         string query,
+        int limit = 25,
+        bool audit = true,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<FileDocumentSnapshot>> GetRecentFileDocumentsAsync(
+        Guid userProfileId,
         int limit = 25,
         bool audit = true,
         CancellationToken cancellationToken = default);

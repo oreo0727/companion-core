@@ -19,6 +19,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Knowledge import, chunking, keyword retrieval, and context injection
 - Read-only connector framework with connector definitions, user connections, sync runs, calendar snapshots, and email snapshots
 - OAuth foundation for Google and Microsoft connector consent, encrypted token storage, scope tracking, and connection lifecycle
+- Production read connectors for Google Calendar, Google Drive, Gmail, Microsoft Calendar, OneDrive, and Outlook Mail
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture
@@ -191,6 +192,7 @@ npm run dev -- --hostname 0.0.0.0
 - `GET /api/calendar/events`
 - `GET /api/email/messages`
 - `GET /api/email/search`
+- `GET /api/files/documents`
 - `POST /api/knowledge/import`
 - `GET /api/knowledge/search`
 - `GET /api/knowledge/sources`
@@ -293,7 +295,7 @@ The migrations seed:
 - No voice, mobile, SMS, push notifications, email sending, email deleting, email archiving, or desktop control yet
 - The current web app is an admin console, not a mobile app
 - No destructive connector actions; current connectors are read-only local calendar and local email importers
-- Google and Microsoft OAuth connector definitions are available, with production read sync arriving in the connector phase
+- Google and Microsoft connectors are read-only; they sync snapshots and do not modify external data
 - No external knowledge connectors yet; imports are direct API submissions only
 - Provider calls use plain `HttpClient` and require external model availability plus valid configuration
 - Suggestion approval boundaries remain in place before new durable user data is persisted
@@ -315,6 +317,7 @@ The migrations seed:
 - [Knowledge Layer](docs/KNOWLEDGE.md)
 - [Notifications](docs/NOTIFICATIONS.md)
 - [OAuth Foundation](docs/OAUTH.md)
+- [Production Connectors](docs/PRODUCTION_CONNECTORS.md)
 - [Tool Runtime](docs/TOOLS.md)
 - [Web Application](docs/WEB_APPLICATION.md)
 - [Retrieval](docs/RETRIEVAL.md)

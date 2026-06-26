@@ -189,6 +189,15 @@ public class ConnectorSyncService(
         Guid connectorConnectionId,
         CancellationToken cancellationToken = default)
     {
+        return await SyncAsync(userProfileId, connectorConnectionId, payloadJson: null, cancellationToken);
+    }
+
+    public async Task<ConnectorSyncRun> SyncAsync(
+        Guid userProfileId,
+        Guid connectorConnectionId,
+        string? payloadJson,
+        CancellationToken cancellationToken = default)
+    {
         var connection = await dbContext.ConnectorConnections
             .Include(x => x.ConnectorDefinition)
             .FirstOrDefaultAsync(
@@ -196,7 +205,7 @@ public class ConnectorSyncService(
                 cancellationToken)
             ?? throw new KeyNotFoundException($"Connector connection '{connectorConnectionId}' was not found.");
 
-        return await ExecuteSyncAsync(userProfileId, connection, payloadJson: null, cancellationToken);
+        return await ExecuteSyncAsync(userProfileId, connection, payloadJson, cancellationToken);
     }
 
     public async Task<IReadOnlyList<CalendarEventSnapshot>> GetUpcomingCalendarEventsAsync(
@@ -326,6 +335,36 @@ public class ConnectorSyncService(
         }
 
         return results;
+    }
+
+    public async Task<IReadOnlyList<FileDocumentSnapshot>> GetRecentFileDocumentsAsync(
+        Guid userProfileId,
+        int limit = 25,
+        bool audit = true,
+        CancellationToken cancellationToken = default)
+    {
+        var take = Math.Clamp(limit, 1, 100);
+        var documents = await dbContext.FileDocumentSnapshots
+            .AsNoTracking()
+            .Include(x => x.ConnectorConnection)
+            .Where(x => x.UserProfileId == userProfileId)
+            .OrderByDescending(x => x.ModifiedUtc ?? x.UpdatedUtc)
+            .ThenBy(x => x.Name)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        if (audit)
+        {
+            await auditService.WriteEventAsync(
+                userProfileId,
+                AuditEventTypes.FileDocumentsViewed,
+                nameof(FileDocumentSnapshot),
+                documents.FirstOrDefault()?.Id.ToString() ?? string.Empty,
+                $"Viewed {documents.Count} file document snapshot(s).",
+                cancellationToken);
+        }
+
+        return documents;
     }
 
     private async Task<ConnectorSyncRun> ExecuteSyncAsync(
