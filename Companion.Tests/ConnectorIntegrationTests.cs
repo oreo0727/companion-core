@@ -23,6 +23,9 @@ public sealed class ConnectorIntegrationTests(PostgresTestApiFactory factory) : 
         Assert.Contains(
             document.RootElement.EnumerateArray(),
             x => x.GetProperty("definition").GetProperty("provider").GetString() == "LocalCalendar");
+        Assert.Contains(
+            document.RootElement.EnumerateArray(),
+            x => x.GetProperty("definition").GetProperty("provider").GetString() == "LocalEmail");
     }
 
     [Fact]
@@ -229,6 +232,165 @@ public sealed class ConnectorIntegrationTests(PostgresTestApiFactory factory) : 
             x => x.GetProperty("title").GetString() == title);
     }
 
+    [Fact]
+    public async Task LocalEmailImport_Search_Briefing_AndTool_Work()
+    {
+        using var client = factory.CreateClient();
+        var email = $"briefing-email-{Guid.NewGuid():N}@example.com";
+        const string password = "Companion123";
+        await RegisterAsync(client, email, password, "Briefing Email User");
+        var token = await LoginAsync(client, email, password);
+        using var authenticatedClient = factory.CreateClient();
+        authenticatedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var subject = $"Urgent invoice deadline {Guid.NewGuid():N}";
+        using var importResponse = await authenticatedClient.PostAsJsonAsync("/api/connectors/local-email/import", new
+        {
+            displayName = $"Local Email {Guid.NewGuid():N}",
+            messages = new[]
+            {
+                new
+                {
+                    externalId = $"msg-{Guid.NewGuid():N}",
+                    subject,
+                    fromName = "Billing Team",
+                    fromAddress = "billing@example.com",
+                    toAddresses = new[] { email },
+                    preview = "Urgent payment due tomorrow. Invoice attached.",
+                    body = "Please review the attached invoice before the payment deadline.",
+                    receivedUtc = DateTime.UtcNow.AddHours(-2),
+                    isRead = false,
+                    hasAttachments = true,
+                    isAnswered = false
+                }
+            }
+        });
+
+        importResponse.EnsureSuccessStatusCode();
+        using var importDocument = JsonDocument.Parse(await importResponse.Content.ReadAsStringAsync());
+        Assert.Equal(1, importDocument.RootElement.GetProperty("messagesImported").GetInt32());
+
+        using var messagesResponse = await authenticatedClient.GetAsync("/api/email/messages");
+        messagesResponse.EnsureSuccessStatusCode();
+        using var messagesDocument = JsonDocument.Parse(await messagesResponse.Content.ReadAsStringAsync());
+        Assert.Contains(
+            messagesDocument.RootElement.EnumerateArray(),
+            x => x.GetProperty("subject").GetString() == subject &&
+                 x.GetProperty("hasAttachments").GetBoolean() &&
+                 !x.GetProperty("isAnswered").GetBoolean());
+
+        using var searchResponse = await authenticatedClient.GetAsync("/api/email/search?query=invoice");
+        searchResponse.EnsureSuccessStatusCode();
+        using var searchDocument = JsonDocument.Parse(await searchResponse.Content.ReadAsStringAsync());
+        Assert.Contains(
+            searchDocument.RootElement.EnumerateArray(),
+            x => x.GetProperty("subject").GetString() == subject);
+
+        using var briefingResponse = await authenticatedClient.GetAsync("/api/companion/briefing");
+        briefingResponse.EnsureSuccessStatusCode();
+        using var briefingDocument = JsonDocument.Parse(await briefingResponse.Content.ReadAsStringAsync());
+        Assert.Contains(
+            briefingDocument.RootElement.GetProperty("importantRecentEmails").EnumerateArray(),
+            x => x.GetProperty("subject").GetString() == subject);
+
+        var insightMessages = briefingDocument.RootElement.GetProperty("chiefOfStaffInsights")
+            .EnumerateArray()
+            .Select(x => x.GetProperty("message").GetString())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+        Assert.Contains(insightMessages, x => x!.Contains("urgent", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(insightMessages, x => x!.Contains("bill, payment, or deadline", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(insightMessages, x => x!.Contains("attachment", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(insightMessages, x => x!.Contains("unanswered", StringComparison.OrdinalIgnoreCase));
+
+        var toolId = await GetToolIdByNameAsync(authenticatedClient, "EmailSearch");
+        using var toolResponse = await authenticatedClient.PostAsJsonAsync($"/api/tools/{toolId}/execute", new
+        {
+            input = new
+            {
+                query = "deadline",
+                limit = 5
+            }
+        });
+
+        toolResponse.EnsureSuccessStatusCode();
+        using var toolDocument = JsonDocument.Parse(await toolResponse.Content.ReadAsStringAsync());
+        Assert.Equal("Completed", toolDocument.RootElement.GetProperty("execution").GetProperty("status").GetString());
+        using var outputDocument = JsonDocument.Parse(toolDocument.RootElement.GetProperty("execution").GetProperty("outputJson").GetString()!);
+        Assert.Contains(
+            outputDocument.RootElement.EnumerateArray(),
+            x => x.GetProperty("subject").GetString() == subject);
+
+        using var auditResponse = await authenticatedClient.GetAsync("/api/audit");
+        auditResponse.EnsureSuccessStatusCode();
+        using var auditDocument = JsonDocument.Parse(await auditResponse.Content.ReadAsStringAsync());
+        var eventTypes = auditDocument.RootElement.EnumerateArray()
+            .Select(x => x.GetProperty("eventType").GetString())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("EmailMessagesViewed", eventTypes);
+        Assert.Contains("EmailSearchPerformed", eventTypes);
+    }
+
+    [Fact]
+    public async Task UserIsolation_Works_ForEmailSnapshots()
+    {
+        using var client = factory.CreateClient();
+        var userAEmail = $"email-a-{Guid.NewGuid():N}@example.com";
+        var userBEmail = $"email-b-{Guid.NewGuid():N}@example.com";
+        const string password = "Companion123";
+
+        await RegisterAsync(client, userAEmail, password, "Email User A");
+        await RegisterAsync(client, userBEmail, password, "Email User B");
+
+        var tokenA = await LoginAsync(client, userAEmail, password);
+        var tokenB = await LoginAsync(client, userBEmail, password);
+
+        using var userAClient = factory.CreateClient();
+        using var userBClient = factory.CreateClient();
+        userAClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        userBClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenB);
+
+        var displayName = $"Private Email {Guid.NewGuid():N}";
+        var subject = $"Private Message {Guid.NewGuid():N}";
+        await ImportEmailAsync(
+            userBClient,
+            displayName,
+            new[]
+            {
+                new
+                {
+                    externalId = $"msg-{Guid.NewGuid():N}",
+                    subject,
+                    fromName = "Private Sender",
+                    fromAddress = "private@example.com",
+                    toAddresses = new[] { userBEmail },
+                    preview = "Only user B should see this message.",
+                    body = "Private email body.",
+                    receivedUtc = DateTime.UtcNow.AddHours(-1),
+                    isRead = false,
+                    hasAttachments = false,
+                    isAnswered = false
+                }
+            });
+
+        using var userAConnectors = await userAClient.GetAsync("/api/connectors");
+        userAConnectors.EnsureSuccessStatusCode();
+        using var userAConnectorsDocument = JsonDocument.Parse(await userAConnectors.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(
+            userAConnectorsDocument.RootElement.EnumerateArray()
+                .SelectMany(x => x.GetProperty("connections").EnumerateArray()),
+            x => x.GetProperty("displayName").GetString() == displayName);
+
+        using var userAEmailMessages = await userAClient.GetAsync("/api/email/messages");
+        userAEmailMessages.EnsureSuccessStatusCode();
+        using var userAEmailDocument = JsonDocument.Parse(await userAEmailMessages.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(
+            userAEmailDocument.RootElement.EnumerateArray(),
+            x => x.GetProperty("subject").GetString() == subject);
+    }
+
     private async Task<HttpClient> CreateSeedAdminClientAsync()
     {
         var client = factory.CreateClient();
@@ -245,6 +407,17 @@ public sealed class ConnectorIntegrationTests(PostgresTestApiFactory factory) : 
         {
             displayName,
             events
+        });
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task ImportEmailAsync(HttpClient client, string displayName, object[] messages)
+    {
+        using var response = await client.PostAsJsonAsync("/api/connectors/local-email/import", new
+        {
+            displayName,
+            messages
         });
 
         response.EnsureSuccessStatusCode();

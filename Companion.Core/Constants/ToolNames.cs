@@ -7,4 +7,5 @@ public static class ToolNames
     public const string GetBriefing = "GetBriefing";
     public const string KnowledgeSearch = "KnowledgeSearch";
     public const string CalendarEvents = "CalendarEvents";
+    public const string EmailSearch = "EmailSearch";
 }

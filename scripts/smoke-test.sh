@@ -7,7 +7,7 @@ API_URL="http://127.0.0.1:${API_PORT}"
 MOCK_AI_PORT="${MOCK_AI_PORT:-19090}"
 MOCK_AI_URL="http://127.0.0.1:${MOCK_AI_PORT}"
 WORKER_POLL_SECONDS="${WORKER_POLL_SECONDS:-1}"
-RUN_ID="${RUN_ID:-phase8-$(date +%s)}"
+RUN_ID="${RUN_ID:-phase9-$(date +%s)}"
 API_LOG="/tmp/companion-api-${RUN_ID}.log"
 WORKER_LOG="/tmp/companion-worker-${RUN_ID}.log"
 MOCK_AI_LOG="/tmp/companion-mock-ai-${RUN_ID}.log"
@@ -182,6 +182,7 @@ start_api() {
   API_PID=$!
   wait_for_url "${API_URL}/healthz" "API health endpoint is reachable"
   wait_for_url "${API_URL}/swagger/v1/swagger.json" "Swagger document is reachable"
+  kill -0 "${API_PID}" >/dev/null 2>&1 || fail "API process exited unexpectedly; another process may already be bound to ${API_URL}"
 }
 
 authenticate_api() {
@@ -301,6 +302,7 @@ start_mock_ai
 step "Verifying connector discovery"
 CONNECTORS="$(http_get "${API_URL}/api/connectors")"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'LocalCalendar') == 1" "LocalCalendar connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'LocalEmail') == 1" "LocalEmail connector is discoverable"
 
 step "Verifying tool discovery and execution"
 TOOLS="$(http_get "${API_URL}/api/tools")"
@@ -309,21 +311,24 @@ assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CreateTask') == 1" "C
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'GetBriefing') == 1" "GetBriefing is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'KnowledgeSearch') == 1" "KnowledgeSearch is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CalendarEvents') == 1" "CalendarEvents is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'EmailSearch') == 1" "EmailSearch is discoverable"
 
 GET_BRIEFING_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'GetBriefing')")"
 CREATE_TASK_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CreateTask')")"
 MEMORY_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'MemorySearch')")"
 KNOWLEDGE_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'KnowledgeSearch')")"
 CALENDAR_EVENTS_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CalendarEvents')")"
+EMAIL_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'EmailSearch')")"
 SMOKE_TASK_TITLE="Smoke task ${RUN_ID}"
 KNOWLEDGE_TERM="knowledge-${RUN_ID}"
 CALENDAR_TITLE="Calendar review ${RUN_ID}"
+EMAIL_SUBJECT="Urgent invoice deadline ${RUN_ID}"
 
 GET_BRIEFING_EXECUTION="$(http_post_json "${API_URL}/api/tools/${GET_BRIEFING_TOOL_ID}/execute" '{"input":{}}')"
 assert_json "$GET_BRIEFING_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "Low-risk tool executes immediately"
 
 CREATE_TASK_EXECUTION="$(http_post_json "${API_URL}/api/tools/${CREATE_TASK_TOOL_ID}/execute" "$(cat <<JSON
-{"input":{"title":"${SMOKE_TASK_TITLE}","description":"Created by the phase 8 smoke test."}}
+{"input":{"title":"${SMOKE_TASK_TITLE}","description":"Created by the phase 9 smoke test."}}
 JSON
 )")"
 assert_json "$CREATE_TASK_EXECUTION" "data['executedImmediately'] is False and data['execution']['status'] == 'AwaitingApproval'" "Approval-gated tool waits for approval"
@@ -380,6 +385,26 @@ assert_json "$BRIEFING_WITH_CALENDAR" "sum(1 for x in data['upcomingCalendarEven
 
 CALENDAR_TOOL_EXECUTION="$(http_post_json "${API_URL}/api/tools/${CALENDAR_EVENTS_TOOL_ID}/execute" '{"input":{"daysAhead":7}}')"
 assert_json "$CALENDAR_TOOL_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "CalendarEvents tool executes immediately"
+
+step "Importing and retrieving email messages"
+EMAIL_IMPORT="$(http_post_json "${API_URL}/api/connectors/local-email/import" "$(cat <<JSON
+{"displayName":"Smoke Email ${RUN_ID}","messages":[{"externalId":"email-${RUN_ID}","subject":"${EMAIL_SUBJECT}","fromName":"Billing Team","fromAddress":"billing@example.com","toAddresses":["${LOCAL_ADMIN_EMAIL}"],"preview":"Urgent payment due tomorrow. Invoice attached.","body":"Please review the attached invoice before the payment deadline.","receivedUtc":"$(date -u -d '-2 hour' +%Y-%m-%dT%H:%M:%SZ)","isRead":false,"hasAttachments":true,"isAnswered":false}]}
+JSON
+)")"
+assert_json "$EMAIL_IMPORT" "data['messagesImported'] == 1" "Local email import creates a synced message snapshot"
+
+EMAIL_MESSAGES="$(http_get "${API_URL}/api/email/messages")"
+assert_json "$EMAIL_MESSAGES" "sum(1 for x in data if x['subject'] == '${EMAIL_SUBJECT}' and x['hasAttachments'] is True and x['isAnswered'] is False) == 1" "Email messages endpoint returns the imported message"
+
+EMAIL_SEARCH="$(http_get "${API_URL}/api/email/search?query=invoice")"
+assert_json "$EMAIL_SEARCH" "sum(1 for x in data if x['subject'] == '${EMAIL_SUBJECT}') == 1" "Email search returns the imported message"
+
+BRIEFING_WITH_EMAIL="$(http_get "${API_URL}/api/companion/briefing")"
+assert_json "$BRIEFING_WITH_EMAIL" "sum(1 for x in data['importantRecentEmails'] if x['subject'] == '${EMAIL_SUBJECT}') == 1" "Briefing includes important recent email"
+assert_json "$BRIEFING_WITH_EMAIL" "sum(1 for x in data['chiefOfStaffInsights'] if 'urgent' in x['message'].lower() or 'bill, payment, or deadline' in x['message'].lower() or 'unanswered' in x['message'].lower()) >= 1" "Briefing includes email-derived insights"
+
+EMAIL_TOOL_EXECUTION="$(http_post_json "${API_URL}/api/tools/${EMAIL_SEARCH_TOOL_ID}/execute" '{"input":{"query":"deadline","limit":5}}')"
+assert_json "$EMAIL_TOOL_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "EmailSearch tool executes immediately"
 
 step "Fetching baseline counts"
 BASE_SUGGESTIONS="$(http_get "${API_URL}/api/suggestions")"
@@ -482,10 +507,10 @@ assert_json "$CHAT_TIMEOUT" "data['usedFallback'] is True" "Timeout triggers saf
 assert_agent_run_for_input "$CHAT_TIMEOUT_MESSAGE" "'timed out' in (x['error'] or '').lower() and x['provider'] == 'Ollama'" "Timeout error is stored clearly"
 
 step "Queueing a background AgentRun"
-QUEUED_RUN="$(http_post_json "${API_URL}/api/agent-runs" '{"agentName":"phase8-quick-run","input":"exercise worker telemetry"}')"
+QUEUED_RUN="$(http_post_json "${API_URL}/api/agent-runs" '{"agentName":"phase9-quick-run","input":"exercise worker telemetry"}')"
 QUEUED_RUN_ID="$(json_eval "$QUEUED_RUN" "data['id']")"
 POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 8 smoke test passed"
+pass "Phase 9 smoke test passed"

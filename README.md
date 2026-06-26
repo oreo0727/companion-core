@@ -1,6 +1,6 @@
 # Companion Core
 
-Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 8 adds a read-only connector framework and a calendar read connector so Companion can incorporate upcoming event context safely.
+Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 9 adds a safe read-only email connector so Companion can incorporate important recent email context without sending, deleting, or archiving mail.
 
 ## What This Phase Includes
 
@@ -17,7 +17,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - `UserPreference`, encrypted `StoredSecret`, and `AuditEvent` persistence
 - Internal tool runtime with `ToolDefinition`, `ToolPermission`, `ToolExecution`, and approval-aware execution
 - Knowledge import, chunking, keyword retrieval, and context injection
-- Read-only connector framework with connector definitions, user connections, sync runs, and calendar snapshots
+- Read-only connector framework with connector definitions, user connections, sync runs, calendar snapshots, and email snapshots
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Swagger-enabled API and Docker Compose bootstrap with an optional Ollama profile
 
@@ -140,8 +140,11 @@ The API is authenticated by default.
 - `POST /api/tools/{id}/execute`
 - `GET /api/connectors`
 - `POST /api/connectors/local-calendar/import`
+- `POST /api/connectors/local-email/import`
 - `POST /api/connectors/{id}/sync`
 - `GET /api/calendar/events`
+- `GET /api/email/messages`
+- `GET /api/email/search`
 - `POST /api/knowledge/import`
 - `GET /api/knowledge/search`
 - `GET /api/knowledge/sources`
@@ -156,7 +159,7 @@ The current chat loop is provider-driven with a deterministic fallback.
 - The enabled provider receives a structured prompt through `IAIProvider`.
 - The reasoning payload may include internal `toolRequests`.
 - Tool requests are executed only after permission and approval checks.
-- Upcoming calendar events are retrieved from connector snapshots and added to the bounded prompt context.
+- Upcoming calendar events and important recent email are retrieved from connector snapshots and added to the bounded prompt context.
 - Relevant knowledge chunks are retrieved and added to the bounded prompt context.
 - The extraction pass creates candidate memories, goals, projects, and tasks.
 - Candidates are stored as suggestions and require approval before they become first-class entities.
@@ -211,6 +214,7 @@ The current built-in tool set is intentionally narrow:
 - `MemorySearch`
 - `KnowledgeSearch`
 - `CalendarEvents`
+- `EmailSearch`
 - `CreateTask`
 - `GetBriefing`
 
@@ -237,8 +241,8 @@ The migrations seed:
 
 ## Current Constraints
 
-- No voice, mobile, email, calendar, or desktop control yet
-- No destructive connector actions; the first connector is a read-only local calendar importer
+- No voice, mobile, email sending, email deleting, email archiving, or desktop control yet
+- No destructive connector actions; current connectors are read-only local calendar and local email importers
 - No external knowledge connectors yet; imports are direct API submissions only
 - Provider calls use plain `HttpClient` and require external model availability plus valid configuration
 - Suggestion approval boundaries remain in place before new durable user data is persisted
@@ -256,6 +260,7 @@ The migrations seed:
 - [Developer Notes](docs/DEV_NOTES.md)
 - [Connectors](docs/CONNECTORS.md)
 - [Calendar Connector](docs/CALENDAR_CONNECTOR.md)
+- [Email Connector](docs/EMAIL_CONNECTOR.md)
 - [Knowledge Layer](docs/KNOWLEDGE.md)
 - [Tool Runtime](docs/TOOLS.md)
 - [Retrieval](docs/RETRIEVAL.md)

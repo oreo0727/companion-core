@@ -139,6 +139,7 @@ public partial class ChiefOfStaffService(
             context.Goals,
             context.Projects,
             context.UpcomingCalendarEvents,
+            context.ImportantRecentEmails,
             context.OpenLoops,
             context.ProjectSuggestions,
             context.GoalSuggestions,
@@ -244,6 +245,12 @@ public partial class ChiefOfStaffService(
             await connectorSyncService.GetUpcomingCalendarEventsAsync(
                 userProfileId,
                 daysAhead: 7,
+                audit: false,
+                cancellationToken: cancellationToken),
+            await connectorSyncService.GetRecentEmailMessagesAsync(
+                userProfileId,
+                daysBack: 14,
+                limit: 12,
                 audit: false,
                 cancellationToken: cancellationToken),
             await dbContext.OpenLoops
@@ -409,6 +416,47 @@ public partial class ChiefOfStaffService(
                 "Conflict",
                 $"Calendar events '{overlap.First.Title}' and '{overlap.Second.Title}' overlap.",
                 86));
+        }
+
+        var unreadMessages = context.ImportantRecentEmails.Where(x => !x.IsRead).ToList();
+        if (unreadMessages.Count > 0)
+        {
+            insights.Add(new CompanionInsight(
+                "Email",
+                $"There are {unreadMessages.Count} unread-looking recent email message(s).",
+                74));
+        }
+
+        foreach (var message in context.ImportantRecentEmails.Where(IsUrgentEmail).Take(3))
+        {
+            insights.Add(new CompanionInsight(
+                "Email",
+                $"Email '{message.Subject}' looks urgent.",
+                83));
+        }
+
+        foreach (var message in context.ImportantRecentEmails.Where(HasBillOrDeadlineLanguage).Take(3))
+        {
+            insights.Add(new CompanionInsight(
+                "Deadline",
+                $"Email '{message.Subject}' may involve a bill, payment, or deadline.",
+                82));
+        }
+
+        foreach (var message in context.ImportantRecentEmails.Where(x => x.HasAttachments).Take(2))
+        {
+            insights.Add(new CompanionInsight(
+                "Email",
+                $"Email '{message.Subject}' has an attachment.",
+                62));
+        }
+
+        foreach (var message in context.ImportantRecentEmails.Where(x => !x.IsAnswered).Take(3))
+        {
+            insights.Add(new CompanionInsight(
+                "Email",
+                $"Email '{message.Subject}' appears unanswered.",
+                70));
         }
 
         return insights
@@ -617,6 +665,22 @@ public partial class ChiefOfStaffService(
             topicTerms.All(term => normalizedText.Contains(term, StringComparison.Ordinal));
     }
 
+    private static bool IsUrgentEmail(EmailMessageSnapshot message)
+    {
+        return ContainsAnyEmailText(message, ["urgent", "asap", "important", "action required", "immediately"]);
+    }
+
+    private static bool HasBillOrDeadlineLanguage(EmailMessageSnapshot message)
+    {
+        return ContainsAnyEmailText(message, ["bill", "payment", "invoice", "due", "deadline", "overdue"]);
+    }
+
+    private static bool ContainsAnyEmailText(EmailMessageSnapshot message, IReadOnlyList<string> terms)
+    {
+        var text = $"{message.Subject} {message.Preview} {message.Body}";
+        return terms.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
     [GeneratedRegex(@"\b(?:[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){0,2})\b", RegexOptions.Compiled)]
     private static partial Regex TitleCasePhraseRegex();
 
@@ -627,6 +691,7 @@ public partial class ChiefOfStaffService(
         IReadOnlyList<Goal> Goals,
         IReadOnlyList<Project> Projects,
         IReadOnlyList<CalendarEventSnapshot> UpcomingCalendarEvents,
+        IReadOnlyList<EmailMessageSnapshot> ImportantRecentEmails,
         IReadOnlyList<OpenLoop> OpenLoops,
         IReadOnlyList<ProjectSuggestion> ProjectSuggestions,
         IReadOnlyList<GoalSuggestion> GoalSuggestions,

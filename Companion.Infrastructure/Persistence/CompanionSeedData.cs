@@ -30,12 +30,15 @@ public static class CompanionSeedData
     public static readonly Guid GetBriefingToolDefinitionId = Guid.Parse("56ec1a59-1115-4da9-9292-c8a2609fe632");
     public static readonly Guid KnowledgeSearchToolDefinitionId = Guid.Parse("fb6c3e11-6546-4df0-bbf5-f974e0d307ec");
     public static readonly Guid CalendarEventsToolDefinitionId = Guid.Parse("0ddf4583-81b6-4e2d-a3d6-738066b13d8c");
+    public static readonly Guid EmailSearchToolDefinitionId = Guid.Parse("8b91435f-f204-44de-a541-997b07c654d6");
     public static readonly Guid MemorySearchToolPermissionId = Guid.Parse("1a9f7783-8d03-4769-ab39-f9b8dc7bd3b4");
     public static readonly Guid CreateTaskToolPermissionId = Guid.Parse("b4608125-c91c-4a2a-ae17-68a4b0f4f6df");
     public static readonly Guid GetBriefingToolPermissionId = Guid.Parse("f2a6cdb9-212d-4f0f-92a1-0e2db84cf90f");
     public static readonly Guid KnowledgeSearchToolPermissionId = Guid.Parse("ab0c3178-4f4c-4634-b25d-fcdafb4fbb6c");
     public static readonly Guid CalendarEventsToolPermissionId = Guid.Parse("e1fc039a-1ca6-426b-9a9a-29873fe46f76");
+    public static readonly Guid EmailSearchToolPermissionId = Guid.Parse("f0dce30f-e80a-4c77-950c-9ef69eab0754");
     public static readonly Guid LocalCalendarConnectorDefinitionId = Guid.Parse("fb132d85-476e-48d2-81cb-4e6a1bf09cf5");
+    public static readonly Guid LocalEmailConnectorDefinitionId = Guid.Parse("745e49ef-a388-4544-a416-8299d0fdadc0");
 
     public static readonly DateTime UserCreatedUtc = new(2026, 6, 19, 12, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime ConversationCreatedUtc = new(2026, 6, 19, 12, 5, 0, 0, DateTimeKind.Utc);
@@ -389,6 +392,17 @@ public static class CompanionSeedData
             RequiresApproval = false,
             Enabled = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = EmailSearchToolDefinitionId,
+            Name = ToolNames.EmailSearch,
+            Description = "Search read-only email snapshots for the authenticated user.",
+            Category = ToolCategories.Email,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
@@ -433,6 +447,14 @@ public static class CompanionSeedData
             ToolDefinitionId = CalendarEventsToolDefinitionId,
             Allowed = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = EmailSearchToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = EmailSearchToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
@@ -445,6 +467,18 @@ public static class CompanionSeedData
             Provider = ConnectorProviders.LocalCalendar,
             Description = "Read-only local calendar connector that imports upcoming events from a JSON payload.",
             Category = ConnectorCategories.Calendar,
+            SupportsOAuth = false,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = LocalEmailConnectorDefinitionId,
+            Name = "Local Email",
+            Provider = ConnectorProviders.LocalEmail,
+            Description = "Read-only local email connector that imports messages from a JSON payload.",
+            Category = ConnectorCategories.Email,
             SupportsOAuth = false,
             RiskLevel = ConnectorRiskLevel.Low,
             Enabled = true,

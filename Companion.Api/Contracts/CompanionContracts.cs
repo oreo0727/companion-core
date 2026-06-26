@@ -234,6 +234,25 @@ public sealed record CalendarEventSnapshotResponse(
     DateTime UpdatedUtc,
     string? ConnectorDisplayName);
 
+public sealed record EmailMessageSnapshotResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConnectorConnectionId,
+    string ExternalId,
+    string Subject,
+    string? FromName,
+    string FromAddress,
+    string? ToAddresses,
+    string? Preview,
+    string? Body,
+    DateTime ReceivedUtc,
+    bool IsRead,
+    bool HasAttachments,
+    bool IsAnswered,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc,
+    string? ConnectorDisplayName);
+
 public sealed record ConnectorCatalogEntryResponse(
     ConnectorDefinitionResponse Definition,
     IReadOnlyList<ConnectorConnectionResponse> Connections);
@@ -242,6 +261,11 @@ public sealed record LocalCalendarImportResponse(
     ConnectorConnectionResponse Connection,
     ConnectorSyncRunResponse SyncRun,
     int EventsImported);
+
+public sealed record LocalEmailImportResponse(
+    ConnectorConnectionResponse Connection,
+    ConnectorSyncRunResponse SyncRun,
+    int MessagesImported);
 
 public sealed record KnowledgeSourceResponse(
     Guid Id,
@@ -378,6 +402,7 @@ public sealed record CompanionBriefingResponse(
     IReadOnlyList<GoalResponse> Goals,
     IReadOnlyList<ProjectResponse> Projects,
     IReadOnlyList<CalendarEventSnapshotResponse> UpcomingCalendarEvents,
+    IReadOnlyList<EmailMessageSnapshotResponse> ImportantRecentEmails,
     IReadOnlyList<OpenLoopResponse> OpenLoops,
     IReadOnlyList<ProjectSuggestionResponse> ProjectSuggestions,
     IReadOnlyList<GoalSuggestionResponse> GoalSuggestions,
@@ -684,6 +709,28 @@ public static class CompanionApiMappings
             snapshot.ConnectorConnection?.DisplayName);
     }
 
+    public static EmailMessageSnapshotResponse ToResponse(this EmailMessageSnapshot snapshot)
+    {
+        return new EmailMessageSnapshotResponse(
+            snapshot.Id,
+            snapshot.UserProfileId,
+            snapshot.ConnectorConnectionId,
+            snapshot.ExternalId,
+            snapshot.Subject,
+            snapshot.FromName,
+            snapshot.FromAddress,
+            snapshot.ToAddresses,
+            snapshot.Preview,
+            snapshot.Body,
+            snapshot.ReceivedUtc,
+            snapshot.IsRead,
+            snapshot.HasAttachments,
+            snapshot.IsAnswered,
+            snapshot.CreatedUtc,
+            snapshot.UpdatedUtc,
+            snapshot.ConnectorConnection?.DisplayName);
+    }
+
     public static ConnectorCatalogEntryResponse ToResponse(this ConnectorCatalogEntry entry)
     {
         foreach (var connection in entry.Connections)
@@ -702,6 +749,14 @@ public static class CompanionApiMappings
             result.Connection.ToResponse(),
             result.SyncRun.ToResponse(),
             result.EventsImported);
+    }
+
+    public static LocalEmailImportResponse ToResponse(this LocalEmailImportResult result)
+    {
+        return new LocalEmailImportResponse(
+            result.Connection.ToResponse(),
+            result.SyncRun.ToResponse(),
+            result.MessagesImported);
     }
 
     public static KnowledgeSourceResponse ToResponse(this KnowledgeSourceSummary source)
@@ -775,6 +830,7 @@ public static class CompanionApiMappings
             briefing.Goals.Select(x => x.ToResponse()).ToList(),
             briefing.Projects.Select(x => x.ToResponse()).ToList(),
             briefing.UpcomingCalendarEvents.Select(x => x.ToResponse()).ToList(),
+            briefing.ImportantRecentEmails.Select(x => x.ToResponse()).ToList(),
             briefing.OpenLoops.Select(x => x.ToResponse()).ToList(),
             briefing.ProjectSuggestions.Select(x => x.ToResponse()).ToList(),
             briefing.GoalSuggestions.Select(x => x.ToResponse()).ToList(),

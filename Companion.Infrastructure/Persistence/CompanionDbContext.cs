@@ -57,6 +57,8 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<CalendarEventSnapshot> CalendarEventSnapshots => Set<CalendarEventSnapshot>();
 
+    public DbSet<EmailMessageSnapshot> EmailMessageSnapshots => Set<EmailMessageSnapshot>();
+
     public DbSet<KnowledgeSource> KnowledgeSources => Set<KnowledgeSource>();
 
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
@@ -522,6 +524,31 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.ConnectorConnection)
                 .WithMany(x => x.CalendarEvents)
+                .HasForeignKey(x => x.ConnectorConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EmailMessageSnapshot>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalId).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Subject).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.FromName).HasMaxLength(300);
+            entity.Property(x => x.FromAddress).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ToAddresses).HasMaxLength(2000);
+            entity.Property(x => x.Preview).HasMaxLength(1000);
+            entity.Property(x => x.Body).HasMaxLength(12000);
+            entity.Property(x => x.ReceivedUtc).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.ConnectorConnectionId, x.ExternalId }).IsUnique();
+            entity.HasIndex(x => new { x.UserProfileId, x.ReceivedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.EmailMessageSnapshots)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorConnection)
+                .WithMany(x => x.EmailMessages)
                 .HasForeignKey(x => x.ConnectorConnectionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

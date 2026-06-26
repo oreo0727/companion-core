@@ -24,6 +24,7 @@ public class GetBriefingTool(IChiefOfStaffService chiefOfStaffService) : ITool
             goals = briefing.Goals.Select(goal => new { goal.Id, goal.Title, Status = goal.Status.ToString() }).ToList(),
             projects = briefing.Projects.Select(project => new { project.Id, project.Title, Status = project.Status.ToString() }).ToList(),
             upcomingCalendarEvents = briefing.UpcomingCalendarEvents.Select(calendarEvent => new { calendarEvent.Id, calendarEvent.Title, calendarEvent.StartUtc, calendarEvent.EndUtc, calendarEvent.Location }).ToList(),
+            importantRecentEmails = briefing.ImportantRecentEmails.Select(email => new { email.Id, email.Subject, email.FromAddress, email.ReceivedUtc, email.IsRead, email.HasAttachments, email.IsAnswered }).ToList(),
             openLoops = briefing.OpenLoops.Select(loop => new { loop.Id, loop.Title, Status = loop.Status.ToString() }).ToList(),
             insights = briefing.ChiefOfStaffInsights.Select(insight => new { insight.Category, insight.Message, insight.Priority }).ToList()
         };

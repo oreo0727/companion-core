@@ -52,6 +52,8 @@ public class UserProfile
 
     public ICollection<CalendarEventSnapshot> CalendarEventSnapshots { get; set; } = new List<CalendarEventSnapshot>();
 
+    public ICollection<EmailMessageSnapshot> EmailMessageSnapshots { get; set; } = new List<EmailMessageSnapshot>();
+
     public ICollection<ToolExecution> ToolExecutions { get; set; } = new List<ToolExecution>();
 
     public ICollection<ToolPermission> ToolPermissions { get; set; } = new List<ToolPermission>();

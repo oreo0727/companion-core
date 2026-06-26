@@ -14,6 +14,11 @@ public interface IConnectorSyncService
         LocalCalendarImportCommand command,
         CancellationToken cancellationToken = default);
 
+    Task<LocalEmailImportResult> ImportLocalEmailAsync(
+        Guid userProfileId,
+        LocalEmailImportCommand command,
+        CancellationToken cancellationToken = default);
+
     Task<ConnectorSyncRun> SyncAsync(
         Guid userProfileId,
         Guid connectorConnectionId,
@@ -22,6 +27,20 @@ public interface IConnectorSyncService
     Task<IReadOnlyList<CalendarEventSnapshot>> GetUpcomingCalendarEventsAsync(
         Guid userProfileId,
         int daysAhead = 7,
+        bool audit = true,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<EmailMessageSnapshot>> GetRecentEmailMessagesAsync(
+        Guid userProfileId,
+        int daysBack = 14,
+        int limit = 25,
+        bool audit = true,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<EmailMessageSnapshot>> SearchEmailMessagesAsync(
+        Guid userProfileId,
+        string query,
+        int limit = 25,
         bool audit = true,
         CancellationToken cancellationToken = default);
 }

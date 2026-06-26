@@ -16,6 +16,8 @@ public static class AuditEventTypes
     public const string ConnectorSyncStarted = "ConnectorSyncStarted";
     public const string ConnectorSyncCompleted = "ConnectorSyncCompleted";
     public const string CalendarEventsViewed = "CalendarEventsViewed";
+    public const string EmailMessagesViewed = "EmailMessagesViewed";
+    public const string EmailSearchPerformed = "EmailSearchPerformed";
     public const string ToolExecutionRequested = "ToolExecutionRequested";
     public const string ToolExecutionCompleted = "ToolExecutionCompleted";
     public const string ToolExecutionFailed = "ToolExecutionFailed";

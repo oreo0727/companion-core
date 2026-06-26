@@ -7,4 +7,5 @@ public static class ToolCategories
     public const string Companion = "Companion";
     public const string Knowledge = "Knowledge";
     public const string Calendar = "Calendar";
+    public const string Email = "Email";
 }

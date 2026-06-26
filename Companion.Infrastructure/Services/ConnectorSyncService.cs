@@ -110,6 +110,80 @@ public class ConnectorSyncService(
         return new LocalCalendarImportResult(connection, syncRun, syncRun.ItemsSynced);
     }
 
+    public async Task<LocalEmailImportResult> ImportLocalEmailAsync(
+        Guid userProfileId,
+        LocalEmailImportCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var definition = await dbContext.ConnectorDefinitions
+            .FirstOrDefaultAsync(
+                x => x.Provider == ConnectorProviders.LocalEmail && x.Enabled,
+                cancellationToken)
+            ?? throw new KeyNotFoundException("LocalEmail connector definition was not found.");
+
+        var normalizedDisplayName = command.DisplayName.Trim();
+        var connection = await dbContext.ConnectorConnections
+            .Include(x => x.ConnectorDefinition)
+            .FirstOrDefaultAsync(
+                x => x.UserProfileId == userProfileId &&
+                     x.ConnectorDefinitionId == definition.Id &&
+                     x.DisplayName == normalizedDisplayName,
+                cancellationToken);
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var isNewConnection = false;
+
+        if (connection is null)
+        {
+            connection = new ConnectorConnection
+            {
+                Id = Guid.NewGuid(),
+                UserProfileId = userProfileId,
+                ConnectorDefinitionId = definition.Id,
+                DisplayName = normalizedDisplayName,
+                Status = ConnectorConnectionStatus.Connected,
+                CreatedUtc = now,
+                UpdatedUtc = now,
+                ConnectorDefinition = definition
+            };
+            dbContext.ConnectorConnections.Add(connection);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            isNewConnection = true;
+        }
+
+        var payloadJson = JsonSerializer.Serialize(new
+        {
+            messages = command.Messages.Select(x => new
+            {
+                x.ExternalId,
+                x.Subject,
+                x.FromName,
+                x.FromAddress,
+                x.ToAddresses,
+                x.Preview,
+                x.Body,
+                x.ReceivedUtc,
+                x.IsRead,
+                x.HasAttachments,
+                x.IsAnswered
+            })
+        });
+
+        if (isNewConnection)
+        {
+            await auditService.WriteEventAsync(
+                userProfileId,
+                AuditEventTypes.ConnectorConnected,
+                nameof(ConnectorConnection),
+                connection.Id.ToString(),
+                $"Connected '{connection.DisplayName}' through the {definition.Provider} connector.",
+                cancellationToken);
+        }
+
+        var syncRun = await ExecuteSyncAsync(userProfileId, connection, payloadJson, cancellationToken);
+        return new LocalEmailImportResult(connection, syncRun, syncRun.ItemsSynced);
+    }
+
     public async Task<ConnectorSyncRun> SyncAsync(
         Guid userProfileId,
         Guid connectorConnectionId,
@@ -161,6 +235,97 @@ public class ConnectorSyncService(
         }
 
         return ordered;
+    }
+
+    public async Task<IReadOnlyList<EmailMessageSnapshot>> GetRecentEmailMessagesAsync(
+        Guid userProfileId,
+        int daysBack = 14,
+        int limit = 25,
+        bool audit = true,
+        CancellationToken cancellationToken = default)
+    {
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var since = now.AddDays(-Math.Clamp(daysBack, 1, 90));
+        var take = Math.Clamp(limit, 1, 100);
+
+        var messages = await dbContext.EmailMessageSnapshots
+            .AsNoTracking()
+            .Include(x => x.ConnectorConnection)
+            .Where(x => x.UserProfileId == userProfileId && x.ReceivedUtc >= since)
+            .ToListAsync(cancellationToken);
+
+        var ordered = messages
+            .OrderByDescending(EmailImportanceScore)
+            .ThenByDescending(x => x.ReceivedUtc)
+            .ThenBy(x => x.Subject)
+            .Take(take)
+            .ToList();
+
+        if (audit)
+        {
+            await auditService.WriteEventAsync(
+                userProfileId,
+                AuditEventTypes.EmailMessagesViewed,
+                nameof(EmailMessageSnapshot),
+                ordered.FirstOrDefault()?.Id.ToString() ?? string.Empty,
+                $"Viewed {ordered.Count} recent email message snapshot(s).",
+                cancellationToken);
+        }
+
+        return ordered;
+    }
+
+    public async Task<IReadOnlyList<EmailMessageSnapshot>> SearchEmailMessagesAsync(
+        Guid userProfileId,
+        string query,
+        int limit = 25,
+        bool audit = true,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedQuery = query.Trim();
+        var take = Math.Clamp(limit, 1, 100);
+
+        if (string.IsNullOrWhiteSpace(normalizedQuery))
+        {
+            return await GetRecentEmailMessagesAsync(userProfileId, 14, take, audit, cancellationToken);
+        }
+
+        var terms = normalizedQuery
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var messages = await dbContext.EmailMessageSnapshots
+            .AsNoTracking()
+            .Include(x => x.ConnectorConnection)
+            .Where(x => x.UserProfileId == userProfileId)
+            .ToListAsync(cancellationToken);
+
+        var results = messages
+            .Select(x => new
+            {
+                Message = x,
+                Score = terms.Sum(term => EmailTermScore(x, term)) + EmailImportanceScore(x)
+            })
+            .Where(x => x.Score > 0)
+            .OrderByDescending(x => x.Score)
+            .ThenByDescending(x => x.Message.ReceivedUtc)
+            .Take(take)
+            .Select(x => x.Message)
+            .ToList();
+
+        if (audit)
+        {
+            await auditService.WriteEventAsync(
+                userProfileId,
+                AuditEventTypes.EmailSearchPerformed,
+                nameof(EmailMessageSnapshot),
+                results.FirstOrDefault()?.Id.ToString() ?? string.Empty,
+                $"Searched email snapshots for '{normalizedQuery}' and found {results.Count} result(s).",
+                cancellationToken);
+        }
+
+        return results;
     }
 
     private async Task<ConnectorSyncRun> ExecuteSyncAsync(
@@ -260,5 +425,76 @@ public class ConnectorSyncService(
         }
 
         return 2;
+    }
+
+    private static int EmailImportanceScore(EmailMessageSnapshot snapshot)
+    {
+        var text = $"{snapshot.Subject} {snapshot.Preview} {snapshot.Body}";
+        var score = 0;
+
+        if (!snapshot.IsRead)
+        {
+            score += 8;
+        }
+
+        if (ContainsAny(text, ["urgent", "asap", "important", "action required", "immediately"]))
+        {
+            score += 10;
+        }
+
+        if (ContainsAny(text, ["bill", "payment", "invoice", "due", "deadline", "overdue"]))
+        {
+            score += 8;
+        }
+
+        if (snapshot.HasAttachments)
+        {
+            score += 3;
+        }
+
+        if (!snapshot.IsAnswered)
+        {
+            score += 4;
+        }
+
+        return score;
+    }
+
+    private static int EmailTermScore(EmailMessageSnapshot snapshot, string term)
+    {
+        var score = 0;
+
+        if (ContainsTerm(snapshot.Subject, term))
+        {
+            score += 10;
+        }
+
+        if (ContainsTerm(snapshot.FromName, term) || ContainsTerm(snapshot.FromAddress, term))
+        {
+            score += 6;
+        }
+
+        if (ContainsTerm(snapshot.Preview, term))
+        {
+            score += 4;
+        }
+
+        if (ContainsTerm(snapshot.Body, term))
+        {
+            score += 2;
+        }
+
+        return score;
+    }
+
+    private static bool ContainsAny(string text, IReadOnlyList<string> terms)
+    {
+        return terms.Any(term => ContainsTerm(text, term));
+    }
+
+    private static bool ContainsTerm(string? text, string term)
+    {
+        return !string.IsNullOrWhiteSpace(text) &&
+               text.Contains(term, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -49,7 +49,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISecretStore, DataProtectionSecretStore>();
         services.AddScoped<IChunkingService, ChunkingService>();
         services.AddScoped<ICalendarReadConnector, LocalCalendarReadConnector>();
+        services.AddScoped<IEmailReadConnector, LocalEmailReadConnector>();
         services.AddScoped<IConnector, LocalCalendarReadConnector>();
+        services.AddScoped<IConnector, LocalEmailReadConnector>();
         services.AddScoped<IConnectorRegistry, ConnectorRegistry>();
         services.AddScoped<IConnectorSyncService, ConnectorSyncService>();
         services.AddScoped<IKnowledgeImporter, KnowledgeImporter>();
@@ -59,6 +61,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITool, GetBriefingTool>();
         services.AddScoped<ITool, KnowledgeSearchTool>();
         services.AddScoped<ITool, CalendarEventsTool>();
+        services.AddScoped<ITool, EmailSearchTool>();
         services.AddScoped<IToolRegistry, ToolRegistry>();
         services.AddScoped<IToolExecutor, ToolExecutor>();
         services.AddScoped<IContextBuilder, ContextBuilder>();

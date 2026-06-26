@@ -11,6 +11,7 @@ public sealed record CompanionContext(
     IReadOnlyList<Goal> ActiveGoals,
     IReadOnlyList<Project> ActiveProjects,
     IReadOnlyList<CalendarEventSnapshot> UpcomingCalendarEvents,
+    IReadOnlyList<EmailMessageSnapshot> ImportantRecentEmails,
     IReadOnlyList<KnowledgeSearchResult> RelevantKnowledge,
     IReadOnlyList<TaskItem> OpenTasks,
     IReadOnlyList<OpenLoop> OpenLoops,

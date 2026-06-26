@@ -67,6 +67,12 @@ public class ContextBuilder(
             daysAhead: 7,
             audit: false,
             cancellationToken: cancellationToken);
+        var importantRecentEmails = await connectorSyncService.GetRecentEmailMessagesAsync(
+            userProfileId,
+            daysBack: 14,
+            limit: 8,
+            audit: false,
+            cancellationToken: cancellationToken);
         var relevantKnowledge = await SelectRelevantKnowledgeAsync(userProfileId, recentMessages, conversation.ActiveTopic, cancellationToken);
         var openTasks = await dbContext.TaskItems
             .AsNoTracking()
@@ -131,6 +137,7 @@ public class ContextBuilder(
             activeGoals,
             activeProjects,
             upcomingCalendarEvents,
+            importantRecentEmails,
             relevantKnowledge,
             openTasks,
             openLoops,

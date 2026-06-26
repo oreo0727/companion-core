@@ -1,6 +1,7 @@
 # Connectors
 
 Phase 8 adds a read-only connector framework for user-owned external data snapshots.
+Phase 9 extends that framework with read-only email snapshots.
 
 ## Connector Model
 
@@ -14,17 +15,21 @@ The connector layer uses four persisted records:
   Tracks each sync attempt, outcome, and synced item count.
 - `CalendarEventSnapshot`
   Stores read-only calendar data materialized from a connection.
+- `EmailMessageSnapshot`
+  Stores read-only email data materialized from a connection.
 
 ## Read-Only Boundary
 
 This phase is intentionally non-destructive.
 
 - no email sending
+- no email deleting
+- no email archiving
 - no write-back to external systems
 - no destructive sync behavior
 - no connector deletes during import
 
-The local calendar connector only creates or updates internal snapshots.
+The local calendar and local email connectors only create or update internal snapshots.
 
 ## Registry And Sync Flow
 
@@ -40,10 +45,11 @@ Every sync run records:
 
 ## Ownership
 
-All connector connections and calendar snapshots belong to a `UserProfile`.
+All connector connections, calendar snapshots, and email snapshots belong to a `UserProfile`.
 
 - no cross-user connector listing
 - no cross-user event retrieval
+- no cross-user email retrieval
 - no shared connection state
 
 ## Audit
@@ -54,3 +60,5 @@ The connector layer writes:
 - `ConnectorSyncStarted`
 - `ConnectorSyncCompleted`
 - `CalendarEventsViewed`
+- `EmailMessagesViewed`
+- `EmailSearchPerformed`
