@@ -19,4 +19,6 @@ public static class ToolNames
     public const string DesktopRunTerminal = "DesktopRunTerminal";
     public const string DesktopSendKeyboard = "DesktopSendKeyboard";
     public const string DesktopMoveMouse = "DesktopMoveMouse";
+    public const string HomeStatus = "HomeStatus";
+    public const string HomeExecuteAction = "HomeExecuteAction";
 }

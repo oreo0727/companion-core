@@ -375,6 +375,13 @@ assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] ==
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'MicrosoftCalendar' and x['definition']['supportsOAuth'] is True) == 1" "MicrosoftCalendar OAuth connector is discoverable"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'OneDrive' and x['definition']['supportsOAuth'] is True) == 1" "OneDrive OAuth connector is discoverable"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'OutlookMail' and x['definition']['supportsOAuth'] is True) == 1" "OutlookMail OAuth connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'LocalHome') == 1" "LocalHome connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'HomeAssistant') == 1" "HomeAssistant connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'Hue') == 1" "Hue connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'SmartThings') == 1" "SmartThings connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'Shelly') == 1" "Shelly connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'ESPHome') == 1" "ESPHome connector is discoverable"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'MQTT') == 1" "MQTT connector is discoverable"
 
 step "Verifying OAuth foundation"
 OAUTH_PROVIDERS="$(http_get "${API_URL}/api/oauth/providers")"
@@ -453,7 +460,7 @@ assert_json "$ONEDRIVE_SYNC" "data['status'] == 'Completed' and data['itemsSynce
 
 PRODUCTION_CALENDAR_EVENTS="$(http_get "${API_URL}/api/calendar/events")"
 assert_json "$PRODUCTION_CALENDAR_EVENTS" "sum(1 for x in data if x['title'] == '${PRODUCTION_GOOGLE_EVENT}') == 1 and sum(1 for x in data if x['title'] == '${PRODUCTION_MICROSOFT_EVENT}') == 1" "Production calendar snapshots are readable"
-PRODUCTION_EMAIL_SEARCH="$(http_get "${API_URL}/api/email/search?query=Production")"
+PRODUCTION_EMAIL_SEARCH="$(http_get "${API_URL}/api/email/search?query=${RUN_ID}&limit=100")"
 assert_json "$PRODUCTION_EMAIL_SEARCH" "sum(1 for x in data if x['subject'] == '${PRODUCTION_GMAIL_SUBJECT}') == 1 and sum(1 for x in data if x['subject'] == '${PRODUCTION_OUTLOOK_SUBJECT}') == 1" "Production email snapshots are searchable"
 PRODUCTION_FILES="$(http_get "${API_URL}/api/files/documents?limit=50")"
 assert_json "$PRODUCTION_FILES" "sum(1 for x in data if x['name'] == '${PRODUCTION_DRIVE_FILE}') == 1 and sum(1 for x in data if x['name'] == '${PRODUCTION_ONEDRIVE_FILE}') == 1" "Production file snapshots are readable"
@@ -471,6 +478,8 @@ assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'ListNotifications') =
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'DesktopCaptureScreenshot') == 1" "DesktopCaptureScreenshot is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'DesktopWriteFile') == 1" "DesktopWriteFile is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'DesktopRunTerminal') == 1" "DesktopRunTerminal is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'HomeStatus') == 1" "HomeStatus is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'HomeExecuteAction') == 1" "HomeExecuteAction is discoverable"
 
 GET_BRIEFING_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'GetBriefing')")"
 CREATE_TASK_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CreateTask')")"
@@ -482,12 +491,16 @@ CREATE_REMINDER_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['
 LIST_NOTIFICATIONS_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'ListNotifications')")"
 DESKTOP_SCREENSHOT_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'DesktopCaptureScreenshot')")"
 DESKTOP_WRITE_FILE_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'DesktopWriteFile')")"
+HOME_STATUS_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'HomeStatus')")"
+HOME_ACTION_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'HomeExecuteAction')")"
 SMOKE_TASK_TITLE="Smoke task ${RUN_ID}"
 KNOWLEDGE_TERM="knowledge-${RUN_ID}"
 CALENDAR_TITLE="Calendar review ${RUN_ID}"
 EMAIL_SUBJECT="Urgent invoice deadline ${RUN_ID}"
 REMINDER_TITLE="Reminder ${RUN_ID}"
 DESKTOP_FILE_NAME="smoke-${RUN_ID}.txt"
+HOME_DEVICE_NAME="Kitchen Lamp ${RUN_ID}"
+HOME_SENSOR_NAME="Hall Temperature ${RUN_ID}"
 
 GET_BRIEFING_EXECUTION="$(http_post_json "${API_URL}/api/tools/${GET_BRIEFING_TOOL_ID}/execute" '{"input":{}}')"
 assert_json "$GET_BRIEFING_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "Low-risk tool executes immediately"
@@ -527,6 +540,29 @@ AUDIT_AFTER_TOOLS="$(http_get "${API_URL}/api/audit")"
 assert_json "$AUDIT_AFTER_TOOLS" "sum(1 for x in data if x['eventType'] == 'ToolExecutionCompleted') >= 2" "Successful tool executions are audited"
 assert_json "$AUDIT_AFTER_TOOLS" "sum(1 for x in data if x['eventType'] == 'ToolExecutionRequested') >= 1" "Approval-gated tool requests are audited"
 assert_json "$AUDIT_AFTER_TOOLS" "sum(1 for x in data if x['eventType'] == 'ToolExecutionFailed') >= 1" "Failed tool executions are audited"
+
+step "Importing and controlling home automation snapshots"
+HOME_IMPORT="$(http_post_json "${API_URL}/api/connectors/local-home/import" "$(cat <<JSON
+{"displayName":"Home ${RUN_ID}","devices":[{"externalId":"lamp-${RUN_ID}","name":"${HOME_DEVICE_NAME}","deviceType":"Light","state":"Off","room":"Kitchen","capabilitiesJson":"{\"actions\":[\"turn_on\",\"turn_off\"]}"}],"sensors":[{"externalId":"temp-${RUN_ID}","name":"${HOME_SENSOR_NAME}","sensorType":"Temperature","value":"72","unit":"F","room":"Hall"}]}
+JSON
+)")"
+assert_json "$HOME_IMPORT" "data['devicesSynced'] == 1 and data['sensorsSynced'] == 1" "Local home import creates device and sensor snapshots"
+HOME_DEVICES="$(http_get "${API_URL}/api/home/devices")"
+assert_json "$HOME_DEVICES" "sum(1 for x in data if x['name'] == '${HOME_DEVICE_NAME}') == 1" "Home devices endpoint returns imported device"
+HOME_SENSORS="$(http_get "${API_URL}/api/home/sensors")"
+assert_json "$HOME_SENSORS" "sum(1 for x in data if x['name'] == '${HOME_SENSOR_NAME}') == 1" "Home sensors endpoint returns imported sensor"
+HOME_STATUS_EXECUTION="$(http_post_json "${API_URL}/api/tools/${HOME_STATUS_TOOL_ID}/execute" '{"input":{}}')"
+assert_json "$HOME_STATUS_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "HomeStatus tool executes immediately"
+HOME_ACTION_EXECUTION="$(http_post_json "${API_URL}/api/tools/${HOME_ACTION_TOOL_ID}/execute" "$(cat <<JSON
+{"input":{"provider":"LocalHome","target":"lamp-${RUN_ID}","action":"turn_on","parameters":{"brightness":50}}}
+JSON
+)")"
+assert_json "$HOME_ACTION_EXECUTION" "data['executedImmediately'] is False and data['execution']['status'] == 'AwaitingApproval'" "Home action waits for approval"
+HOME_ACTION_APPROVAL_ID="$(json_eval "$HOME_ACTION_EXECUTION" "data['approvalRequestId']")"
+HOME_ACTION_EXECUTION_ID="$(json_eval "$HOME_ACTION_EXECUTION" "data['execution']['id']")"
+http_post "${API_URL}/api/approvals/${HOME_ACTION_APPROVAL_ID}/approve" >/dev/null
+HOME_TOOL_EXECUTIONS="$(http_get "${API_URL}/api/tools/executions")"
+assert_json "$HOME_TOOL_EXECUTIONS" "next((x['status'] == 'Completed' for x in data if x['id'] == '${HOME_ACTION_EXECUTION_ID}'), False)" "Approved home action execution completes"
 
 step "Importing and retrieving knowledge"
 KNOWLEDGE_IMPORT="$(http_post_json "${API_URL}/api/knowledge/import" "$(cat <<JSON
@@ -721,4 +757,4 @@ POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 16 smoke test passed"
+pass "Phase 17 smoke test passed"

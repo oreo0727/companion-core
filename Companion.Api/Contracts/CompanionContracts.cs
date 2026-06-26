@@ -295,6 +295,42 @@ public sealed record FileDocumentSnapshotResponse(
     DateTime UpdatedUtc,
     string? ConnectorDisplayName);
 
+public sealed record HomeDeviceSnapshotResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConnectorConnectionId,
+    string ExternalId,
+    string Name,
+    string DeviceType,
+    string State,
+    string? Room,
+    string? CapabilitiesJson,
+    DateTime? LastSeenUtc,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc,
+    string? ConnectorDisplayName);
+
+public sealed record HomeSensorSnapshotResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConnectorConnectionId,
+    string ExternalId,
+    string Name,
+    string SensorType,
+    string Value,
+    string? Unit,
+    string? Room,
+    DateTime? ObservedUtc,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc,
+    string? ConnectorDisplayName);
+
+public sealed record LocalHomeImportResponse(
+    ConnectorConnectionResponse Connection,
+    ConnectorSyncRunResponse SyncRun,
+    int DevicesSynced,
+    int SensorsSynced);
+
 public sealed record VoiceProviderResponse(
     string Name,
     string ProviderType,
@@ -909,6 +945,51 @@ public static class CompanionApiMappings
             snapshot.CreatedUtc,
             snapshot.UpdatedUtc,
             snapshot.ConnectorConnection?.DisplayName);
+    }
+
+    public static HomeDeviceSnapshotResponse ToResponse(this HomeDeviceSnapshot snapshot)
+    {
+        return new HomeDeviceSnapshotResponse(
+            snapshot.Id,
+            snapshot.UserProfileId,
+            snapshot.ConnectorConnectionId,
+            snapshot.ExternalId,
+            snapshot.Name,
+            snapshot.DeviceType,
+            snapshot.State,
+            snapshot.Room,
+            snapshot.CapabilitiesJson,
+            snapshot.LastSeenUtc,
+            snapshot.CreatedUtc,
+            snapshot.UpdatedUtc,
+            snapshot.ConnectorConnection?.DisplayName);
+    }
+
+    public static HomeSensorSnapshotResponse ToResponse(this HomeSensorSnapshot snapshot)
+    {
+        return new HomeSensorSnapshotResponse(
+            snapshot.Id,
+            snapshot.UserProfileId,
+            snapshot.ConnectorConnectionId,
+            snapshot.ExternalId,
+            snapshot.Name,
+            snapshot.SensorType,
+            snapshot.Value,
+            snapshot.Unit,
+            snapshot.Room,
+            snapshot.ObservedUtc,
+            snapshot.CreatedUtc,
+            snapshot.UpdatedUtc,
+            snapshot.ConnectorConnection?.DisplayName);
+    }
+
+    public static LocalHomeImportResponse ToResponse(this LocalHomeImportResult result)
+    {
+        return new LocalHomeImportResponse(
+            result.Connection.ToResponse(),
+            result.SyncRun.ToResponse(),
+            result.DevicesSynced,
+            result.SensorsSynced);
     }
 
     public static VoiceProviderResponse ToResponse(this VoiceProviderSummary provider)

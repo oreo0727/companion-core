@@ -36,5 +36,9 @@ public class ConnectorConnection
 
     public ICollection<FileDocumentSnapshot> FileDocuments { get; set; } = new List<FileDocumentSnapshot>();
 
+    public ICollection<HomeDeviceSnapshot> HomeDevices { get; set; } = new List<HomeDeviceSnapshot>();
+
+    public ICollection<HomeSensorSnapshot> HomeSensors { get; set; } = new List<HomeSensorSnapshot>();
+
     public ICollection<OAuthConsentGrant> OAuthConsentGrants { get; set; } = new List<OAuthConsentGrant>();
 }

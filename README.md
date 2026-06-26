@@ -23,6 +23,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Voice platform architecture with STT/TTS abstractions, sessions, interruption, wake sessions, conversation history, and streaming-ready responses
 - React Native Expo mobile app for chat, voice, dashboard, tasks, approvals, notifications, briefings, offline cache, and biometric local unlock
 - Desktop automation tool runtime for approved file, screenshot, clipboard, terminal, keyboard, mouse, and application-launch actions
+- Home automation connector architecture for LocalHome, Home Assistant, Hue, SmartThings, Shelly, ESPHome, and MQTT snapshots with approved actions
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture
@@ -329,6 +330,7 @@ The migrations seed:
 - [Connectors](docs/CONNECTORS.md)
 - [Calendar Connector](docs/CALENDAR_CONNECTOR.md)
 - [Email Connector](docs/EMAIL_CONNECTOR.md)
+- [Home Automation](docs/HOME_AUTOMATION.md)
 - [Knowledge Layer](docs/KNOWLEDGE.md)
 - [Notifications](docs/NOTIFICATIONS.md)
 - [Mobile Application](docs/MOBILE.md)

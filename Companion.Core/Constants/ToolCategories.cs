@@ -10,4 +10,5 @@ public static class ToolCategories
     public const string Email = "Email";
     public const string Notifications = "Notifications";
     public const string Desktop = "Desktop";
+    public const string Home = "Home";
 }

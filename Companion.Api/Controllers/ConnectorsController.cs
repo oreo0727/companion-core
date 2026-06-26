@@ -72,6 +72,37 @@ public class ConnectorsController(IConnectorSyncService connectorSyncService) : 
         return Created($"/api/connectors/{result.Connection.Id}", result.ToResponse());
     }
 
+    [HttpPost("local-home/import")]
+    [ProducesResponseType(typeof(LocalHomeImportResponse), StatusCodes.Status201Created)]
+    public async Task<ActionResult<LocalHomeImportResponse>> ImportLocalHome(
+        [FromBody] LocalHomeImportRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await connectorSyncService.ImportLocalHomeAsync(
+            User.GetRequiredUserProfileId(),
+            new LocalHomeImportCommand(
+                request.DisplayName,
+                request.Devices.Select(x => new LocalHomeImportDevice(
+                    x.ExternalId,
+                    x.Name,
+                    x.DeviceType,
+                    x.State,
+                    x.Room,
+                    x.CapabilitiesJson,
+                    x.LastSeenUtc)).ToList(),
+                request.Sensors.Select(x => new LocalHomeImportSensor(
+                    x.ExternalId,
+                    x.Name,
+                    x.SensorType,
+                    x.Value,
+                    x.Unit,
+                    x.Room,
+                    x.ObservedUtc)).ToList()),
+            cancellationToken);
+
+        return Created($"/api/connectors/{result.Connection.Id}", result.ToResponse());
+    }
+
     [HttpPost("{id:guid}/sync")]
     [ProducesResponseType(typeof(ConnectorSyncRunResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -173,4 +204,67 @@ public sealed class LocalEmailImportMessageRequest
     public bool HasAttachments { get; init; }
 
     public bool IsAnswered { get; init; }
+}
+
+public sealed class LocalHomeImportRequest
+{
+    [Required]
+    [MaxLength(200)]
+    public string DisplayName { get; init; } = string.Empty;
+
+    public IReadOnlyList<LocalHomeDeviceRequest> Devices { get; init; } = [];
+
+    public IReadOnlyList<LocalHomeSensorRequest> Sensors { get; init; } = [];
+}
+
+public sealed class LocalHomeDeviceRequest
+{
+    [MaxLength(300)]
+    public string? ExternalId { get; init; }
+
+    [Required]
+    [MaxLength(300)]
+    public string Name { get; init; } = string.Empty;
+
+    [Required]
+    [MaxLength(100)]
+    public string DeviceType { get; init; } = string.Empty;
+
+    [Required]
+    [MaxLength(200)]
+    public string State { get; init; } = string.Empty;
+
+    [MaxLength(200)]
+    public string? Room { get; init; }
+
+    [MaxLength(4000)]
+    public string? CapabilitiesJson { get; init; }
+
+    public DateTime? LastSeenUtc { get; init; }
+}
+
+public sealed class LocalHomeSensorRequest
+{
+    [MaxLength(300)]
+    public string? ExternalId { get; init; }
+
+    [Required]
+    [MaxLength(300)]
+    public string Name { get; init; } = string.Empty;
+
+    [Required]
+    [MaxLength(100)]
+    public string SensorType { get; init; } = string.Empty;
+
+    [Required]
+    [MaxLength(300)]
+    public string Value { get; init; } = string.Empty;
+
+    [MaxLength(50)]
+    public string? Unit { get; init; }
+
+    [MaxLength(200)]
+    public string? Room { get; init; }
+
+    public DateTime? ObservedUtc { get; init; }
 }

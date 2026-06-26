@@ -73,6 +73,10 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<FileDocumentSnapshot> FileDocumentSnapshots => Set<FileDocumentSnapshot>();
 
+    public DbSet<HomeDeviceSnapshot> HomeDeviceSnapshots => Set<HomeDeviceSnapshot>();
+
+    public DbSet<HomeSensorSnapshot> HomeSensorSnapshots => Set<HomeSensorSnapshot>();
+
     public DbSet<VoiceSession> VoiceSessions => Set<VoiceSession>();
 
     public DbSet<VoiceInteraction> VoiceInteractions => Set<VoiceInteraction>();
@@ -720,6 +724,52 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.ConnectorConnection)
                 .WithMany(x => x.FileDocuments)
+                .HasForeignKey(x => x.ConnectorConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<HomeDeviceSnapshot>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalId).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.DeviceType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.State).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Room).HasMaxLength(200);
+            entity.Property(x => x.CapabilitiesJson).HasMaxLength(4000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.ConnectorConnectionId, x.ExternalId }).IsUnique();
+            entity.HasIndex(x => new { x.UserProfileId, x.DeviceType, x.State });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.HomeDeviceSnapshots)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorConnection)
+                .WithMany(x => x.HomeDevices)
+                .HasForeignKey(x => x.ConnectorConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<HomeSensorSnapshot>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalId).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.SensorType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Value).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Unit).HasMaxLength(50);
+            entity.Property(x => x.Room).HasMaxLength(200);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.ConnectorConnectionId, x.ExternalId }).IsUnique();
+            entity.HasIndex(x => new { x.UserProfileId, x.SensorType });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.HomeSensorSnapshots)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorConnection)
+                .WithMany(x => x.HomeSensors)
                 .HasForeignKey(x => x.ConnectorConnectionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

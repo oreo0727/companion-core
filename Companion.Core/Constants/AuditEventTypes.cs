@@ -25,6 +25,10 @@ public static class AuditEventTypes
     public const string EmailMessagesViewed = "EmailMessagesViewed";
     public const string EmailSearchPerformed = "EmailSearchPerformed";
     public const string FileDocumentsViewed = "FileDocumentsViewed";
+    public const string HomeDevicesViewed = "HomeDevicesViewed";
+    public const string HomeSensorsViewed = "HomeSensorsViewed";
+    public const string HomeActionRequested = "HomeActionRequested";
+    public const string HomeActionExecuted = "HomeActionExecuted";
     public const string VoiceSessionStarted = "VoiceSessionStarted";
     public const string VoiceTranscribed = "VoiceTranscribed";
     public const string VoiceSpoken = "VoiceSpoken";

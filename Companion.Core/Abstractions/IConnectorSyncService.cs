@@ -19,6 +19,11 @@ public interface IConnectorSyncService
         LocalEmailImportCommand command,
         CancellationToken cancellationToken = default);
 
+    Task<LocalHomeImportResult> ImportLocalHomeAsync(
+        Guid userProfileId,
+        LocalHomeImportCommand command,
+        CancellationToken cancellationToken = default);
+
     Task<ConnectorSyncRun> SyncAsync(
         Guid userProfileId,
         Guid connectorConnectionId,
@@ -54,5 +59,23 @@ public interface IConnectorSyncService
         Guid userProfileId,
         int limit = 25,
         bool audit = true,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<HomeDeviceSnapshot>> GetHomeDevicesAsync(
+        Guid userProfileId,
+        bool audit = true,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<HomeSensorSnapshot>> GetHomeSensorsAsync(
+        Guid userProfileId,
+        bool audit = true,
+        CancellationToken cancellationToken = default);
+
+    Task<HomeActionResult> ExecuteHomeActionAsync(
+        Guid userProfileId,
+        string provider,
+        string target,
+        string action,
+        string? parametersJson,
         CancellationToken cancellationToken = default);
 }

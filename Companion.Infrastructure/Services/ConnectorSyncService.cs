@@ -184,6 +184,93 @@ public class ConnectorSyncService(
         return new LocalEmailImportResult(connection, syncRun, syncRun.ItemsSynced);
     }
 
+    public async Task<LocalHomeImportResult> ImportLocalHomeAsync(
+        Guid userProfileId,
+        LocalHomeImportCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var definition = await dbContext.ConnectorDefinitions
+            .FirstOrDefaultAsync(
+                x => x.Provider == ConnectorProviders.LocalHome && x.Enabled,
+                cancellationToken)
+            ?? throw new KeyNotFoundException("LocalHome connector definition was not found.");
+
+        var normalizedDisplayName = command.DisplayName.Trim();
+        var connection = await dbContext.ConnectorConnections
+            .Include(x => x.ConnectorDefinition)
+            .FirstOrDefaultAsync(
+                x => x.UserProfileId == userProfileId &&
+                     x.ConnectorDefinitionId == definition.Id &&
+                     x.DisplayName == normalizedDisplayName,
+                cancellationToken);
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var isNewConnection = false;
+
+        if (connection is null)
+        {
+            connection = new ConnectorConnection
+            {
+                Id = Guid.NewGuid(),
+                UserProfileId = userProfileId,
+                ConnectorDefinitionId = definition.Id,
+                DisplayName = normalizedDisplayName,
+                Status = ConnectorConnectionStatus.Connected,
+                CreatedUtc = now,
+                UpdatedUtc = now,
+                ConnectorDefinition = definition
+            };
+            dbContext.ConnectorConnections.Add(connection);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            isNewConnection = true;
+        }
+
+        var payloadJson = JsonSerializer.Serialize(new
+        {
+            devices = command.Devices.Select(x => new
+            {
+                externalId = x.ExternalId,
+                name = x.Name,
+                deviceType = x.DeviceType,
+                state = x.State,
+                room = x.Room,
+                capabilitiesJson = x.CapabilitiesJson,
+                lastSeenUtc = x.LastSeenUtc
+            }),
+            sensors = command.Sensors.Select(x => new
+            {
+                externalId = x.ExternalId,
+                name = x.Name,
+                sensorType = x.SensorType,
+                value = x.Value,
+                unit = x.Unit,
+                room = x.Room,
+                observedUtc = x.ObservedUtc
+            })
+        });
+
+        if (isNewConnection)
+        {
+            await auditService.WriteEventAsync(
+                userProfileId,
+                AuditEventTypes.ConnectorConnected,
+                nameof(ConnectorConnection),
+                connection.Id.ToString(),
+                $"Connected '{connection.DisplayName}' through the {definition.Provider} connector.",
+                cancellationToken);
+        }
+
+        var syncRun = await ExecuteSyncAsync(userProfileId, connection, payloadJson, cancellationToken);
+        var devicesSynced = await dbContext.HomeDeviceSnapshots.CountAsync(
+            x => x.ConnectorConnectionId == connection.Id,
+            cancellationToken);
+        var sensorsSynced = await dbContext.HomeSensorSnapshots.CountAsync(
+            x => x.ConnectorConnectionId == connection.Id,
+            cancellationToken);
+
+        return new LocalHomeImportResult(connection, syncRun, devicesSynced, sensorsSynced);
+    }
+
     public async Task<ConnectorSyncRun> SyncAsync(
         Guid userProfileId,
         Guid connectorConnectionId,
@@ -314,10 +401,11 @@ public class ConnectorSyncService(
             .Select(x => new
             {
                 Message = x,
-                Score = terms.Sum(term => EmailTermScore(x, term)) + EmailImportanceScore(x)
+                TermScore = terms.Sum(term => EmailTermScore(x, term)),
+                ImportanceScore = EmailImportanceScore(x)
             })
-            .Where(x => x.Score > 0)
-            .OrderByDescending(x => x.Score)
+            .Where(x => x.TermScore > 0)
+            .OrderByDescending(x => x.TermScore + x.ImportanceScore)
             .ThenByDescending(x => x.Message.ReceivedUtc)
             .Take(take)
             .Select(x => x.Message)
@@ -365,6 +453,90 @@ public class ConnectorSyncService(
         }
 
         return documents;
+    }
+
+    public async Task<IReadOnlyList<HomeDeviceSnapshot>> GetHomeDevicesAsync(
+        Guid userProfileId,
+        bool audit = true,
+        CancellationToken cancellationToken = default)
+    {
+        var devices = await dbContext.HomeDeviceSnapshots
+            .AsNoTracking()
+            .Include(x => x.ConnectorConnection)
+            .Where(x => x.UserProfileId == userProfileId)
+            .OrderBy(x => x.Room)
+            .ThenBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+        if (audit)
+        {
+            await auditService.WriteEventAsync(
+                userProfileId,
+                AuditEventTypes.HomeDevicesViewed,
+                nameof(HomeDeviceSnapshot),
+                devices.FirstOrDefault()?.Id.ToString() ?? string.Empty,
+                $"Viewed {devices.Count} home device snapshot(s).",
+                cancellationToken);
+        }
+
+        return devices;
+    }
+
+    public async Task<IReadOnlyList<HomeSensorSnapshot>> GetHomeSensorsAsync(
+        Guid userProfileId,
+        bool audit = true,
+        CancellationToken cancellationToken = default)
+    {
+        var sensors = await dbContext.HomeSensorSnapshots
+            .AsNoTracking()
+            .Include(x => x.ConnectorConnection)
+            .Where(x => x.UserProfileId == userProfileId)
+            .OrderBy(x => x.Room)
+            .ThenBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+        if (audit)
+        {
+            await auditService.WriteEventAsync(
+                userProfileId,
+                AuditEventTypes.HomeSensorsViewed,
+                nameof(HomeSensorSnapshot),
+                sensors.FirstOrDefault()?.Id.ToString() ?? string.Empty,
+                $"Viewed {sensors.Count} home sensor snapshot(s).",
+                cancellationToken);
+        }
+
+        return sensors;
+    }
+
+    public async Task<HomeActionResult> ExecuteHomeActionAsync(
+        Guid userProfileId,
+        string provider,
+        string target,
+        string action,
+        string? parametersJson,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedProvider = provider.Trim();
+        var normalizedTarget = target.Trim();
+        var normalizedAction = action.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedProvider) ||
+            string.IsNullOrWhiteSpace(normalizedTarget) ||
+            string.IsNullOrWhiteSpace(normalizedAction))
+        {
+            throw new InvalidOperationException("Home actions require provider, target, and action values.");
+        }
+
+        var summary = $"Approved home action '{normalizedAction}' for '{normalizedTarget}' on provider '{normalizedProvider}' recorded as a dry run.";
+        await auditService.WriteEventAsync(
+            userProfileId,
+            AuditEventTypes.HomeActionExecuted,
+            "HomeAutomationAction",
+            normalizedTarget,
+            $"{summary} Parameters={parametersJson ?? "{}"}",
+            cancellationToken);
+
+        return new HomeActionResult(true, normalizedProvider, normalizedAction, normalizedTarget, summary);
     }
 
     private async Task<ConnectorSyncRun> ExecuteSyncAsync(

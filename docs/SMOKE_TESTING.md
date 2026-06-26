@@ -26,6 +26,7 @@ The script fails fast and verifies:
 - voice provider discovery and session lifecycle
 - mobile Expo dependency installation and typecheck
 - desktop automation tool discovery, low-risk execution, and approval-gated write execution
+- home automation connector discovery, local import, snapshot reads, status tool, and approval-gated action execution
 - local calendar import
 - calendar event retrieval
 - local email import

@@ -66,6 +66,10 @@ public class UserProfile
 
     public ICollection<FileDocumentSnapshot> FileDocumentSnapshots { get; set; } = new List<FileDocumentSnapshot>();
 
+    public ICollection<HomeDeviceSnapshot> HomeDeviceSnapshots { get; set; } = new List<HomeDeviceSnapshot>();
+
+    public ICollection<HomeSensorSnapshot> HomeSensorSnapshots { get; set; } = new List<HomeSensorSnapshot>();
+
     public ICollection<VoiceSession> VoiceSessions { get; set; } = new List<VoiceSession>();
 
     public ICollection<VoiceInteraction> VoiceInteractions { get; set; } = new List<VoiceInteraction>();

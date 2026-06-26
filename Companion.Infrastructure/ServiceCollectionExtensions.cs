@@ -47,6 +47,13 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<MicrosoftCalendarReadConnector>();
         services.AddHttpClient<OneDriveReadConnector>();
         services.AddHttpClient<OutlookMailReadConnector>();
+        services.AddScoped<LocalHomeAutomationConnector>();
+        services.AddScoped<HomeAssistantConnector>();
+        services.AddScoped<HueConnector>();
+        services.AddScoped<SmartThingsConnector>();
+        services.AddScoped<ShellyConnector>();
+        services.AddScoped<ESPHomeConnector>();
+        services.AddScoped<MqttHomeConnector>();
 
         services.AddScoped<IAiProviderConfigurationService, AiProviderConfigurationService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
@@ -64,6 +71,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailReadConnector>(serviceProvider => serviceProvider.GetRequiredService<OutlookMailReadConnector>());
         services.AddScoped<IFileReadConnector>(serviceProvider => serviceProvider.GetRequiredService<GoogleDriveReadConnector>());
         services.AddScoped<IFileReadConnector>(serviceProvider => serviceProvider.GetRequiredService<OneDriveReadConnector>());
+        services.AddScoped<IHomeAutomationConnector, LocalHomeAutomationConnector>();
+        services.AddScoped<IHomeAutomationConnector, HomeAssistantConnector>();
+        services.AddScoped<IHomeAutomationConnector, HueConnector>();
+        services.AddScoped<IHomeAutomationConnector, SmartThingsConnector>();
+        services.AddScoped<IHomeAutomationConnector, ShellyConnector>();
+        services.AddScoped<IHomeAutomationConnector, ESPHomeConnector>();
+        services.AddScoped<IHomeAutomationConnector, MqttHomeConnector>();
         services.AddScoped<IConnector, LocalCalendarReadConnector>();
         services.AddScoped<IConnector, LocalEmailReadConnector>();
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<GoogleCalendarReadConnector>());
@@ -72,6 +86,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<MicrosoftCalendarReadConnector>());
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<OneDriveReadConnector>());
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<OutlookMailReadConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<LocalHomeAutomationConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<HomeAssistantConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<HueConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<SmartThingsConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<ShellyConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<ESPHomeConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<MqttHomeConnector>());
         services.AddScoped<IConnectorRegistry, ConnectorRegistry>();
         services.AddScoped<IConnectorSyncService, ConnectorSyncService>();
         services.AddScoped<IOAuthService, OAuthService>();
@@ -94,6 +115,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITool, DesktopRunTerminalTool>();
         services.AddScoped<ITool, DesktopSendKeyboardTool>();
         services.AddScoped<ITool, DesktopMoveMouseTool>();
+        services.AddScoped<ITool, HomeStatusTool>();
+        services.AddScoped<ITool, HomeExecuteActionTool>();
         services.AddScoped<IToolRegistry, ToolRegistry>();
         services.AddScoped<IToolExecutor, ToolExecutor>();
         services.AddScoped<IContextBuilder, ContextBuilder>();

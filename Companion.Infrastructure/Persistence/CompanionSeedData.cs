@@ -42,6 +42,8 @@ public static class CompanionSeedData
     public static readonly Guid DesktopRunTerminalToolDefinitionId = Guid.Parse("c4da3dc9-9e2a-4f46-819e-25f41decd3d6");
     public static readonly Guid DesktopSendKeyboardToolDefinitionId = Guid.Parse("ba153e06-3886-4c99-b590-2b224c470029");
     public static readonly Guid DesktopMoveMouseToolDefinitionId = Guid.Parse("66a6ba23-ba4b-460d-a702-471f8a45c11c");
+    public static readonly Guid HomeStatusToolDefinitionId = Guid.Parse("958fa14b-d110-4876-8910-d5ce7fda96cf");
+    public static readonly Guid HomeExecuteActionToolDefinitionId = Guid.Parse("28e62394-96e8-4a82-a704-87c231168b89");
     public static readonly Guid MemorySearchToolPermissionId = Guid.Parse("1a9f7783-8d03-4769-ab39-f9b8dc7bd3b4");
     public static readonly Guid CreateTaskToolPermissionId = Guid.Parse("b4608125-c91c-4a2a-ae17-68a4b0f4f6df");
     public static readonly Guid GetBriefingToolPermissionId = Guid.Parse("f2a6cdb9-212d-4f0f-92a1-0e2db84cf90f");
@@ -59,6 +61,8 @@ public static class CompanionSeedData
     public static readonly Guid DesktopRunTerminalToolPermissionId = Guid.Parse("2b301feb-a801-48d9-84a5-726d1e21742e");
     public static readonly Guid DesktopSendKeyboardToolPermissionId = Guid.Parse("647f4e14-d051-464e-9256-d39008ad702c");
     public static readonly Guid DesktopMoveMouseToolPermissionId = Guid.Parse("7c321bae-cebe-4885-a65d-7dc4b12a7084");
+    public static readonly Guid HomeStatusToolPermissionId = Guid.Parse("03a2bd81-1828-47bb-bd13-63906bf36ffc");
+    public static readonly Guid HomeExecuteActionToolPermissionId = Guid.Parse("1146badc-054a-4c41-8e28-c62971546bc9");
     public static readonly Guid LocalCalendarConnectorDefinitionId = Guid.Parse("fb132d85-476e-48d2-81cb-4e6a1bf09cf5");
     public static readonly Guid LocalEmailConnectorDefinitionId = Guid.Parse("745e49ef-a388-4544-a416-8299d0fdadc0");
     public static readonly Guid GoogleCalendarConnectorDefinitionId = Guid.Parse("9fbe2c8b-64d0-4f33-99dd-d5ed38e3f112");
@@ -67,6 +71,13 @@ public static class CompanionSeedData
     public static readonly Guid MicrosoftCalendarConnectorDefinitionId = Guid.Parse("179c4f6c-476a-457a-8c51-9466aa9c2d73");
     public static readonly Guid OneDriveConnectorDefinitionId = Guid.Parse("bc0465b0-d97b-4cc6-b363-f10104766a24");
     public static readonly Guid OutlookMailConnectorDefinitionId = Guid.Parse("e2942c91-6a65-47b0-8978-a914c5b8bcf4");
+    public static readonly Guid LocalHomeConnectorDefinitionId = Guid.Parse("b7bf35f0-246e-449d-aa59-1b2b4fedfab9");
+    public static readonly Guid HomeAssistantConnectorDefinitionId = Guid.Parse("437d6510-e691-4f42-b734-b8fef168fc07");
+    public static readonly Guid HueConnectorDefinitionId = Guid.Parse("6f3be5c4-f3f6-41f1-a836-5c01c7a27b45");
+    public static readonly Guid SmartThingsConnectorDefinitionId = Guid.Parse("226f2d26-fd3f-4028-a005-a5b08feff420");
+    public static readonly Guid ShellyConnectorDefinitionId = Guid.Parse("2ef85991-c42f-4f55-ac45-f8a5f1e79f90");
+    public static readonly Guid ESPHomeConnectorDefinitionId = Guid.Parse("a499deef-17fc-4500-aa70-34ed846f54a2");
+    public static readonly Guid MqttConnectorDefinitionId = Guid.Parse("7aa51df0-1058-4857-b19a-e474df9b1bc3");
     public static readonly Guid GoogleOAuthProviderConfigurationId = Guid.Parse("eec80fab-e287-435d-b6f1-a98d1967a115");
     public static readonly Guid MicrosoftOAuthProviderConfigurationId = Guid.Parse("b5e7a2aa-9845-4f95-b02f-5213d4289cb8");
 
@@ -599,6 +610,28 @@ public static class CompanionSeedData
             RequiresApproval = true,
             Enabled = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = HomeStatusToolDefinitionId,
+            Name = ToolNames.HomeStatus,
+            Description = "List current home device and sensor snapshots.",
+            Category = ToolCategories.Home,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = HomeExecuteActionToolDefinitionId,
+            Name = ToolNames.HomeExecuteAction,
+            Description = "Execute an approved home automation action.",
+            Category = ToolCategories.Home,
+            RiskLevel = ToolRiskLevel.High,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
@@ -739,6 +772,22 @@ public static class CompanionSeedData
             ToolDefinitionId = DesktopMoveMouseToolDefinitionId,
             Allowed = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = HomeStatusToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = HomeStatusToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = HomeExecuteActionToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = HomeExecuteActionToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
@@ -839,6 +888,90 @@ public static class CompanionSeedData
             RiskLevel = ConnectorRiskLevel.Low,
             Enabled = true,
             CreatedUtc = OAuthCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = LocalHomeConnectorDefinitionId,
+            Name = "Local Home",
+            Provider = ConnectorProviders.LocalHome,
+            Description = "Read-only local home automation connector that imports devices and sensors from JSON.",
+            Category = ConnectorCategories.Home,
+            SupportsOAuth = false,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = HomeAssistantConnectorDefinitionId,
+            Name = "Home Assistant",
+            Provider = ConnectorProviders.HomeAssistant,
+            Description = "Read-only Home Assistant connector prepared for device and sensor synchronization.",
+            Category = ConnectorCategories.Home,
+            SupportsOAuth = false,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = HueConnectorDefinitionId,
+            Name = "Hue",
+            Provider = ConnectorProviders.Hue,
+            Description = "Read-only Hue connector prepared for light and sensor synchronization.",
+            Category = ConnectorCategories.Home,
+            SupportsOAuth = false,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = SmartThingsConnectorDefinitionId,
+            Name = "SmartThings",
+            Provider = ConnectorProviders.SmartThings,
+            Description = "Read-only SmartThings connector prepared for device and sensor synchronization.",
+            Category = ConnectorCategories.Home,
+            SupportsOAuth = false,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = ShellyConnectorDefinitionId,
+            Name = "Shelly",
+            Provider = ConnectorProviders.Shelly,
+            Description = "Read-only Shelly connector prepared for relay and sensor synchronization.",
+            Category = ConnectorCategories.Home,
+            SupportsOAuth = false,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = ESPHomeConnectorDefinitionId,
+            Name = "ESPHome",
+            Provider = ConnectorProviders.ESPHome,
+            Description = "Read-only ESPHome connector prepared for device and sensor synchronization.",
+            Category = ConnectorCategories.Home,
+            SupportsOAuth = false,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = MqttConnectorDefinitionId,
+            Name = "MQTT",
+            Provider = ConnectorProviders.Mqtt,
+            Description = "Read-only MQTT home connector prepared for device and sensor topic snapshots.",
+            Category = ConnectorCategories.Home,
+            SupportsOAuth = false,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
