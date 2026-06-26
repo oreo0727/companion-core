@@ -295,6 +295,57 @@ public sealed record FileDocumentSnapshotResponse(
     DateTime UpdatedUtc,
     string? ConnectorDisplayName);
 
+public sealed record VoiceProviderResponse(
+    string Name,
+    string ProviderType,
+    bool Local,
+    bool StreamingReady);
+
+public sealed record VoiceSessionResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConversationId,
+    VoiceSessionStatus Status,
+    string SpeechToTextProvider,
+    string TextToSpeechProvider,
+    bool IsWakeSession,
+    string? WakePhrase,
+    string? MetadataJson,
+    DateTime StartedUtc,
+    DateTime LastActivityUtc,
+    DateTime? InterruptedUtc,
+    DateTime? EndedUtc);
+
+public sealed record VoiceInteractionResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid VoiceSessionId,
+    VoiceInteractionType Type,
+    string Provider,
+    string Text,
+    string? AudioReference,
+    long? LatencyMs,
+    string? MetadataJson,
+    DateTime CreatedUtc);
+
+public sealed record VoiceTranscriptionResponse(
+    string Provider,
+    string Transcript,
+    long LatencyMs);
+
+public sealed record VoiceSpeechResponse(
+    string Provider,
+    string AudioContentBase64,
+    string Format,
+    long LatencyMs);
+
+public sealed record VoiceConversationResponse(
+    VoiceSessionResponse Session,
+    string Transcript,
+    string Reply,
+    IReadOnlyList<string> StreamChunks,
+    VoiceSpeechResponse Speech);
+
 public sealed record ConnectorCatalogEntryResponse(
     ConnectorDefinitionResponse Definition,
     IReadOnlyList<ConnectorConnectionResponse> Connections);
@@ -858,6 +909,64 @@ public static class CompanionApiMappings
             snapshot.CreatedUtc,
             snapshot.UpdatedUtc,
             snapshot.ConnectorConnection?.DisplayName);
+    }
+
+    public static VoiceProviderResponse ToResponse(this VoiceProviderSummary provider)
+    {
+        return new VoiceProviderResponse(provider.Name, provider.ProviderType, provider.Local, provider.StreamingReady);
+    }
+
+    public static VoiceSessionResponse ToResponse(this VoiceSession session)
+    {
+        return new VoiceSessionResponse(
+            session.Id,
+            session.UserProfileId,
+            session.ConversationId,
+            session.Status,
+            session.SpeechToTextProvider,
+            session.TextToSpeechProvider,
+            session.IsWakeSession,
+            session.WakePhrase,
+            session.MetadataJson,
+            session.StartedUtc,
+            session.LastActivityUtc,
+            session.InterruptedUtc,
+            session.EndedUtc);
+    }
+
+    public static VoiceInteractionResponse ToResponse(this VoiceInteraction interaction)
+    {
+        return new VoiceInteractionResponse(
+            interaction.Id,
+            interaction.UserProfileId,
+            interaction.VoiceSessionId,
+            interaction.Type,
+            interaction.Provider,
+            interaction.Text,
+            interaction.AudioReference,
+            interaction.LatencyMs,
+            interaction.MetadataJson,
+            interaction.CreatedUtc);
+    }
+
+    public static VoiceTranscriptionResponse ToResponse(this VoiceTranscriptionResult result)
+    {
+        return new VoiceTranscriptionResponse(result.Provider, result.Transcript, result.LatencyMs);
+    }
+
+    public static VoiceSpeechResponse ToResponse(this VoiceSpeechResult result)
+    {
+        return new VoiceSpeechResponse(result.Provider, result.AudioContentBase64, result.Format, result.LatencyMs);
+    }
+
+    public static VoiceConversationResponse ToResponse(this VoiceConversationResult result)
+    {
+        return new VoiceConversationResponse(
+            result.Session.ToResponse(),
+            result.Transcript,
+            result.Reply,
+            result.StreamChunks,
+            result.Speech.ToResponse());
     }
 
     public static ConnectorCatalogEntryResponse ToResponse(this ConnectorCatalogEntry entry)

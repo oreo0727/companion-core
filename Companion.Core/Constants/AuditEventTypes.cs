@@ -25,6 +25,10 @@ public static class AuditEventTypes
     public const string EmailMessagesViewed = "EmailMessagesViewed";
     public const string EmailSearchPerformed = "EmailSearchPerformed";
     public const string FileDocumentsViewed = "FileDocumentsViewed";
+    public const string VoiceSessionStarted = "VoiceSessionStarted";
+    public const string VoiceTranscribed = "VoiceTranscribed";
+    public const string VoiceSpoken = "VoiceSpoken";
+    public const string VoiceInterrupted = "VoiceInterrupted";
     public const string ToolExecutionRequested = "ToolExecutionRequested";
     public const string ToolExecutionCompleted = "ToolExecutionCompleted";
     public const string ToolExecutionFailed = "ToolExecutionFailed";

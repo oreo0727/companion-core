@@ -73,6 +73,10 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<FileDocumentSnapshot> FileDocumentSnapshots => Set<FileDocumentSnapshot>();
 
+    public DbSet<VoiceSession> VoiceSessions => Set<VoiceSession>();
+
+    public DbSet<VoiceInteraction> VoiceInteractions => Set<VoiceInteraction>();
+
     public DbSet<KnowledgeSource> KnowledgeSources => Set<KnowledgeSource>();
 
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
@@ -717,6 +721,54 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
             entity.HasOne(x => x.ConnectorConnection)
                 .WithMany(x => x.FileDocuments)
                 .HasForeignKey(x => x.ConnectorConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VoiceSession>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.SpeechToTextProvider).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.TextToSpeechProvider).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.WakePhrase).HasMaxLength(200);
+            entity.Property(x => x.MetadataJson).HasMaxLength(4000);
+            entity.Property(x => x.StartedUtc).IsRequired();
+            entity.Property(x => x.LastActivityUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.Status, x.LastActivityUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.VoiceSessions)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Conversation)
+                .WithMany(x => x.VoiceSessions)
+                .HasForeignKey(x => x.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VoiceInteraction>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Type)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.Provider).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Text).HasMaxLength(8000).IsRequired();
+            entity.Property(x => x.AudioReference).HasMaxLength(1000);
+            entity.Property(x => x.MetadataJson).HasMaxLength(4000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.CreatedUtc });
+            entity.HasIndex(x => new { x.VoiceSessionId, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.VoiceInteractions)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.VoiceSession)
+                .WithMany(x => x.Interactions)
+                .HasForeignKey(x => x.VoiceSessionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

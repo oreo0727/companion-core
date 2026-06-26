@@ -19,4 +19,6 @@ public class Conversation
     public UserProfile? UserProfile { get; set; }
 
     public ICollection<Message> Messages { get; set; } = new List<Message>();
+
+    public ICollection<VoiceSession> VoiceSessions { get; set; } = new List<VoiceSession>();
 }

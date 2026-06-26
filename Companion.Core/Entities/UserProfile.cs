@@ -66,6 +66,10 @@ public class UserProfile
 
     public ICollection<FileDocumentSnapshot> FileDocumentSnapshots { get; set; } = new List<FileDocumentSnapshot>();
 
+    public ICollection<VoiceSession> VoiceSessions { get; set; } = new List<VoiceSession>();
+
+    public ICollection<VoiceInteraction> VoiceInteractions { get; set; } = new List<VoiceInteraction>();
+
     public ICollection<ToolExecution> ToolExecutions { get; set; } = new List<ToolExecution>();
 
     public ICollection<ToolPermission> ToolPermissions { get; set; } = new List<ToolPermission>();

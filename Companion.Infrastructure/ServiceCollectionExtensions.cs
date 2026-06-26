@@ -105,6 +105,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IApprovalService, ApprovalService>();
         services.AddScoped<IAgentRuntime, AgentRuntime>();
         services.AddScoped<IConnectorManager, ConnectorManager>();
+        services.AddScoped<ISpeechToTextProvider, OpenAISpeechToTextProvider>();
+        services.AddScoped<ISpeechToTextProvider, AzureSpeechToTextProvider>();
+        services.AddScoped<ISpeechToTextProvider, LocalWhisperSpeechToTextProvider>();
+        services.AddScoped<ITextToSpeechProvider, OpenAITextToSpeechProvider>();
+        services.AddScoped<ITextToSpeechProvider, AzureTextToSpeechProvider>();
+        services.AddScoped<ITextToSpeechProvider, LocalPiperTextToSpeechProvider>();
+        services.AddScoped<IVoiceProviderRegistry, VoiceProviderRegistry>();
+        services.AddScoped<IVoiceSessionService, VoiceSessionService>();
 
         return services;
     }

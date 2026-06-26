@@ -20,6 +20,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Read-only connector framework with connector definitions, user connections, sync runs, calendar snapshots, and email snapshots
 - OAuth foundation for Google and Microsoft connector consent, encrypted token storage, scope tracking, and connection lifecycle
 - Production read connectors for Google Calendar, Google Drive, Gmail, Microsoft Calendar, OneDrive, and Outlook Mail
+- Voice platform architecture with STT/TTS abstractions, sessions, interruption, wake sessions, conversation history, and streaming-ready responses
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture
@@ -193,6 +194,15 @@ npm run dev -- --hostname 0.0.0.0
 - `GET /api/email/messages`
 - `GET /api/email/search`
 - `GET /api/files/documents`
+- `GET /api/voice/providers`
+- `POST /api/voice/wake`
+- `POST /api/voice/sessions`
+- `POST /api/voice/sessions/{id}/transcribe`
+- `POST /api/voice/sessions/{id}/conversation`
+- `POST /api/voice/sessions/{id}/speak`
+- `POST /api/voice/sessions/{id}/interrupt`
+- `POST /api/voice/sessions/{id}/end`
+- `GET /api/voice/sessions/{id}/history`
 - `POST /api/knowledge/import`
 - `GET /api/knowledge/search`
 - `GET /api/knowledge/sources`
@@ -292,7 +302,8 @@ The migrations seed:
 
 ## Current Constraints
 
-- No voice, mobile, SMS, push notifications, email sending, email deleting, email archiving, or desktop control yet
+- No mobile, SMS, push notifications, email sending, email deleting, email archiving, or desktop control yet
+- Voice architecture exists, but no phone app or external microphone capture is included yet
 - The current web app is an admin console, not a mobile app
 - No destructive connector actions; current connectors are read-only local calendar and local email importers
 - Google and Microsoft connectors are read-only; they sync snapshots and do not modify external data
@@ -319,6 +330,7 @@ The migrations seed:
 - [OAuth Foundation](docs/OAUTH.md)
 - [Production Connectors](docs/PRODUCTION_CONNECTORS.md)
 - [Tool Runtime](docs/TOOLS.md)
+- [Voice Platform](docs/VOICE.md)
 - [Web Application](docs/WEB_APPLICATION.md)
 - [Retrieval](docs/RETRIEVAL.md)
 - [Chat Pipeline](docs/CHAT_PIPELINE.md)
