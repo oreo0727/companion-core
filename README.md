@@ -21,6 +21,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - OAuth foundation for Google and Microsoft connector consent, encrypted token storage, scope tracking, and connection lifecycle
 - Production read connectors for Google Calendar, Google Drive, Gmail, Microsoft Calendar, OneDrive, and Outlook Mail
 - Voice platform architecture with STT/TTS abstractions, sessions, interruption, wake sessions, conversation history, and streaming-ready responses
+- React Native Expo mobile app for chat, voice, dashboard, tasks, approvals, notifications, briefings, offline cache, and biometric local unlock
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture
@@ -302,9 +303,9 @@ The migrations seed:
 
 ## Current Constraints
 
-- No mobile, SMS, push notifications, email sending, email deleting, email archiving, or desktop control yet
-- Voice architecture exists, but no phone app or external microphone capture is included yet
-- The current web app is an admin console, not a mobile app
+- No SMS, push notifications, email sending, email deleting, email archiving, or desktop control yet
+- Voice architecture exists, and the mobile app uses simulated transcript input until real device audio capture is wired in
+- The web app is an admin console; the Expo app is the mobile client
 - No destructive connector actions; current connectors are read-only local calendar and local email importers
 - Google and Microsoft connectors are read-only; they sync snapshots and do not modify external data
 - No external knowledge connectors yet; imports are direct API submissions only
@@ -327,6 +328,7 @@ The migrations seed:
 - [Email Connector](docs/EMAIL_CONNECTOR.md)
 - [Knowledge Layer](docs/KNOWLEDGE.md)
 - [Notifications](docs/NOTIFICATIONS.md)
+- [Mobile Application](docs/MOBILE.md)
 - [OAuth Foundation](docs/OAUTH.md)
 - [Production Connectors](docs/PRODUCTION_CONNECTORS.md)
 - [Tool Runtime](docs/TOOLS.md)

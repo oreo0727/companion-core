@@ -8,3 +8,6 @@ Companion.Web/.next
 Companion.Web/node_modules
 Companion.Web/out
 Companion.Web/tsconfig.tsbuildinfo
+Companion.Mobile/.expo
+Companion.Mobile/node_modules
+Companion.Mobile/tsconfig.tsbuildinfo

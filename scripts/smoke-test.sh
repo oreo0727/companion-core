@@ -333,6 +333,11 @@ npm --prefix "${ROOT}/Companion.Web" run typecheck >/dev/null
 npm --prefix "${ROOT}/Companion.Web" run build >/dev/null
 pass "Companion Web typecheck/build succeeded"
 
+step "Building Companion Mobile"
+npm --prefix "${ROOT}/Companion.Mobile" ci >/dev/null
+npm --prefix "${ROOT}/Companion.Mobile" run typecheck >/dev/null
+pass "Companion Mobile dependencies install and typecheck succeeded"
+
 start_api
 authenticate_api
 start_worker
@@ -697,4 +702,4 @@ POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 14 smoke test passed"
+pass "Phase 15 smoke test passed"

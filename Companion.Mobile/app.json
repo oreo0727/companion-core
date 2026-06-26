@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Companion Core",
+    "slug": "companion-core-mobile",
+    "scheme": "companioncore",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "local.companioncore.mobile",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Companion Core uses biometrics to unlock your local mobile session."
+      }
+    },
+    "android": {
+      "package": "local.companioncore.mobile",
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:8080"
+    }
+  }
+}
