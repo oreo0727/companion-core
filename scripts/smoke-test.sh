@@ -63,6 +63,7 @@ data = json.loads(sys.stdin.read())
 safe_globals = {"__builtins__": {}}
 safe_locals = {
     "data": data,
+    "any": any,
     "bool": bool,
     "int": int,
     "isinstance": isinstance,
@@ -295,7 +296,7 @@ assert_agent_run_for_input() {
     local runs
     runs="$(http_get "${API_URL}/api/agent-runs")"
     local result
-    result="$(json_eval "$runs" "next(((${expression}) for x in data if x['input'] == '${input_text}'), False)")"
+    result="$(json_eval "$runs" "any((${expression}) for x in data if x['input'] == '${input_text}')")"
 
     if [[ "$result" == "true" ]]; then
       pass "$description"
@@ -750,11 +751,22 @@ JSON
 assert_json "$CHAT_TIMEOUT" "data['usedFallback'] is True" "Timeout triggers safe fallback"
 assert_agent_run_for_input "$CHAT_TIMEOUT_MESSAGE" "'timed out' in (x['error'] or '').lower() and x['provider'] == 'Ollama'" "Timeout error is stored clearly"
 
-step "Queueing a background AgentRun"
-QUEUED_RUN="$(http_post_json "${API_URL}/api/agent-runs" '{"agentName":"phase9-quick-run","input":"exercise worker telemetry"}')"
+step "Queueing multi-agent orchestration"
+AGENTS="$(http_get "${API_URL}/api/agents")"
+assert_json "$AGENTS" "sum(1 for x in data if x['name'] in ['ChiefOfStaff','Planner','Research','Coder','Writer','Travel','Finance','Health','Home']) == 9" "Specialist agent catalog is discoverable"
+QUEUED_RUN="$(http_post_json "${API_URL}/api/agent-runs" "$(cat <<JSON
+{"agentName":"ChiefOfStaff","input":"Plan code work, inspect home sensors, and track invoice budget ${RUN_ID}"}
+JSON
+)")"
 QUEUED_RUN_ID="$(json_eval "$QUEUED_RUN" "data['id']")"
 POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
+assert_json "$POLLED_RUNS" "next((x['agentDefinitionId'] is not None and x['agentName'] == 'ChiefOfStaff' for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "ChiefOfStaff run records agent definition"
+assert_agent_run_for_input "Plan code work, inspect home sensors, and track invoice budget ${RUN_ID}" "x['parentAgentRunId'] == '${QUEUED_RUN_ID}' and x['agentName'] == 'Coder' and x['status'] == 'Completed'" "Coder specialist completes delegated run"
+assert_agent_run_for_input "Plan code work, inspect home sensors, and track invoice budget ${RUN_ID}" "x['parentAgentRunId'] == '${QUEUED_RUN_ID}' and x['agentName'] == 'Home' and x['status'] == 'Completed'" "Home specialist completes delegated run"
+assert_agent_run_for_input "Plan code work, inspect home sensors, and track invoice budget ${RUN_ID}" "x['parentAgentRunId'] == '${QUEUED_RUN_ID}' and x['agentName'] == 'Finance' and x['status'] == 'Completed'" "Finance specialist completes delegated run"
+AGENT_AUDIT="$(http_get "${API_URL}/api/audit")"
+assert_json "$AGENT_AUDIT" "sum(1 for x in data if x['eventType'] == 'AgentRunDelegated') >= 3 and sum(1 for x in data if x['eventType'] == 'AgentRunCompleted') >= 4" "Agent orchestration is audited"
 
 step "Smoke test completed"
-pass "Phase 17 smoke test passed"
+pass "Phase 18 smoke test passed"

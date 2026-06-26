@@ -5,4 +5,6 @@ public sealed record QueueAgentRunCommand(
     string Input,
     Guid? UserProfileId = null,
     Guid? ConversationId = null,
-    string? MetadataJson = null);
+    string? MetadataJson = null,
+    Guid? ParentAgentRunId = null,
+    string? DelegationReason = null);

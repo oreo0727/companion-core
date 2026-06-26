@@ -1,6 +1,6 @@
 # Companion Core
 
-Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 11 adds the first production-quality web console for operating the platform.
+Companion Core is the backend spine of a private AI companion platform. It is intentionally not a chatbot demo and not a general-purpose agent framework. Phase 18 adds catalog-backed specialist agents coordinated through durable, auditable `AgentRun` records.
 
 ## What This Phase Includes
 
@@ -24,6 +24,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - React Native Expo mobile app for chat, voice, dashboard, tasks, approvals, notifications, briefings, offline cache, and biometric local unlock
 - Desktop automation tool runtime for approved file, screenshot, clipboard, terminal, keyboard, mouse, and application-launch actions
 - Home automation connector architecture for LocalHome, Home Assistant, Hue, SmartThings, Shelly, ESPHome, and MQTT snapshots with approved actions
+- Multi-agent orchestration with catalog-backed Chief of Staff, Planner, Research, Coder, Writer, Travel, Finance, Health, and Home specialists
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture
@@ -321,6 +322,7 @@ The migrations seed:
 - [Architecture Blueprint](docs/BLUEPRINT.md)
 - [AI Architecture](docs/AI_ARCHITECTURE.md)
 - [AI Failure Modes](docs/AI_FAILURE_MODES.md)
+- [Agents](docs/AGENTS.md)
 - [Actions](docs/ACTIONS.md)
 - [Authentication](docs/AUTHENTICATION.md)
 - [Context Builder](docs/CONTEXT_BUILDER.md)

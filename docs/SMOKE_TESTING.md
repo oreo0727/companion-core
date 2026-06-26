@@ -27,6 +27,7 @@ The script fails fast and verifies:
 - mobile Expo dependency installation and typecheck
 - desktop automation tool discovery, low-risk execution, and approval-gated write execution
 - home automation connector discovery, local import, snapshot reads, status tool, and approval-gated action execution
+- specialist agent catalog discovery and Chief of Staff delegation to child AgentRuns
 - local calendar import
 - calendar event retrieval
 - local email import
@@ -87,6 +88,7 @@ It also exercises:
 16. mobile Expo app installs and typechecks
 17. desktop automation tools, screenshot execution, and approved file write
 18. voice wake/session, transcription, conversation chunks, speech synthesis, interruption, and history
+19. multi-agent catalog discovery, Chief of Staff delegation, specialist child run completion, and audit
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

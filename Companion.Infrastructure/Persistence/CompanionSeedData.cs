@@ -2,6 +2,7 @@ using Companion.Core.Constants;
 using Companion.Core.Entities;
 using Companion.Core.Enums;
 using Microsoft.AspNetCore.Identity;
+using System.Text.Json;
 
 namespace Companion.Infrastructure.Persistence;
 
@@ -80,6 +81,15 @@ public static class CompanionSeedData
     public static readonly Guid MqttConnectorDefinitionId = Guid.Parse("7aa51df0-1058-4857-b19a-e474df9b1bc3");
     public static readonly Guid GoogleOAuthProviderConfigurationId = Guid.Parse("eec80fab-e287-435d-b6f1-a98d1967a115");
     public static readonly Guid MicrosoftOAuthProviderConfigurationId = Guid.Parse("b5e7a2aa-9845-4f95-b02f-5213d4289cb8");
+    public static readonly Guid ChiefOfStaffAgentDefinitionId = Guid.Parse("c94f493e-d977-47a5-a80c-6425b5d64c38");
+    public static readonly Guid PlannerAgentDefinitionId = Guid.Parse("6d7d47db-d40f-4f77-af0c-971b49313df6");
+    public static readonly Guid ResearchAgentDefinitionId = Guid.Parse("c332bd8d-17db-4837-a413-0d079d72ebdf");
+    public static readonly Guid CoderAgentDefinitionId = Guid.Parse("7cfa4ef1-d530-47a9-b208-fc71f6cc7ec8");
+    public static readonly Guid WriterAgentDefinitionId = Guid.Parse("550293e9-eeaa-4afa-b187-932696c4a8af");
+    public static readonly Guid TravelAgentDefinitionId = Guid.Parse("1f4225ea-6c77-4115-9591-a03e9a747a47");
+    public static readonly Guid FinanceAgentDefinitionId = Guid.Parse("417bd4a0-806e-4d44-a64d-d6cc665a9273");
+    public static readonly Guid HealthAgentDefinitionId = Guid.Parse("a5a1be19-9437-4558-8f4f-a3f5e5de78d6");
+    public static readonly Guid HomeAgentDefinitionId = Guid.Parse("aa5b274e-8b37-41e3-a366-74939af84513");
 
     public static readonly DateTime UserCreatedUtc = new(2026, 6, 19, 12, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime ConversationCreatedUtc = new(2026, 6, 19, 12, 5, 0, 0, DateTimeKind.Utc);
@@ -91,6 +101,7 @@ public static class CompanionSeedData
     public static readonly DateTime AiProviderCreatedUtc = new(2026, 6, 19, 12, 30, 0, DateTimeKind.Utc);
     public static readonly DateTime ToolCreatedUtc = new(2026, 6, 25, 20, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime OAuthCreatedUtc = new(2026, 6, 26, 21, 0, 0, DateTimeKind.Utc);
+    public static readonly DateTime AgentDefinitionCreatedUtc = new(2026, 6, 26, 22, 0, 0, DateTimeKind.Utc);
 
     public static readonly UserProfile LocalUser = new()
     {
@@ -420,6 +431,91 @@ public static class CompanionSeedData
             CreatedUtc = UserCreatedUtc,
             UpdatedUtc = UserCreatedUtc
         }
+    ];
+
+    public static readonly AgentDefinition[] AgentDefinitions =
+    [
+        BuildAgentDefinition(
+            ChiefOfStaffAgentDefinitionId,
+            AgentNames.ChiefOfStaff,
+            "Chief of Staff",
+            "Coordinates priorities, delegates to specialists, and keeps the overall operating picture coherent.",
+            "Coordinate the user's work, delegate to specialists when useful, and keep every action explainable.",
+            ["GetBriefing", "MemorySearch", "KnowledgeSearch", "CalendarEvents", "EmailSearch", "ListNotifications"],
+            """{"conversation":1.0,"memories":1.0,"goals":1.0,"projects":1.0,"knowledge":0.8,"tasks":1.0,"calendar":1.0,"email":0.9,"home":0.7}""",
+            1.00m),
+        BuildAgentDefinition(
+            PlannerAgentDefinitionId,
+            AgentNames.Planner,
+            "Planner",
+            "Turns goals, projects, open loops, reminders, and tasks into practical plans.",
+            "Plan next actions, reduce ambiguity, and surface sequencing tradeoffs.",
+            ["GetBriefing", "CreateTask", "CreateReminder", "ListNotifications"],
+            """{"conversation":0.8,"memories":0.8,"goals":1.0,"projects":1.0,"knowledge":0.5,"tasks":1.0,"calendar":0.9,"email":0.5,"home":0.3}""",
+            0.85m),
+        BuildAgentDefinition(
+            ResearchAgentDefinitionId,
+            AgentNames.Research,
+            "Research",
+            "Finds and compares relevant knowledge from internal documents and memories.",
+            "Ground answers in stored knowledge and clearly separate evidence from inference.",
+            ["KnowledgeSearch", "MemorySearch"],
+            """{"conversation":0.7,"memories":0.9,"goals":0.5,"projects":0.6,"knowledge":1.0,"tasks":0.3,"calendar":0.2,"email":0.4,"home":0.1}""",
+            0.95m),
+        BuildAgentDefinition(
+            CoderAgentDefinitionId,
+            AgentNames.Coder,
+            "Coder",
+            "Reasons about implementation tasks, technical risks, tests, and delivery plans.",
+            "Think like a careful software engineer: inspect context, propose concrete changes, and protect tests.",
+            ["KnowledgeSearch", "MemorySearch", "CreateTask"],
+            """{"conversation":0.8,"memories":0.7,"goals":0.6,"projects":0.9,"knowledge":1.0,"tasks":0.8,"calendar":0.2,"email":0.2,"home":0.1}""",
+            0.75m),
+        BuildAgentDefinition(
+            WriterAgentDefinitionId,
+            AgentNames.Writer,
+            "Writer",
+            "Drafts, summarizes, edits, and turns scattered context into usable prose.",
+            "Write clearly in the user's voice while preserving facts and open questions.",
+            ["KnowledgeSearch", "MemorySearch"],
+            """{"conversation":1.0,"memories":0.8,"goals":0.5,"projects":0.6,"knowledge":0.8,"tasks":0.3,"calendar":0.2,"email":0.6,"home":0.1}""",
+            0.70m),
+        BuildAgentDefinition(
+            TravelAgentDefinitionId,
+            AgentNames.Travel,
+            "Travel",
+            "Coordinates trip planning context without booking or external connector actions.",
+            "Organize travel intent, constraints, itinerary questions, and follow-up tasks.",
+            ["MemorySearch", "CreateTask", "CalendarEvents"],
+            """{"conversation":0.9,"memories":0.8,"goals":0.5,"projects":0.5,"knowledge":0.5,"tasks":0.7,"calendar":1.0,"email":0.5,"home":0.1}""",
+            0.65m),
+        BuildAgentDefinition(
+            FinanceAgentDefinitionId,
+            AgentNames.Finance,
+            "Finance",
+            "Tracks bills, payment language, budget-related tasks, and finance follow-ups.",
+            "Identify financial obligations and risks without initiating transactions.",
+            ["EmailSearch", "MemorySearch", "CreateTask", "CreateReminder"],
+            """{"conversation":0.8,"memories":0.9,"goals":0.6,"projects":0.4,"knowledge":0.5,"tasks":0.8,"calendar":0.4,"email":1.0,"home":0.1}""",
+            0.90m),
+        BuildAgentDefinition(
+            HealthAgentDefinitionId,
+            AgentNames.Health,
+            "Health",
+            "Organizes health-related reminders and context while avoiding medical diagnosis.",
+            "Help track health routines, appointments, and questions for professionals.",
+            ["MemorySearch", "CreateTask", "CreateReminder", "CalendarEvents"],
+            """{"conversation":0.8,"memories":1.0,"goals":0.6,"projects":0.3,"knowledge":0.4,"tasks":0.8,"calendar":0.9,"email":0.3,"home":0.2}""",
+            1.00m),
+        BuildAgentDefinition(
+            HomeAgentDefinitionId,
+            AgentNames.Home,
+            "Home",
+            "Understands home device and sensor state and routes risky actions through approvals.",
+            "Read home state, explain device context, and never bypass action approval.",
+            ["HomeStatus", "HomeExecuteAction", "CalendarEvents", "CreateReminder"],
+            """{"conversation":0.7,"memories":0.5,"goals":0.3,"projects":0.3,"knowledge":0.3,"tasks":0.5,"calendar":0.6,"email":0.2,"home":1.0}""",
+            0.60m)
     ];
 
     public static readonly ToolDefinition[] ToolDefinitions =
@@ -1008,4 +1104,29 @@ public static class CompanionSeedData
             UpdatedUtc = OAuthCreatedUtc
         }
     ];
+
+    private static AgentDefinition BuildAgentDefinition(
+        Guid id,
+        string name,
+        string displayName,
+        string description,
+        string prompt,
+        IReadOnlyList<string> toolNames,
+        string contextPolicyJson,
+        decimal memoryWeight)
+    {
+        return new AgentDefinition
+        {
+            Id = id,
+            Name = name,
+            DisplayName = displayName,
+            Description = description,
+            Prompt = prompt,
+            ToolNamesJson = JsonSerializer.Serialize(toolNames),
+            ContextPolicyJson = contextPolicyJson,
+            MemoryWeight = memoryWeight,
+            Enabled = true,
+            CreatedUtc = AgentDefinitionCreatedUtc
+        };
+    }
 }

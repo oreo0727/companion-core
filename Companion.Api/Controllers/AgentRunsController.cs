@@ -33,7 +33,9 @@ public class AgentRunsController(IAgentRuntime agentRuntime) : ControllerBase
                 request.Input,
                 User.GetRequiredUserProfileId(),
                 request.ConversationId,
-                request.MetadataJson),
+                request.MetadataJson,
+                request.ParentAgentRunId,
+                request.DelegationReason),
             cancellationToken);
 
         return Accepted($"/api/agent-runs/{agentRun.Id}", agentRun.ToResponse());
@@ -55,4 +57,9 @@ public sealed class CreateAgentRunRequest
     public Guid? ConversationId { get; init; }
 
     public string? MetadataJson { get; init; }
+
+    public Guid? ParentAgentRunId { get; init; }
+
+    [MaxLength(1000)]
+    public string? DelegationReason { get; init; }
 }

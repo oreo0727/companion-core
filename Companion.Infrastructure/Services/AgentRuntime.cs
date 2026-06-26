@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Companion.Core.Abstractions;
+using Companion.Core.Constants;
 using Companion.Core.Entities;
 using Companion.Core.Enums;
 using Companion.Core.Models;
@@ -21,6 +22,9 @@ public class AgentRuntime(
     IOpenLoopService openLoopService,
     IApprovalService approvalService,
     IToolExecutor toolExecutor,
+    IAgentCatalog agentCatalog,
+    IMultiAgentOrchestrator multiAgentOrchestrator,
+    IAuditService auditService,
     TimeProvider timeProvider,
     ILogger<AgentRuntime> logger) : IAgentRuntime
 {
@@ -47,12 +51,17 @@ public class AgentRuntime(
         QueueAgentRunCommand command,
         CancellationToken cancellationToken = default)
     {
+        var agentDefinition = await agentCatalog.GetAgentAsync(command.AgentName, cancellationToken);
+        var normalizedAgentName = agentDefinition?.Name ?? command.AgentName.Trim();
         var agentRun = new AgentRun
         {
             Id = Guid.NewGuid(),
             UserProfileId = command.UserProfileId,
             ConversationId = command.ConversationId,
-            AgentName = command.AgentName.Trim(),
+            AgentDefinitionId = agentDefinition?.Id,
+            ParentAgentRunId = command.ParentAgentRunId,
+            AgentName = normalizedAgentName,
+            DelegationReason = string.IsNullOrWhiteSpace(command.DelegationReason) ? null : command.DelegationReason.Trim(),
             Status = AgentRunStatus.Pending,
             Input = command.Input.Trim(),
             MetadataJson = string.IsNullOrWhiteSpace(command.MetadataJson) ? null : command.MetadataJson.Trim(),
@@ -61,6 +70,16 @@ public class AgentRuntime(
 
         dbContext.AgentRuns.Add(agentRun);
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (command.UserProfileId is { } userProfileId)
+        {
+            await auditService.WriteEventAsync(
+                userProfileId,
+                AuditEventTypes.AgentRunQueued,
+                nameof(AgentRun),
+                agentRun.Id.ToString(),
+                $"Queued {agentRun.AgentName} agent run.",
+                cancellationToken);
+        }
 
         return agentRun;
     }
@@ -315,13 +334,22 @@ public class AgentRuntime(
 
             try
             {
-                await SimulateRunAsync(pendingRun, cancellationToken);
+                await multiAgentOrchestrator.ExecuteAsync(pendingRun, cancellationToken);
 
                 pendingRun.Status = AgentRunStatus.Completed;
-                pendingRun.Output = $"Placeholder execution completed for agent '{pendingRun.AgentName}'.";
                 pendingRun.LatencyMs = runStopwatch.ElapsedMilliseconds;
                 pendingRun.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
                 pendingRun.Error = null;
+                if (pendingRun.UserProfileId is { } completedUserProfileId)
+                {
+                    await auditService.WriteEventAsync(
+                        completedUserProfileId,
+                        AuditEventTypes.AgentRunCompleted,
+                        nameof(AgentRun),
+                        pendingRun.Id.ToString(),
+                        $"Completed {pendingRun.AgentName} agent run.",
+                        cancellationToken);
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -334,6 +362,16 @@ public class AgentRuntime(
                 pendingRun.Error = ex.Message;
                 pendingRun.LatencyMs = runStopwatch.ElapsedMilliseconds;
                 pendingRun.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
+                if (pendingRun.UserProfileId is { } failedUserProfileId)
+                {
+                    await auditService.WriteEventAsync(
+                        failedUserProfileId,
+                        AuditEventTypes.AgentRunFailed,
+                        nameof(AgentRun),
+                        pendingRun.Id.ToString(),
+                        $"{pendingRun.AgentName} agent run failed: {ex.Message}",
+                        cancellationToken);
+                }
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -503,15 +541,6 @@ public class AgentRuntime(
         }
 
         return commands;
-    }
-
-    private static async Task SimulateRunAsync(AgentRun agentRun, CancellationToken cancellationToken)
-    {
-        var delay = agentRun.AgentName.Contains("quick", StringComparison.OrdinalIgnoreCase)
-            ? TimeSpan.FromMilliseconds(250)
-            : TimeSpan.FromSeconds(1);
-
-        await Task.Delay(delay, cancellationToken);
     }
 
     private async Task<IReadOnlyList<ToolDispatchResult>> ExecuteToolRequestsAsync(

@@ -29,6 +29,10 @@ public static class AuditEventTypes
     public const string HomeSensorsViewed = "HomeSensorsViewed";
     public const string HomeActionRequested = "HomeActionRequested";
     public const string HomeActionExecuted = "HomeActionExecuted";
+    public const string AgentRunQueued = "AgentRunQueued";
+    public const string AgentRunDelegated = "AgentRunDelegated";
+    public const string AgentRunCompleted = "AgentRunCompleted";
+    public const string AgentRunFailed = "AgentRunFailed";
     public const string VoiceSessionStarted = "VoiceSessionStarted";
     public const string VoiceTranscribed = "VoiceTranscribed";
     public const string VoiceSpoken = "VoiceSpoken";

@@ -37,6 +37,8 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<AgentRun> AgentRuns => Set<AgentRun>();
 
+    public DbSet<AgentDefinition> AgentDefinitions => Set<AgentDefinition>();
+
     public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
 
     public DbSet<ConnectorAccount> ConnectorAccounts => Set<ConnectorAccount>();
@@ -359,6 +361,7 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
         modelBuilder.Entity<AgentRun>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.DelegationReason).HasMaxLength(1000);
             entity.Property(x => x.AgentName).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Status)
                 .HasConversion<string>()
@@ -373,6 +376,7 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
             entity.Property(x => x.TotalTokens);
             entity.Property(x => x.FallbackUsed).HasDefaultValue(false).IsRequired();
             entity.HasIndex(x => new { x.Status, x.CreatedUtc });
+            entity.HasIndex(x => new { x.UserProfileId, x.AgentName, x.CreatedUtc });
             entity.HasOne<UserProfile>()
                 .WithMany()
                 .HasForeignKey(x => x.UserProfileId)
@@ -381,6 +385,30 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
                 .WithMany()
                 .HasForeignKey(x => x.ConversationId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.AgentDefinition)
+                .WithMany(x => x.AgentRuns)
+                .HasForeignKey(x => x.AgentDefinitionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.ParentAgentRun)
+                .WithMany(x => x.ChildAgentRuns)
+                .HasForeignKey(x => x.ParentAgentRunId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<AgentDefinition>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Prompt).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.ToolNamesJson).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.ContextPolicyJson).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.MemoryWeight).HasPrecision(5, 2).IsRequired();
+            entity.Property(x => x.Enabled).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasData(CompanionSeedData.AgentDefinitions);
         });
 
         modelBuilder.Entity<ApprovalRequest>(entity =>

@@ -140,7 +140,10 @@ public sealed record AgentRunResponse(
     Guid Id,
     Guid? UserProfileId,
     Guid? ConversationId,
+    Guid? AgentDefinitionId,
+    Guid? ParentAgentRunId,
     string AgentName,
+    string? DelegationReason,
     AgentRunStatus Status,
     string Input,
     string? Output,
@@ -156,6 +159,18 @@ public sealed record AgentRunResponse(
     DateTime CreatedUtc,
     DateTime? StartedUtc,
     DateTime? CompletedUtc);
+
+public sealed record AgentDefinitionResponse(
+    Guid Id,
+    string Name,
+    string DisplayName,
+    string Description,
+    string Prompt,
+    string ToolNamesJson,
+    string ContextPolicyJson,
+    decimal MemoryWeight,
+    bool Enabled,
+    DateTime CreatedUtc);
 
 public sealed record NotificationResponse(
     Guid Id,
@@ -756,7 +771,10 @@ public static class CompanionApiMappings
             agentRun.Id,
             agentRun.UserProfileId,
             agentRun.ConversationId,
+            agentRun.AgentDefinitionId,
+            agentRun.ParentAgentRunId,
             agentRun.AgentName,
+            agentRun.DelegationReason,
             agentRun.Status,
             agentRun.Input,
             agentRun.Output,
@@ -772,6 +790,21 @@ public static class CompanionApiMappings
             agentRun.CreatedUtc,
             agentRun.StartedUtc,
             agentRun.CompletedUtc);
+    }
+
+    public static AgentDefinitionResponse ToResponse(this AgentDefinition definition)
+    {
+        return new AgentDefinitionResponse(
+            definition.Id,
+            definition.Name,
+            definition.DisplayName,
+            definition.Description,
+            definition.Prompt,
+            definition.ToolNamesJson,
+            definition.ContextPolicyJson,
+            definition.MemoryWeight,
+            definition.Enabled,
+            definition.CreatedUtc);
     }
 
     public static NotificationResponse ToResponse(this Notification notification)

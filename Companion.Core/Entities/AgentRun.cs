@@ -10,7 +10,13 @@ public class AgentRun
 
     public Guid? ConversationId { get; set; }
 
+    public Guid? AgentDefinitionId { get; set; }
+
+    public Guid? ParentAgentRunId { get; set; }
+
     public string AgentName { get; set; } = string.Empty;
+
+    public string? DelegationReason { get; set; }
 
     public AgentRunStatus Status { get; set; }
 
@@ -41,6 +47,12 @@ public class AgentRun
     public DateTime? StartedUtc { get; set; }
 
     public DateTime? CompletedUtc { get; set; }
+
+    public AgentDefinition? AgentDefinition { get; set; }
+
+    public AgentRun? ParentAgentRun { get; set; }
+
+    public ICollection<AgentRun> ChildAgentRuns { get; set; } = new List<AgentRun>();
 
     public ICollection<ToolExecution> ToolExecutions { get; set; } = new List<ToolExecution>();
 }
