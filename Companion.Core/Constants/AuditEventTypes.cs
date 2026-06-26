@@ -34,6 +34,7 @@ public static class AuditEventTypes
     public const string AgentRunCompleted = "AgentRunCompleted";
     public const string AgentRunFailed = "AgentRunFailed";
     public const string LearningEventRecorded = "LearningEventRecorded";
+    public const string OperatingSystemRunGenerated = "OperatingSystemRunGenerated";
     public const string VoiceSessionStarted = "VoiceSessionStarted";
     public const string VoiceTranscribed = "VoiceTranscribed";
     public const string VoiceSpoken = "VoiceSpoken";

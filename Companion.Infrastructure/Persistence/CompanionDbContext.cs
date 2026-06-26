@@ -43,6 +43,8 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<ConversationRating> ConversationRatings => Set<ConversationRating>();
 
+    public DbSet<OperatingSystemRun> OperatingSystemRuns => Set<OperatingSystemRun>();
+
     public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
 
     public DbSet<ConnectorAccount> ConnectorAccounts => Set<ConnectorAccount>();
@@ -447,6 +449,33 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
                 .WithMany()
                 .HasForeignKey(x => x.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OperatingSystemRun>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.RoutineType).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Summary).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.InsightsJson).IsRequired();
+            entity.Property(x => x.ActionsJson).IsRequired();
+            entity.Property(x => x.ForecastJson).IsRequired();
+            entity.Property(x => x.PeriodStartUtc).IsRequired();
+            entity.Property(x => x.PeriodEndUtc).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.RoutineType, x.CreatedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.OperatingSystemRuns)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ScheduledAgentRun)
+                .WithMany()
+                .HasForeignKey(x => x.ScheduledAgentRunId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ApprovalRequest>(entity =>

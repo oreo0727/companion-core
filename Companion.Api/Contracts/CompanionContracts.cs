@@ -206,6 +206,26 @@ public sealed record LearningProfileResponse(
     IReadOnlyList<string> StrongSignals,
     DateTime GeneratedUtc);
 
+public sealed record OperatingSystemRunResponse(
+    Guid Id,
+    Guid UserProfileId,
+    string RoutineType,
+    OperatingSystemRunStatus Status,
+    string Title,
+    string Summary,
+    string InsightsJson,
+    string ActionsJson,
+    string ForecastJson,
+    Guid? ScheduledAgentRunId,
+    DateTime PeriodStartUtc,
+    DateTime PeriodEndUtc,
+    DateTime CreatedUtc,
+    DateTime? CompletedUtc);
+
+public sealed record OperatingSystemRunResultResponse(
+    OperatingSystemRunResponse Run,
+    IReadOnlyList<AgentRunResponse> ScheduledAgentRuns);
+
 public sealed record NotificationResponse(
     Guid Id,
     Guid UserProfileId,
@@ -882,6 +902,32 @@ public static class CompanionApiMappings
             profile.PreferenceEvolutionEvents,
             profile.StrongSignals,
             profile.GeneratedUtc);
+    }
+
+    public static OperatingSystemRunResponse ToResponse(this OperatingSystemRun run)
+    {
+        return new OperatingSystemRunResponse(
+            run.Id,
+            run.UserProfileId,
+            run.RoutineType,
+            run.Status,
+            run.Title,
+            run.Summary,
+            run.InsightsJson,
+            run.ActionsJson,
+            run.ForecastJson,
+            run.ScheduledAgentRunId,
+            run.PeriodStartUtc,
+            run.PeriodEndUtc,
+            run.CreatedUtc,
+            run.CompletedUtc);
+    }
+
+    public static OperatingSystemRunResultResponse ToResponse(this OperatingSystemRunResult result)
+    {
+        return new OperatingSystemRunResultResponse(
+            result.Run.ToResponse(),
+            result.ScheduledAgentRuns.Select(x => x.ToResponse()).ToList());
     }
 
     public static NotificationResponse ToResponse(this Notification notification)

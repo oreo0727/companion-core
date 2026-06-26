@@ -26,6 +26,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Home automation connector architecture for LocalHome, Home Assistant, Hue, SmartThings, Shelly, ESPHome, and MQTT snapshots with approved actions
 - Multi-agent orchestration with catalog-backed Chief of Staff, Planner, Research, Coder, Writer, Travel, Finance, Health, and Home specialists
 - Adaptive learning events for suggestion outcomes, tool usage, ratings, completions, and preference evolution
+- Companion operating-system routines for briefings, recaps, reviews, forecasting, memory pruning review, context optimization, and scheduled background AgentRuns
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture
@@ -339,6 +340,7 @@ The migrations seed:
 - [Notifications](docs/NOTIFICATIONS.md)
 - [Mobile Application](docs/MOBILE.md)
 - [OAuth Foundation](docs/OAUTH.md)
+- [Operating System](docs/OPERATING_SYSTEM.md)
 - [Production Connectors](docs/PRODUCTION_CONNECTORS.md)
 - [Tool Runtime](docs/TOOLS.md)
 - [Voice Platform](docs/VOICE.md)

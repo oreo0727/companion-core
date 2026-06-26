@@ -124,6 +124,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAgentCatalog, AgentCatalog>();
         services.AddScoped<IMultiAgentOrchestrator, MultiAgentOrchestrator>();
         services.AddScoped<IAdaptiveLearningService, AdaptiveLearningService>();
+        services.AddScoped<ICompanionOperatingSystemService, CompanionOperatingSystemService>();
         services.AddScoped<IMemoryExtractionService, MemoryExtractionService>();
         services.AddScoped<ISuggestionService, SuggestionService>();
         services.AddScoped<IAIProvider>(serviceProvider => serviceProvider.GetRequiredService<OpenAIProvider>());

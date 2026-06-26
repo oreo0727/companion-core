@@ -81,4 +81,6 @@ public class UserProfile
     public ICollection<LearningEvent> LearningEvents { get; set; } = new List<LearningEvent>();
 
     public ICollection<ConversationRating> ConversationRatings { get; set; } = new List<ConversationRating>();
+
+    public ICollection<OperatingSystemRun> OperatingSystemRuns { get; set; } = new List<OperatingSystemRun>();
 }
