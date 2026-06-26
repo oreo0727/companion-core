@@ -48,12 +48,17 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<ISecretStore, DataProtectionSecretStore>();
         services.AddScoped<IChunkingService, ChunkingService>();
+        services.AddScoped<ICalendarReadConnector, LocalCalendarReadConnector>();
+        services.AddScoped<IConnector, LocalCalendarReadConnector>();
+        services.AddScoped<IConnectorRegistry, ConnectorRegistry>();
+        services.AddScoped<IConnectorSyncService, ConnectorSyncService>();
         services.AddScoped<IKnowledgeImporter, KnowledgeImporter>();
         services.AddScoped<IKnowledgeSearchService, KnowledgeSearchService>();
         services.AddScoped<ITool, MemorySearchTool>();
         services.AddScoped<ITool, CreateTaskTool>();
         services.AddScoped<ITool, GetBriefingTool>();
         services.AddScoped<ITool, KnowledgeSearchTool>();
+        services.AddScoped<ITool, CalendarEventsTool>();
         services.AddScoped<IToolRegistry, ToolRegistry>();
         services.AddScoped<IToolExecutor, ToolExecutor>();
         services.AddScoped<IContextBuilder, ContextBuilder>();

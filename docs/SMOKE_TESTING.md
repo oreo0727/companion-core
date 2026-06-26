@@ -19,6 +19,9 @@ The script fails fast and verifies:
 - failed tool execution telemetry
 - knowledge import
 - knowledge search
+- connector discovery
+- local calendar import
+- calendar event retrieval
 - `POST /api/chat`
 - persisted user and assistant messages
 - memory, task, goal, and project suggestion creation
@@ -53,6 +56,7 @@ It also exercises:
 7. approval-gated `CreateTask` execution
 8. failed `MemorySearch` execution with stored error state
 9. knowledge import and retrieval through API and tool paths
+10. local calendar import, briefing inclusion, sync recording, and calendar tool retrieval
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

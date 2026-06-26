@@ -12,6 +12,10 @@ public static class AuditEventTypes
     public const string PreferenceChanged = "PreferenceChanged";
     public const string KnowledgeDocumentImported = "KnowledgeDocumentImported";
     public const string KnowledgeSearchPerformed = "KnowledgeSearchPerformed";
+    public const string ConnectorConnected = "ConnectorConnected";
+    public const string ConnectorSyncStarted = "ConnectorSyncStarted";
+    public const string ConnectorSyncCompleted = "ConnectorSyncCompleted";
+    public const string CalendarEventsViewed = "CalendarEventsViewed";
     public const string ToolExecutionRequested = "ToolExecutionRequested";
     public const string ToolExecutionCompleted = "ToolExecutionCompleted";
     public const string ToolExecutionFailed = "ToolExecutionFailed";

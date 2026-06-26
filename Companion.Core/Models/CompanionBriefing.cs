@@ -8,6 +8,7 @@ public sealed record CompanionBriefing(
     IReadOnlyList<MemoryEntry> RecentMemories,
     IReadOnlyList<Goal> Goals,
     IReadOnlyList<Project> Projects,
+    IReadOnlyList<CalendarEventSnapshot> UpcomingCalendarEvents,
     IReadOnlyList<OpenLoop> OpenLoops,
     IReadOnlyList<ProjectSuggestion> ProjectSuggestions,
     IReadOnlyList<GoalSuggestion> GoalSuggestions,

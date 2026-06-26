@@ -6,4 +6,5 @@ public static class ToolNames
     public const string CreateTask = "CreateTask";
     public const string GetBriefing = "GetBriefing";
     public const string KnowledgeSearch = "KnowledgeSearch";
+    public const string CalendarEvents = "CalendarEvents";
 }

@@ -49,6 +49,14 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<StoredSecret> StoredSecrets => Set<StoredSecret>();
 
+    public DbSet<ConnectorDefinition> ConnectorDefinitions => Set<ConnectorDefinition>();
+
+    public DbSet<ConnectorConnection> ConnectorConnections => Set<ConnectorConnection>();
+
+    public DbSet<ConnectorSyncRun> ConnectorSyncRuns => Set<ConnectorSyncRun>();
+
+    public DbSet<CalendarEventSnapshot> CalendarEventSnapshots => Set<CalendarEventSnapshot>();
+
     public DbSet<KnowledgeSource> KnowledgeSources => Set<KnowledgeSource>();
 
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
@@ -433,6 +441,88 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
             entity.HasOne(x => x.UserProfile)
                 .WithMany(x => x.StoredSecrets)
                 .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ConnectorDefinition>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Provider).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.Category).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.RiskLevel)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.HasIndex(x => x.Provider).IsUnique();
+            entity.HasData(CompanionSeedData.ConnectorDefinitions);
+        });
+
+        modelBuilder.Entity<ConnectorConnection>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.AccessTokenEncrypted).HasMaxLength(8000);
+            entity.Property(x => x.RefreshTokenEncrypted).HasMaxLength(8000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.UserProfileId, x.ConnectorDefinitionId, x.DisplayName }).IsUnique();
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.ConnectorConnections)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorDefinition)
+                .WithMany(x => x.Connections)
+                .HasForeignKey(x => x.ConnectorDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ConnectorSyncRun>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            entity.Property(x => x.StartedUtc).IsRequired();
+            entity.Property(x => x.Error).HasMaxLength(4000);
+            entity.HasIndex(x => new { x.UserProfileId, x.StartedUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.ConnectorSyncRuns)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorConnection)
+                .WithMany(x => x.SyncRuns)
+                .HasForeignKey(x => x.ConnectorConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CalendarEventSnapshot>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalId).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(4000);
+            entity.Property(x => x.Location).HasMaxLength(500);
+            entity.Property(x => x.StartUtc).IsRequired();
+            entity.Property(x => x.EndUtc).IsRequired();
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.ConnectorConnectionId, x.ExternalId }).IsUnique();
+            entity.HasIndex(x => new { x.UserProfileId, x.StartUtc });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.CalendarEventSnapshots)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorConnection)
+                .WithMany(x => x.CalendarEvents)
+                .HasForeignKey(x => x.ConnectorConnectionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

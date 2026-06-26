@@ -10,6 +10,7 @@ namespace Companion.Infrastructure.Services;
 public class ContextBuilder(
     CompanionDbContext dbContext,
     IChiefOfStaffService chiefOfStaffService,
+    IConnectorSyncService connectorSyncService,
     IKnowledgeSearchService knowledgeSearchService,
     TimeProvider timeProvider) : IContextBuilder
 {
@@ -61,6 +62,11 @@ public class ContextBuilder(
         recentMessages.Reverse();
 
         var relevantMemories = await SelectRelevantMemoriesAsync(userProfileId, recentMessages, conversation.ActiveTopic, now, cancellationToken);
+        var upcomingCalendarEvents = await connectorSyncService.GetUpcomingCalendarEventsAsync(
+            userProfileId,
+            daysAhead: 7,
+            audit: false,
+            cancellationToken: cancellationToken);
         var relevantKnowledge = await SelectRelevantKnowledgeAsync(userProfileId, recentMessages, conversation.ActiveTopic, cancellationToken);
         var openTasks = await dbContext.TaskItems
             .AsNoTracking()
@@ -124,6 +130,7 @@ public class ContextBuilder(
             relevantMemories,
             activeGoals,
             activeProjects,
+            upcomingCalendarEvents,
             relevantKnowledge,
             openTasks,
             openLoops,

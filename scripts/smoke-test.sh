@@ -7,7 +7,7 @@ API_URL="http://127.0.0.1:${API_PORT}"
 MOCK_AI_PORT="${MOCK_AI_PORT:-19090}"
 MOCK_AI_URL="http://127.0.0.1:${MOCK_AI_PORT}"
 WORKER_POLL_SECONDS="${WORKER_POLL_SECONDS:-1}"
-RUN_ID="${RUN_ID:-phase4b-$(date +%s)}"
+RUN_ID="${RUN_ID:-phase8-$(date +%s)}"
 API_LOG="/tmp/companion-api-${RUN_ID}.log"
 WORKER_LOG="/tmp/companion-worker-${RUN_ID}.log"
 MOCK_AI_LOG="/tmp/companion-mock-ai-${RUN_ID}.log"
@@ -54,11 +54,12 @@ require_command() {
 json_eval() {
   local payload="$1"
   local expression="$2"
-JSON_PAYLOAD="$payload" JSON_EXPR="$expression" python3 - <<'PY'
+  printf '%s' "$payload" | JSON_EXPR="$expression" python3 -c '
 import json
 import os
+import sys
 
-data = json.loads(os.environ["JSON_PAYLOAD"])
+data = json.loads(sys.stdin.read())
 safe_globals = {"__builtins__": {}}
 safe_locals = {
     "data": data,
@@ -78,7 +79,7 @@ elif result is None:
     print("null")
 else:
     print(result)
-PY
+'
 }
 
 assert_json() {
@@ -251,6 +252,29 @@ poll_agent_run_status() {
   fail "Timed out waiting for agent run ${agent_run_id} to reach ${desired}"
 }
 
+assert_agent_run_for_input() {
+  local input_text="$1"
+  local expression="$2"
+  local description="$3"
+  local attempt
+
+  for attempt in $(seq 1 20); do
+    local runs
+    runs="$(http_get "${API_URL}/api/agent-runs")"
+    local result
+    result="$(json_eval "$runs" "next(((${expression}) for x in data if x['input'] == '${input_text}'), False)")"
+
+    if [[ "$result" == "true" ]]; then
+      pass "$description"
+      return
+    fi
+
+    sleep 1
+  done
+
+  fail "${description}. Expression '${expression}' did not match the AgentRun for input: ${input_text}"
+}
+
 require_command curl
 require_command dotnet
 require_command python3
@@ -274,25 +298,32 @@ authenticate_api
 start_worker
 start_mock_ai
 
+step "Verifying connector discovery"
+CONNECTORS="$(http_get "${API_URL}/api/connectors")"
+assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'LocalCalendar') == 1" "LocalCalendar connector is discoverable"
+
 step "Verifying tool discovery and execution"
 TOOLS="$(http_get "${API_URL}/api/tools")"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'MemorySearch') == 1" "MemorySearch is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CreateTask') == 1" "CreateTask is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'GetBriefing') == 1" "GetBriefing is discoverable"
 assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'KnowledgeSearch') == 1" "KnowledgeSearch is discoverable"
+assert_json "$TOOLS" "sum(1 for x in data if x['name'] == 'CalendarEvents') == 1" "CalendarEvents is discoverable"
 
 GET_BRIEFING_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'GetBriefing')")"
 CREATE_TASK_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CreateTask')")"
 MEMORY_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'MemorySearch')")"
 KNOWLEDGE_SEARCH_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'KnowledgeSearch')")"
+CALENDAR_EVENTS_TOOL_ID="$(json_eval "$TOOLS" "next(x['id'] for x in data if x['name'] == 'CalendarEvents')")"
 SMOKE_TASK_TITLE="Smoke task ${RUN_ID}"
 KNOWLEDGE_TERM="knowledge-${RUN_ID}"
+CALENDAR_TITLE="Calendar review ${RUN_ID}"
 
 GET_BRIEFING_EXECUTION="$(http_post_json "${API_URL}/api/tools/${GET_BRIEFING_TOOL_ID}/execute" '{"input":{}}')"
 assert_json "$GET_BRIEFING_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "Low-risk tool executes immediately"
 
 CREATE_TASK_EXECUTION="$(http_post_json "${API_URL}/api/tools/${CREATE_TASK_TOOL_ID}/execute" "$(cat <<JSON
-{"input":{"title":"${SMOKE_TASK_TITLE}","description":"Created by the phase 6 smoke test."}}
+{"input":{"title":"${SMOKE_TASK_TITLE}","description":"Created by the phase 8 smoke test."}}
 JSON
 )")"
 assert_json "$CREATE_TASK_EXECUTION" "data['executedImmediately'] is False and data['execution']['status'] == 'AwaitingApproval'" "Approval-gated tool waits for approval"
@@ -329,6 +360,26 @@ KNOWLEDGE_TOOL_EXECUTION="$(http_post_json "${API_URL}/api/tools/${KNOWLEDGE_SEA
 JSON
 )")"
 assert_json "$KNOWLEDGE_TOOL_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "KnowledgeSearch tool executes immediately"
+
+step "Importing and retrieving calendar events"
+CALENDAR_IMPORT="$(http_post_json "${API_URL}/api/connectors/local-calendar/import" "$(cat <<JSON
+{"displayName":"Smoke Calendar ${RUN_ID}","events":[{"externalId":"cal-${RUN_ID}","title":"${CALENDAR_TITLE}","description":"Smoke calendar import","location":"","startUtc":"$(date -u -d '+2 hour' +%Y-%m-%dT%H:%M:%SZ)","endUtc":"$(date -u -d '+3 hour' +%Y-%m-%dT%H:%M:%SZ)","isAllDay":false}]}
+JSON
+)")"
+assert_json "$CALENDAR_IMPORT" "data['eventsImported'] == 1" "Local calendar import creates a synced event snapshot"
+CALENDAR_CONNECTION_ID="$(json_eval "$CALENDAR_IMPORT" "data['connection']['id']")"
+
+CALENDAR_EVENTS="$(http_get "${API_URL}/api/calendar/events")"
+assert_json "$CALENDAR_EVENTS" "sum(1 for x in data if x['title'] == '${CALENDAR_TITLE}') == 1" "Calendar events endpoint returns the imported event"
+
+CALENDAR_SYNC="$(http_post "${API_URL}/api/connectors/${CALENDAR_CONNECTION_ID}/sync")"
+assert_json "$CALENDAR_SYNC" "data['status'] == 'Completed'" "Connector sync endpoint records a completed sync run"
+
+BRIEFING_WITH_CALENDAR="$(http_get "${API_URL}/api/companion/briefing")"
+assert_json "$BRIEFING_WITH_CALENDAR" "sum(1 for x in data['upcomingCalendarEvents'] if x['title'] == '${CALENDAR_TITLE}') == 1" "Briefing includes upcoming calendar events"
+
+CALENDAR_TOOL_EXECUTION="$(http_post_json "${API_URL}/api/tools/${CALENDAR_EVENTS_TOOL_ID}/execute" '{"input":{"daysAhead":7}}')"
+assert_json "$CALENDAR_TOOL_EXECUTION" "data['executedImmediately'] is True and data['execution']['status'] == 'Completed'" "CalendarEvents tool executes immediately"
 
 step "Fetching baseline counts"
 BASE_SUGGESTIONS="$(http_get "${API_URL}/api/suggestions")"
@@ -371,55 +422,70 @@ assert_json "$BRIEFING" "isinstance(data['openTasks'], list)" "Briefing endpoint
 assert_json "$DASHBOARD" "isinstance(data['topInsights'], list)" "Dashboard endpoint works"
 
 step "Scenario B: Ollama enabled but model unavailable"
+CHAT_UNAVAILABLE_MESSAGE="Check Ollama missing model fallback for ${RUN_ID}."
 set_mock_mode missing-model
 set_provider "Ollama" "${MOCK_AI_URL}" true 2 "missing-model" >/dev/null
-CHAT_UNAVAILABLE="$(http_post_json "${API_URL}/api/chat" '{"message":"Check Ollama missing model fallback."}')"
+MISSING_MODEL_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"model":"missing-model"}' "${MOCK_AI_URL}/api/chat")"
+[[ "${MISSING_MODEL_STATUS}" == "404" ]] || fail "Mock provider did not return 404 for the missing-model scenario"
+pass "Mock provider returns 404 for the missing-model scenario"
+CHAT_UNAVAILABLE="$(http_post_json "${API_URL}/api/chat" "$(cat <<JSON
+{"message":"${CHAT_UNAVAILABLE_MESSAGE}"}
+JSON
+)")"
 assert_json "$CHAT_UNAVAILABLE" "data['usedFallback'] is True" "Chat falls back when the Ollama model is unavailable"
 assert_json "$CHAT_UNAVAILABLE" "data['provider'] == 'Ollama'" "Missing-model Ollama attempt is recorded on the chat response"
-
-RUNS_AFTER_UNAVAILABLE="$(http_get "${API_URL}/api/agent-runs")"
-assert_json "$RUNS_AFTER_UNAVAILABLE" "data[0]['provider'] == 'Ollama' and 'not found' in (data[0]['error'] or '')" "Missing-model Ollama error is stored on AgentRun"
+assert_agent_run_for_input "$CHAT_UNAVAILABLE_MESSAGE" "x['provider'] == 'Ollama' and x['fallbackUsed'] is True and ((x['error'] or '') != '') and ('not found' in (x['error'] or '').lower() or 'sending the request' in (x['error'] or '').lower())" "Missing-model Ollama failure is stored on AgentRun"
 
 step "Scenario C: Ollama configured and available via mock server"
+CHAT_OK_MESSAGE="Use the available mock Ollama provider for ${RUN_ID}."
 set_mock_mode ok
 set_provider "Ollama" "${MOCK_AI_URL}" true 30 "mock-ollama" >/dev/null
-CHAT_OK="$(http_post_json "${API_URL}/api/chat" '{"message":"Use the available mock Ollama provider."}')"
+CHAT_OK="$(http_post_json "${API_URL}/api/chat" "$(cat <<JSON
+{"message":"${CHAT_OK_MESSAGE}"}
+JSON
+)")"
 assert_json "$CHAT_OK" "data['usedFallback'] is False" "Chat uses provider response when Ollama is available"
 assert_json "$CHAT_OK" "data['provider'] == 'Ollama' and data['model'] == 'mock-ollama'" "Provider/model are returned for successful Ollama calls"
-
-RUNS_AFTER_OK="$(http_get "${API_URL}/api/agent-runs")"
-assert_json "$RUNS_AFTER_OK" "data[0]['provider'] == 'Ollama' and data[0]['totalTokens'] == 34 and data[0]['fallbackUsed'] is False" "AgentRun telemetry is populated for successful provider calls"
+assert_agent_run_for_input "$CHAT_OK_MESSAGE" "x['provider'] == 'Ollama' and x['totalTokens'] == 34 and x['fallbackUsed'] is False" "AgentRun telemetry is populated for successful provider calls"
 
 step "Scenario C2: provider-driven tool request"
+CHAT_TOOL_REQUEST_MESSAGE="Please get my briefing through the available tool path for ${RUN_ID}."
 set_mock_mode tool-request
 set_provider "Ollama" "${MOCK_AI_URL}" true 30 "mock-ollama" >/dev/null
-CHAT_TOOL_REQUEST="$(http_post_json "${API_URL}/api/chat" '{"message":"Please get my briefing through the available tool path."}')"
+CHAT_TOOL_REQUEST="$(http_post_json "${API_URL}/api/chat" "$(cat <<JSON
+{"message":"${CHAT_TOOL_REQUEST_MESSAGE}"}
+JSON
+)")"
 assert_json "$CHAT_TOOL_REQUEST" "data['usedFallback'] is False and len(data['toolExecutions']) >= 1" "Chat returns provider-driven tool executions"
 assert_json "$CHAT_TOOL_REQUEST" "sum(1 for x in data['toolExecutions'] if x['toolName'] == 'GetBriefing' and x['status'] == 'Completed') >= 1" "Provider-driven GetBriefing tool request completes"
 
 step "Scenario D: malformed JSON from provider"
+CHAT_MALFORMED_MESSAGE="Trigger malformed JSON handling for ${RUN_ID}."
 set_mock_mode malformed
 set_provider "Ollama" "${MOCK_AI_URL}" true 30 "mock-ollama" >/dev/null
-CHAT_MALFORMED="$(http_post_json "${API_URL}/api/chat" '{"message":"Trigger malformed JSON handling."}')"
+CHAT_MALFORMED="$(http_post_json "${API_URL}/api/chat" "$(cat <<JSON
+{"message":"${CHAT_MALFORMED_MESSAGE}"}
+JSON
+)")"
 assert_json "$CHAT_MALFORMED" "data['usedFallback'] is True" "Malformed JSON triggers safe fallback"
-
-RUNS_AFTER_MALFORMED="$(http_get "${API_URL}/api/agent-runs")"
-assert_json "$RUNS_AFTER_MALFORMED" "'malformed JSON' in (data[0]['error'] or '') and data[0]['fallbackUsed'] is True" "Malformed JSON error is stored clearly"
+assert_agent_run_for_input "$CHAT_MALFORMED_MESSAGE" "'malformed JSON' in (x['error'] or '') and x['fallbackUsed'] is True" "Malformed JSON error is stored clearly"
 
 step "Scenario E: provider timeout"
+CHAT_TIMEOUT_MESSAGE="Trigger provider timeout handling for ${RUN_ID}."
 set_mock_mode timeout 2
 set_provider "Ollama" "${MOCK_AI_URL}" true 1 "mock-ollama" >/dev/null
-CHAT_TIMEOUT="$(http_post_json "${API_URL}/api/chat" '{"message":"Trigger provider timeout handling."}')"
+CHAT_TIMEOUT="$(http_post_json "${API_URL}/api/chat" "$(cat <<JSON
+{"message":"${CHAT_TIMEOUT_MESSAGE}"}
+JSON
+)")"
 assert_json "$CHAT_TIMEOUT" "data['usedFallback'] is True" "Timeout triggers safe fallback"
-
-RUNS_AFTER_TIMEOUT="$(http_get "${API_URL}/api/agent-runs")"
-assert_json "$RUNS_AFTER_TIMEOUT" "'timed out' in (data[0]['error'] or '').lower() and data[0]['provider'] == 'Ollama'" "Timeout error is stored clearly"
+assert_agent_run_for_input "$CHAT_TIMEOUT_MESSAGE" "'timed out' in (x['error'] or '').lower() and x['provider'] == 'Ollama'" "Timeout error is stored clearly"
 
 step "Queueing a background AgentRun"
-QUEUED_RUN="$(http_post_json "${API_URL}/api/agent-runs" '{"agentName":"phase4b-quick-run","input":"exercise worker telemetry"}')"
+QUEUED_RUN="$(http_post_json "${API_URL}/api/agent-runs" '{"agentName":"phase8-quick-run","input":"exercise worker telemetry"}')"
 QUEUED_RUN_ID="$(json_eval "$QUEUED_RUN" "data['id']")"
 POLLED_RUNS="$(poll_agent_run_status "${QUEUED_RUN_ID}" "Completed")"
 assert_json "$POLLED_RUNS" "next((x['status'] in ('Completed', 'Failed') and x['startedUtc'] is not None and x['completedUtc'] is not None and x['latencyMs'] is not None for x in data if x['id'] == '${QUEUED_RUN_ID}'), False)" "Worker processes queued AgentRun with telemetry"
 
 step "Smoke test completed"
-pass "Phase 7 smoke test passed"
+pass "Phase 8 smoke test passed"

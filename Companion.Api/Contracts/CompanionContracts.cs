@@ -186,6 +186,63 @@ public sealed record ToolDispatchResponse(
     Guid? ApprovalRequestId,
     bool ExecutedImmediately);
 
+public sealed record ConnectorDefinitionResponse(
+    Guid Id,
+    string Name,
+    string Provider,
+    string Description,
+    string Category,
+    bool SupportsOAuth,
+    ConnectorRiskLevel RiskLevel,
+    bool Enabled,
+    DateTime CreatedUtc);
+
+public sealed record ConnectorConnectionResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConnectorDefinitionId,
+    string DisplayName,
+    ConnectorConnectionStatus Status,
+    DateTime? ExpiresUtc,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc,
+    string? ConnectorName,
+    string? ConnectorProvider);
+
+public sealed record ConnectorSyncRunResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConnectorConnectionId,
+    ConnectorSyncRunStatus Status,
+    DateTime StartedUtc,
+    DateTime? CompletedUtc,
+    int ItemsSynced,
+    string? Error);
+
+public sealed record CalendarEventSnapshotResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConnectorConnectionId,
+    string ExternalId,
+    string Title,
+    string? Description,
+    string? Location,
+    DateTime StartUtc,
+    DateTime EndUtc,
+    bool IsAllDay,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc,
+    string? ConnectorDisplayName);
+
+public sealed record ConnectorCatalogEntryResponse(
+    ConnectorDefinitionResponse Definition,
+    IReadOnlyList<ConnectorConnectionResponse> Connections);
+
+public sealed record LocalCalendarImportResponse(
+    ConnectorConnectionResponse Connection,
+    ConnectorSyncRunResponse SyncRun,
+    int EventsImported);
+
 public sealed record KnowledgeSourceResponse(
     Guid Id,
     Guid UserProfileId,
@@ -320,6 +377,7 @@ public sealed record CompanionBriefingResponse(
     IReadOnlyList<MemoryEntryResponse> RecentMemories,
     IReadOnlyList<GoalResponse> Goals,
     IReadOnlyList<ProjectResponse> Projects,
+    IReadOnlyList<CalendarEventSnapshotResponse> UpcomingCalendarEvents,
     IReadOnlyList<OpenLoopResponse> OpenLoops,
     IReadOnlyList<ProjectSuggestionResponse> ProjectSuggestions,
     IReadOnlyList<GoalSuggestionResponse> GoalSuggestions,
@@ -566,6 +624,86 @@ public static class CompanionApiMappings
             result.ExecutedImmediately);
     }
 
+    public static ConnectorDefinitionResponse ToResponse(this ConnectorDefinition definition)
+    {
+        return new ConnectorDefinitionResponse(
+            definition.Id,
+            definition.Name,
+            definition.Provider,
+            definition.Description,
+            definition.Category,
+            definition.SupportsOAuth,
+            definition.RiskLevel,
+            definition.Enabled,
+            definition.CreatedUtc);
+    }
+
+    public static ConnectorConnectionResponse ToResponse(this ConnectorConnection connection)
+    {
+        return new ConnectorConnectionResponse(
+            connection.Id,
+            connection.UserProfileId,
+            connection.ConnectorDefinitionId,
+            connection.DisplayName,
+            connection.Status,
+            connection.ExpiresUtc,
+            connection.CreatedUtc,
+            connection.UpdatedUtc,
+            connection.ConnectorDefinition?.Name,
+            connection.ConnectorDefinition?.Provider);
+    }
+
+    public static ConnectorSyncRunResponse ToResponse(this ConnectorSyncRun syncRun)
+    {
+        return new ConnectorSyncRunResponse(
+            syncRun.Id,
+            syncRun.UserProfileId,
+            syncRun.ConnectorConnectionId,
+            syncRun.Status,
+            syncRun.StartedUtc,
+            syncRun.CompletedUtc,
+            syncRun.ItemsSynced,
+            syncRun.Error);
+    }
+
+    public static CalendarEventSnapshotResponse ToResponse(this CalendarEventSnapshot snapshot)
+    {
+        return new CalendarEventSnapshotResponse(
+            snapshot.Id,
+            snapshot.UserProfileId,
+            snapshot.ConnectorConnectionId,
+            snapshot.ExternalId,
+            snapshot.Title,
+            snapshot.Description,
+            snapshot.Location,
+            snapshot.StartUtc,
+            snapshot.EndUtc,
+            snapshot.IsAllDay,
+            snapshot.CreatedUtc,
+            snapshot.UpdatedUtc,
+            snapshot.ConnectorConnection?.DisplayName);
+    }
+
+    public static ConnectorCatalogEntryResponse ToResponse(this ConnectorCatalogEntry entry)
+    {
+        foreach (var connection in entry.Connections)
+        {
+            connection.ConnectorDefinition ??= entry.Definition;
+        }
+
+        return new ConnectorCatalogEntryResponse(
+            entry.Definition.ToResponse(),
+            entry.Connections.Select(x => x.ToResponse()).ToList());
+    }
+
+    public static LocalCalendarImportResponse ToResponse(this LocalCalendarImportResult result)
+    {
+        return new LocalCalendarImportResponse(
+            result.Connection.ToResponse(),
+            result.SyncRun.ToResponse(),
+            result.EventsImported);
+    }
+
     public static KnowledgeSourceResponse ToResponse(this KnowledgeSourceSummary source)
     {
         return new KnowledgeSourceResponse(
@@ -636,6 +774,7 @@ public static class CompanionApiMappings
             briefing.RecentMemories.Select(x => x.ToResponse()).ToList(),
             briefing.Goals.Select(x => x.ToResponse()).ToList(),
             briefing.Projects.Select(x => x.ToResponse()).ToList(),
+            briefing.UpcomingCalendarEvents.Select(x => x.ToResponse()).ToList(),
             briefing.OpenLoops.Select(x => x.ToResponse()).ToList(),
             briefing.ProjectSuggestions.Select(x => x.ToResponse()).ToList(),
             briefing.GoalSuggestions.Select(x => x.ToResponse()).ToList(),

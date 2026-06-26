@@ -46,6 +46,12 @@ public class UserProfile
 
     public ICollection<KnowledgeCollection> KnowledgeCollections { get; set; } = new List<KnowledgeCollection>();
 
+    public ICollection<ConnectorConnection> ConnectorConnections { get; set; } = new List<ConnectorConnection>();
+
+    public ICollection<ConnectorSyncRun> ConnectorSyncRuns { get; set; } = new List<ConnectorSyncRun>();
+
+    public ICollection<CalendarEventSnapshot> CalendarEventSnapshots { get; set; } = new List<CalendarEventSnapshot>();
+
     public ICollection<ToolExecution> ToolExecutions { get; set; } = new List<ToolExecution>();
 
     public ICollection<ToolPermission> ToolPermissions { get; set; } = new List<ToolPermission>();

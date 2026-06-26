@@ -29,10 +29,13 @@ public static class CompanionSeedData
     public static readonly Guid CreateTaskToolDefinitionId = Guid.Parse("d39d98cc-c066-44b5-bc05-6dc81c7dbf6c");
     public static readonly Guid GetBriefingToolDefinitionId = Guid.Parse("56ec1a59-1115-4da9-9292-c8a2609fe632");
     public static readonly Guid KnowledgeSearchToolDefinitionId = Guid.Parse("fb6c3e11-6546-4df0-bbf5-f974e0d307ec");
+    public static readonly Guid CalendarEventsToolDefinitionId = Guid.Parse("0ddf4583-81b6-4e2d-a3d6-738066b13d8c");
     public static readonly Guid MemorySearchToolPermissionId = Guid.Parse("1a9f7783-8d03-4769-ab39-f9b8dc7bd3b4");
     public static readonly Guid CreateTaskToolPermissionId = Guid.Parse("b4608125-c91c-4a2a-ae17-68a4b0f4f6df");
     public static readonly Guid GetBriefingToolPermissionId = Guid.Parse("f2a6cdb9-212d-4f0f-92a1-0e2db84cf90f");
     public static readonly Guid KnowledgeSearchToolPermissionId = Guid.Parse("ab0c3178-4f4c-4634-b25d-fcdafb4fbb6c");
+    public static readonly Guid CalendarEventsToolPermissionId = Guid.Parse("e1fc039a-1ca6-426b-9a9a-29873fe46f76");
+    public static readonly Guid LocalCalendarConnectorDefinitionId = Guid.Parse("fb132d85-476e-48d2-81cb-4e6a1bf09cf5");
 
     public static readonly DateTime UserCreatedUtc = new(2026, 6, 19, 12, 0, 0, DateTimeKind.Utc);
     public static readonly DateTime ConversationCreatedUtc = new(2026, 6, 19, 12, 5, 0, 0, DateTimeKind.Utc);
@@ -375,6 +378,17 @@ public static class CompanionSeedData
             RequiresApproval = false,
             Enabled = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = CalendarEventsToolDefinitionId,
+            Name = ToolNames.CalendarEvents,
+            Description = "Retrieve upcoming calendar events for the authenticated user.",
+            Category = ToolCategories.Calendar,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
@@ -410,6 +424,30 @@ public static class CompanionSeedData
             UserProfileId = CompanionDefaults.LocalUserProfileId,
             ToolDefinitionId = KnowledgeSearchToolDefinitionId,
             Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = CalendarEventsToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = CalendarEventsToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        }
+    ];
+
+    public static readonly ConnectorDefinition[] ConnectorDefinitions =
+    [
+        new ConnectorDefinition
+        {
+            Id = LocalCalendarConnectorDefinitionId,
+            Name = "Local Calendar",
+            Provider = ConnectorProviders.LocalCalendar,
+            Description = "Read-only local calendar connector that imports upcoming events from a JSON payload.",
+            Category = ConnectorCategories.Calendar,
+            SupportsOAuth = false,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
             CreatedUtc = ToolCreatedUtc
         }
     ];

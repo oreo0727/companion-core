@@ -10,6 +10,7 @@ public sealed record CompanionContext(
     IReadOnlyList<MemoryEntry> RelevantMemories,
     IReadOnlyList<Goal> ActiveGoals,
     IReadOnlyList<Project> ActiveProjects,
+    IReadOnlyList<CalendarEventSnapshot> UpcomingCalendarEvents,
     IReadOnlyList<KnowledgeSearchResult> RelevantKnowledge,
     IReadOnlyList<TaskItem> OpenTasks,
     IReadOnlyList<OpenLoop> OpenLoops,

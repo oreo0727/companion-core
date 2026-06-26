@@ -51,6 +51,7 @@ internal static class AiProviderExecution
         var request = new HttpRequestMessage(
             method,
             new Uri(new Uri($"{baseUrl.Trim().TrimEnd('/')}/"), relativeUri));
+        request.Headers.ConnectionClose = true;
         request.Content = JsonContent.Create(payload, options: jsonOptions);
         return request;
     }

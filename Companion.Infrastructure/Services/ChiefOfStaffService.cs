@@ -13,6 +13,7 @@ public partial class ChiefOfStaffService(
     IGoalService goalService,
     IProjectService projectService,
     IOpenLoopService openLoopService,
+    IConnectorSyncService connectorSyncService,
     TimeProvider timeProvider) : IChiefOfStaffService
 {
     private static readonly string[] GoalMarkers =
@@ -137,6 +138,7 @@ public partial class ChiefOfStaffService(
             context.RecentMemories,
             context.Goals,
             context.Projects,
+            context.UpcomingCalendarEvents,
             context.OpenLoops,
             context.ProjectSuggestions,
             context.GoalSuggestions,
@@ -239,6 +241,11 @@ public partial class ChiefOfStaffService(
                 .OrderByDescending(x => x.Priority)
                 .ThenByDescending(x => x.UpdatedUtc)
                 .ToListAsync(cancellationToken),
+            await connectorSyncService.GetUpcomingCalendarEventsAsync(
+                userProfileId,
+                daysAhead: 7,
+                audit: false,
+                cancellationToken: cancellationToken),
             await dbContext.OpenLoops
                 .AsNoTracking()
                 .Where(x =>
@@ -353,6 +360,55 @@ public partial class ChiefOfStaffService(
                 "Load",
                 $"You are carrying {context.OpenLoops.Count} open loops right now.",
                 72));
+        }
+
+        var todaysEvents = context.UpcomingCalendarEvents
+            .Where(x => x.StartUtc.Date == now.Date)
+            .OrderBy(x => x.StartUtc)
+            .ToList();
+
+        if (todaysEvents.Count >= 4)
+        {
+            insights.Add(new CompanionInsight(
+                "Calendar",
+                $"Today is busy with {todaysEvents.Count} calendar events.",
+                81));
+        }
+
+        var deadlineKeywords = new[] { "deadline", "due", "submit", "review", "launch" };
+        foreach (var calendarEvent in context.UpcomingCalendarEvents
+                     .Where(x => x.StartUtc <= now.AddDays(7))
+                     .Where(x => deadlineKeywords.Any(keyword =>
+                         x.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase))))
+        {
+            insights.Add(new CompanionInsight(
+                "Deadline",
+                $"Calendar event '{calendarEvent.Title}' is coming up by {calendarEvent.StartUtc:u}.",
+                78));
+        }
+
+        foreach (var calendarEvent in context.UpcomingCalendarEvents
+                     .Where(x => !x.IsAllDay && string.IsNullOrWhiteSpace(x.Location)))
+        {
+            insights.Add(new CompanionInsight(
+                "Calendar",
+                $"Calendar event '{calendarEvent.Title}' does not have a location set.",
+                64));
+        }
+
+        var overlappingEvents = context.UpcomingCalendarEvents
+            .OrderBy(x => x.StartUtc)
+            .Zip(context.UpcomingCalendarEvents.OrderBy(x => x.StartUtc).Skip(1))
+            .Where(pair => pair.First.EndUtc > pair.Second.StartUtc)
+            .Take(2)
+            .ToList();
+
+        foreach (var overlap in overlappingEvents)
+        {
+            insights.Add(new CompanionInsight(
+                "Conflict",
+                $"Calendar events '{overlap.First.Title}' and '{overlap.Second.Title}' overlap.",
+                86));
         }
 
         return insights
@@ -570,6 +626,7 @@ public partial class ChiefOfStaffService(
         IReadOnlyList<MemoryEntry> RecentMemories,
         IReadOnlyList<Goal> Goals,
         IReadOnlyList<Project> Projects,
+        IReadOnlyList<CalendarEventSnapshot> UpcomingCalendarEvents,
         IReadOnlyList<OpenLoop> OpenLoops,
         IReadOnlyList<ProjectSuggestion> ProjectSuggestions,
         IReadOnlyList<GoalSuggestion> GoalSuggestions,

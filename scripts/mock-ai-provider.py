@@ -191,8 +191,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(encoded)
+        self.wfile.flush()
+        self.close_connection = True
 
     def log_message(self, format, *args):
         sys.stderr.write("[mock-ai] " + format % args + "\n")

@@ -28,6 +28,8 @@ The runtime is built around three persisted records:
   Searches the authenticated user's saved memories.
 - `KnowledgeSearch`
   Searches the authenticated user's imported knowledge documents.
+- `CalendarEvents`
+  Retrieves the authenticated user's upcoming calendar events.
 - `CreateTask`
   Creates a task for the authenticated user after approval.
 - `GetBriefing`
