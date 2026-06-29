@@ -358,6 +358,11 @@ public class ChiefOfStaffReasoningEngine(
     private static string BuildFallbackReply(CompanionContext context)
     {
         var latestUserMessage = context.RecentMessages.LastOrDefault(x => string.Equals(x.Role.ToString(), "User", StringComparison.OrdinalIgnoreCase));
+        if (latestUserMessage is not null && IsCasualOpener(latestUserMessage.Content))
+        {
+            return "Hi. I am here and ready. What would you like to work on?";
+        }
+
         var reply = new StringBuilder();
 
         reply.Append("I have the latest conversation context in view");
@@ -396,5 +401,31 @@ public class ChiefOfStaffReasoningEngine(
         }
 
         return reply.ToString().Trim();
+    }
+
+    private static bool IsCasualOpener(string content)
+    {
+        var normalized = content.Trim().Trim('.', '!', '?', ',', ';', ':').ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return false;
+        }
+
+        var casualOpeners = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "hi",
+            "hello",
+            "hey",
+            "yo",
+            "good morning",
+            "good afternoon",
+            "good evening",
+            "thanks",
+            "thank you",
+            "ok",
+            "okay"
+        };
+
+        return casualOpeners.Contains(normalized);
     }
 }

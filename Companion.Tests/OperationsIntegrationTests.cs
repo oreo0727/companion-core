@@ -68,6 +68,25 @@ public sealed class OperationsIntegrationTests(PostgresTestApiFactory factory) :
     }
 
     [Fact]
+    public async Task ChatFallback_RespondsNaturallyToGreeting()
+    {
+        using var authenticatedClient = await CreateSeedAdminClientAsync();
+
+        using var response = await authenticatedClient.PostAsJsonAsync("/api/chat", new
+        {
+            message = "hello"
+        });
+
+        response.EnsureSuccessStatusCode();
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var reply = document.RootElement.GetProperty("reply").GetString() ?? string.Empty;
+
+        Assert.True(document.RootElement.GetProperty("usedFallback").GetBoolean());
+        Assert.Contains("Hi", reply, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("next step plan", reply, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task BackupExportAndImport_WorkAcrossUsers()
     {
         using var client = factory.CreateClient();
