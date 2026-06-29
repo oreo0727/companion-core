@@ -5,7 +5,7 @@ using Companion.Core.Models;
 
 namespace Companion.Infrastructure.Tools;
 
-public class CalendarEventsTool(IConnectorSyncService connectorSyncService) : ITool
+public class CalendarEventsTool(ICalendarCapability calendarCapability) : ITool
 {
     public string Name => ToolNames.CalendarEvents;
 
@@ -19,7 +19,7 @@ public class CalendarEventsTool(IConnectorSyncService connectorSyncService) : IT
             ? Math.Clamp(parsedDaysAhead, 1, 30)
             : 7;
 
-        var events = await connectorSyncService.GetUpcomingCalendarEventsAsync(
+        var events = await calendarCapability.GetUpcomingEventsAsync(
             context.UserProfileId,
             daysAhead,
             audit: true,

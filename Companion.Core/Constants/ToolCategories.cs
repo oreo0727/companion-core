@@ -8,6 +8,8 @@ public static class ToolCategories
     public const string Knowledge = "Knowledge";
     public const string Calendar = "Calendar";
     public const string Email = "Email";
+    public const string Files = "Files";
+    public const string People = "People";
     public const string Notifications = "Notifications";
     public const string Desktop = "Desktop";
     public const string Home = "Home";

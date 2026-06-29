@@ -81,6 +81,8 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
 
     public DbSet<FileDocumentSnapshot> FileDocumentSnapshots => Set<FileDocumentSnapshot>();
 
+    public DbSet<ContactSnapshot> ContactSnapshots => Set<ContactSnapshot>();
+
     public DbSet<HomeDeviceSnapshot> HomeDeviceSnapshots => Set<HomeDeviceSnapshot>();
 
     public DbSet<HomeSensorSnapshot> HomeSensorSnapshots => Set<HomeSensorSnapshot>();
@@ -819,6 +821,29 @@ public class CompanionDbContext(DbContextOptions<CompanionDbContext> options)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.ConnectorConnection)
                 .WithMany(x => x.FileDocuments)
+                .HasForeignKey(x => x.ConnectorConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ContactSnapshot>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ExternalId).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(300).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(500);
+            entity.Property(x => x.Phone).HasMaxLength(100);
+            entity.Property(x => x.Organization).HasMaxLength(300);
+            entity.Property(x => x.PhotoUrl).HasMaxLength(1000);
+            entity.Property(x => x.CreatedUtc).IsRequired();
+            entity.Property(x => x.UpdatedUtc).IsRequired();
+            entity.HasIndex(x => new { x.ConnectorConnectionId, x.ExternalId }).IsUnique();
+            entity.HasIndex(x => new { x.UserProfileId, x.DisplayName });
+            entity.HasOne(x => x.UserProfile)
+                .WithMany(x => x.ContactSnapshots)
+                .HasForeignKey(x => x.UserProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ConnectorConnection)
+                .WithMany(x => x.Contacts)
                 .HasForeignKey(x => x.ConnectorConnectionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

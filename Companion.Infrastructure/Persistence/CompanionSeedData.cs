@@ -45,6 +45,14 @@ public static class CompanionSeedData
     public static readonly Guid DesktopMoveMouseToolDefinitionId = Guid.Parse("66a6ba23-ba4b-460d-a702-471f8a45c11c");
     public static readonly Guid HomeStatusToolDefinitionId = Guid.Parse("958fa14b-d110-4876-8910-d5ce7fda96cf");
     public static readonly Guid HomeExecuteActionToolDefinitionId = Guid.Parse("28e62394-96e8-4a82-a704-87c231168b89");
+    public static readonly Guid GetCalendarEventsToolDefinitionId = Guid.Parse("c2a652a6-8993-44a2-8544-199d72f1c82f");
+    public static readonly Guid FindFreeTimeToolDefinitionId = Guid.Parse("3d245f82-83fc-4463-9de4-ad5755b0ed3d");
+    public static readonly Guid SearchEmailToolDefinitionId = Guid.Parse("2f4e5670-78ed-45c7-91ac-5e594b2350ad");
+    public static readonly Guid ReadEmailToolDefinitionId = Guid.Parse("d5e08a36-ee5a-4ac1-aea2-45a6bbef5425");
+    public static readonly Guid CreateDraftEmailToolDefinitionId = Guid.Parse("09e97211-e943-490a-98a4-dd9e54491e68");
+    public static readonly Guid SearchDriveToolDefinitionId = Guid.Parse("fbf2bcda-6478-4a38-b634-a5bf61b3c6fb");
+    public static readonly Guid ReadDocumentToolDefinitionId = Guid.Parse("8afc4bb8-39d7-44bb-b819-bd0809616ccd");
+    public static readonly Guid FindContactToolDefinitionId = Guid.Parse("e20dbec7-6c98-492c-a77a-5f0eb708a09e");
     public static readonly Guid MemorySearchToolPermissionId = Guid.Parse("1a9f7783-8d03-4769-ab39-f9b8dc7bd3b4");
     public static readonly Guid CreateTaskToolPermissionId = Guid.Parse("b4608125-c91c-4a2a-ae17-68a4b0f4f6df");
     public static readonly Guid GetBriefingToolPermissionId = Guid.Parse("f2a6cdb9-212d-4f0f-92a1-0e2db84cf90f");
@@ -64,11 +72,20 @@ public static class CompanionSeedData
     public static readonly Guid DesktopMoveMouseToolPermissionId = Guid.Parse("7c321bae-cebe-4885-a65d-7dc4b12a7084");
     public static readonly Guid HomeStatusToolPermissionId = Guid.Parse("03a2bd81-1828-47bb-bd13-63906bf36ffc");
     public static readonly Guid HomeExecuteActionToolPermissionId = Guid.Parse("1146badc-054a-4c41-8e28-c62971546bc9");
+    public static readonly Guid GetCalendarEventsToolPermissionId = Guid.Parse("0e4b27dd-b922-4f48-b0d7-602da712bc69");
+    public static readonly Guid FindFreeTimeToolPermissionId = Guid.Parse("dd13d0fb-0997-4adf-85c2-688d7e214aa9");
+    public static readonly Guid SearchEmailToolPermissionId = Guid.Parse("86c0fc68-78e3-4e21-8f7b-15551e7f19ca");
+    public static readonly Guid ReadEmailToolPermissionId = Guid.Parse("9485d805-b4ed-4390-889a-5288662ac1bc");
+    public static readonly Guid CreateDraftEmailToolPermissionId = Guid.Parse("55158f57-0afa-44f9-b1b4-b125935b223e");
+    public static readonly Guid SearchDriveToolPermissionId = Guid.Parse("3becf8fe-0b33-471e-8e29-202a263b94dd");
+    public static readonly Guid ReadDocumentToolPermissionId = Guid.Parse("c7ec42f6-e4db-490c-9d16-625f7d8883c1");
+    public static readonly Guid FindContactToolPermissionId = Guid.Parse("252b24ec-2087-4c27-9297-848ba49c03e3");
     public static readonly Guid LocalCalendarConnectorDefinitionId = Guid.Parse("fb132d85-476e-48d2-81cb-4e6a1bf09cf5");
     public static readonly Guid LocalEmailConnectorDefinitionId = Guid.Parse("745e49ef-a388-4544-a416-8299d0fdadc0");
     public static readonly Guid GoogleCalendarConnectorDefinitionId = Guid.Parse("9fbe2c8b-64d0-4f33-99dd-d5ed38e3f112");
     public static readonly Guid GoogleDriveConnectorDefinitionId = Guid.Parse("239e0f35-92c9-4ad8-a835-94238efee721");
     public static readonly Guid GmailConnectorDefinitionId = Guid.Parse("3799b2f4-9691-4d92-a5ff-b36b8bc7c47d");
+    public static readonly Guid GooglePeopleConnectorDefinitionId = Guid.Parse("99b4da63-30e0-4ac2-9115-2f1207e6cc50");
     public static readonly Guid MicrosoftCalendarConnectorDefinitionId = Guid.Parse("179c4f6c-476a-457a-8c51-9466aa9c2d73");
     public static readonly Guid OneDriveConnectorDefinitionId = Guid.Parse("bc0465b0-d97b-4cc6-b363-f10104766a24");
     public static readonly Guid OutlookMailConnectorDefinitionId = Guid.Parse("e2942c91-6a65-47b0-8978-a914c5b8bcf4");
@@ -728,6 +745,94 @@ public static class CompanionSeedData
             RequiresApproval = true,
             Enabled = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = GetCalendarEventsToolDefinitionId,
+            Name = ToolNames.GetCalendarEvents,
+            Description = "Retrieve upcoming meetings through the calendar capability.",
+            Category = ToolCategories.Calendar,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = FindFreeTimeToolDefinitionId,
+            Name = ToolNames.FindFreeTime,
+            Description = "Find open calendar focus blocks and conflicts through the calendar capability.",
+            Category = ToolCategories.Calendar,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = SearchEmailToolDefinitionId,
+            Name = ToolNames.SearchEmail,
+            Description = "Search read-only email snapshots through the email capability.",
+            Category = ToolCategories.Email,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = ReadEmailToolDefinitionId,
+            Name = ToolNames.ReadEmail,
+            Description = "Read a single email snapshot through the email capability.",
+            Category = ToolCategories.Email,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = CreateDraftEmailToolDefinitionId,
+            Name = ToolNames.CreateDraftEmail,
+            Description = "Create a draft email after approval; sending is not supported.",
+            Category = ToolCategories.Email,
+            RiskLevel = ToolRiskLevel.Medium,
+            RequiresApproval = true,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = SearchDriveToolDefinitionId,
+            Name = ToolNames.SearchDrive,
+            Description = "Search file snapshots through the file capability.",
+            Category = ToolCategories.Files,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = ReadDocumentToolDefinitionId,
+            Name = ToolNames.ReadDocument,
+            Description = "Read file metadata and preview text through the file capability.",
+            Category = ToolCategories.Files,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolDefinition
+        {
+            Id = FindContactToolDefinitionId,
+            Name = ToolNames.FindContact,
+            Description = "Find contacts through the people capability.",
+            Category = ToolCategories.People,
+            RiskLevel = ToolRiskLevel.Low,
+            RequiresApproval = false,
+            Enabled = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
@@ -884,6 +989,70 @@ public static class CompanionSeedData
             ToolDefinitionId = HomeExecuteActionToolDefinitionId,
             Allowed = true,
             CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = GetCalendarEventsToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = GetCalendarEventsToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = FindFreeTimeToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = FindFreeTimeToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = SearchEmailToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = SearchEmailToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = ReadEmailToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = ReadEmailToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = CreateDraftEmailToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = CreateDraftEmailToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = SearchDriveToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = SearchDriveToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = ReadDocumentToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = ReadDocumentToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
+        },
+        new ToolPermission
+        {
+            Id = FindContactToolPermissionId,
+            UserProfileId = CompanionDefaults.LocalUserProfileId,
+            ToolDefinitionId = FindContactToolDefinitionId,
+            Allowed = true,
+            CreatedUtc = ToolCreatedUtc
         }
     ];
 
@@ -944,6 +1113,18 @@ public static class CompanionSeedData
             Provider = ConnectorProviders.Gmail,
             Description = "Read-only Gmail connector prepared for OAuth-based message synchronization.",
             Category = ConnectorCategories.Email,
+            SupportsOAuth = true,
+            RiskLevel = ConnectorRiskLevel.Low,
+            Enabled = true,
+            CreatedUtc = OAuthCreatedUtc
+        },
+        new ConnectorDefinition
+        {
+            Id = GooglePeopleConnectorDefinitionId,
+            Name = "Google People",
+            Provider = ConnectorProviders.GooglePeople,
+            Description = "Read-only Google People connector prepared for OAuth-based contact synchronization.",
+            Category = ConnectorCategories.People,
             SupportsOAuth = true,
             RiskLevel = ConnectorRiskLevel.Low,
             Enabled = true,
@@ -1081,7 +1262,7 @@ public static class CompanionSeedData
             AuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth",
             TokenEndpoint = "https://oauth2.googleapis.com/token",
             RevocationEndpoint = "https://oauth2.googleapis.com/revoke",
-            DefaultScopes = "openid email profile",
+            DefaultScopes = "openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/contacts.readonly",
             ClientIdSecretName = "OAuth:Google:ClientId",
             ClientSecretSecretName = "OAuth:Google:ClientSecret",
             Enabled = true,

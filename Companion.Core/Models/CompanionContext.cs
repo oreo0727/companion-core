@@ -12,6 +12,8 @@ public sealed record CompanionContext(
     IReadOnlyList<Project> ActiveProjects,
     IReadOnlyList<CalendarEventSnapshot> UpcomingCalendarEvents,
     IReadOnlyList<EmailMessageSnapshot> ImportantRecentEmails,
+    IReadOnlyList<FileDocumentSnapshot> RecentlyOpenedDocuments,
+    IReadOnlyList<ContactSnapshot> RelevantContacts,
     IReadOnlyList<Reminder> UpcomingReminders,
     IReadOnlyList<Notification> UnreadNotifications,
     IReadOnlyList<KnowledgeSearchResult> RelevantKnowledge,

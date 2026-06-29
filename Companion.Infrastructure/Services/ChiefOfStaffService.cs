@@ -13,7 +13,10 @@ public partial class ChiefOfStaffService(
     IGoalService goalService,
     IProjectService projectService,
     IOpenLoopService openLoopService,
-    IConnectorSyncService connectorSyncService,
+    ICalendarCapability calendarCapability,
+    IEmailCapability emailCapability,
+    IFileCapability fileCapability,
+    IPeopleCapability peopleCapability,
     INotificationService notificationService,
     TimeProvider timeProvider) : IChiefOfStaffService
 {
@@ -132,6 +135,7 @@ public partial class ChiefOfStaffService(
     {
         var context = await LoadContextAsync(userProfileId, cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        var calendarSummary = await calendarCapability.GetSummaryAsync(userProfileId, daysAhead: 7, audit: false, cancellationToken);
 
         return new CompanionBriefing(
             context.OpenTasks,
@@ -146,6 +150,9 @@ public partial class ChiefOfStaffService(
             context.Projects,
             context.UpcomingCalendarEvents,
             context.ImportantRecentEmails,
+            calendarSummary.FreeTime.Take(5).ToList(),
+            context.RecentlyOpenedDocuments,
+            context.RelevantContacts,
             context.OpenLoops,
             context.ProjectSuggestions,
             context.GoalSuggestions,
@@ -250,15 +257,25 @@ public partial class ChiefOfStaffService(
                 .OrderByDescending(x => x.Priority)
                 .ThenByDescending(x => x.UpdatedUtc)
                 .ToListAsync(cancellationToken),
-            await connectorSyncService.GetUpcomingCalendarEventsAsync(
+            await calendarCapability.GetUpcomingEventsAsync(
                 userProfileId,
                 daysAhead: 7,
                 audit: false,
                 cancellationToken: cancellationToken),
-            await connectorSyncService.GetRecentEmailMessagesAsync(
+            await emailCapability.GetImportantRecentAsync(
                 userProfileId,
                 daysBack: 14,
                 limit: 12,
+                audit: false,
+                cancellationToken: cancellationToken),
+            await fileCapability.GetRecentAsync(
+                userProfileId,
+                limit: 6,
+                audit: false,
+                cancellationToken: cancellationToken),
+            await peopleCapability.GetRelevantContactsAsync(
+                userProfileId,
+                limit: 6,
                 audit: false,
                 cancellationToken: cancellationToken),
             await notificationService.GetUpcomingRemindersAsync(
@@ -735,6 +752,8 @@ public partial class ChiefOfStaffService(
         IReadOnlyList<Project> Projects,
         IReadOnlyList<CalendarEventSnapshot> UpcomingCalendarEvents,
         IReadOnlyList<EmailMessageSnapshot> ImportantRecentEmails,
+        IReadOnlyList<FileDocumentSnapshot> RecentlyOpenedDocuments,
+        IReadOnlyList<ContactSnapshot> RelevantContacts,
         IReadOnlyList<Reminder> UpcomingReminders,
         IReadOnlyList<Notification> UnreadNotifications,
         IReadOnlyList<OpenLoop> OpenLoops,

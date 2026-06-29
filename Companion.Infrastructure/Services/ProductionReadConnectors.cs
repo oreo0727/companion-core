@@ -155,6 +155,18 @@ public abstract class OAuthReadConnectorBase(
         value = element;
         foreach (var part in path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
+            if (value.ValueKind == JsonValueKind.Array && int.TryParse(part, out var index))
+            {
+                if (index < 0 || index >= value.GetArrayLength())
+                {
+                    value = default;
+                    return false;
+                }
+
+                value = value[index];
+                continue;
+            }
+
             if (!TryGetPropertyCaseInsensitive(value, part, out value))
             {
                 value = default;
@@ -358,6 +370,61 @@ public abstract class FileOAuthReadConnector(
     }
 }
 
+public abstract class PeopleOAuthReadConnector(
+    HttpClient httpClient,
+    CompanionDbContext dbContext,
+    IOAuthTokenProtector tokenProtector,
+    TimeProvider timeProvider) : OAuthReadConnectorBase(httpClient, dbContext, tokenProtector, timeProvider)
+{
+    protected override async Task<ConnectorSyncResult> SyncDocumentAsync(ConnectorSyncContext context, JsonElement root)
+    {
+        var now = UtcNow;
+        var imported = 0;
+
+        foreach (var item in ReadArray(root, "contacts", "connections", "people"))
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            var displayName = ReadString(item, "displayName", "names.0.displayName", "names.0.unstructuredName", "name");
+            var email = ReadString(item, "email", "emailAddresses.0.value");
+            if (string.IsNullOrWhiteSpace(displayName) && string.IsNullOrWhiteSpace(email))
+            {
+                continue;
+            }
+
+            var externalId = ReadString(item, "externalId", "resourceName", "id") ?? email ?? displayName!;
+            var snapshot = await DbContext.ContactSnapshots.FirstOrDefaultAsync(
+                x => x.ConnectorConnectionId == context.Connection.Id && x.ExternalId == externalId,
+                context.CancellationToken);
+
+            if (snapshot is null)
+            {
+                snapshot = new ContactSnapshot
+                {
+                    Id = Guid.NewGuid(),
+                    UserProfileId = context.UserProfileId,
+                    ConnectorConnectionId = context.Connection.Id,
+                    ExternalId = externalId,
+                    CreatedUtc = now
+                };
+                DbContext.ContactSnapshots.Add(snapshot);
+            }
+
+            snapshot.DisplayName = displayName ?? email ?? "Unnamed contact";
+            snapshot.Email = email;
+            snapshot.Phone = ReadString(item, "phone", "phoneNumbers.0.value");
+            snapshot.Organization = ReadString(item, "organization", "organizations.0.name", "organizations.0.title");
+            snapshot.BirthdayUtc = ReadUtc(item, "birthdayUtc", "birthdays.0.date");
+            snapshot.PhotoUrl = ReadString(item, "photoUrl", "photos.0.url");
+            snapshot.UpdatedUtc = now;
+            imported++;
+        }
+
+        await DbContext.SaveChangesAsync(context.CancellationToken);
+        return new ConnectorSyncResult(imported, $"Synced {imported} contact snapshot(s).");
+    }
+}
+
 public sealed class GoogleCalendarReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)
     : CalendarOAuthReadConnector(httpClient, dbContext, tokenProtector, timeProvider)
 {
@@ -380,6 +447,14 @@ public sealed class GoogleDriveReadConnector(HttpClient httpClient, CompanionDbC
     public override string Name => "Google Drive";
     public override string Provider => ConnectorProviders.GoogleDrive;
     protected override string Endpoint => "https://www.googleapis.com/drive/v3/files?fields=files(id,name,mimeType,webViewLink,modifiedTime,description)";
+}
+
+public sealed class GooglePeopleReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)
+    : PeopleOAuthReadConnector(httpClient, dbContext, tokenProtector, timeProvider)
+{
+    public override string Name => "Google People";
+    public override string Provider => ConnectorProviders.GooglePeople;
+    protected override string Endpoint => "https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers,organizations,birthdays,photos";
 }
 
 public sealed class MicrosoftCalendarReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)

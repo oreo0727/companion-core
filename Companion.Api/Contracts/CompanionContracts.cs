@@ -364,6 +364,21 @@ public sealed record FileDocumentSnapshotResponse(
     DateTime UpdatedUtc,
     string? ConnectorDisplayName);
 
+public sealed record ContactSnapshotResponse(
+    Guid Id,
+    Guid UserProfileId,
+    Guid ConnectorConnectionId,
+    string ExternalId,
+    string DisplayName,
+    string? Email,
+    string? Phone,
+    string? Organization,
+    DateTime? BirthdayUtc,
+    string? PhotoUrl,
+    DateTime CreatedUtc,
+    DateTime UpdatedUtc,
+    string? ConnectorDisplayName);
+
 public sealed record HomeDeviceSnapshotResponse(
     Guid Id,
     Guid UserProfileId,
@@ -635,6 +650,9 @@ public sealed record CompanionBriefingResponse(
     IReadOnlyList<ProjectResponse> Projects,
     IReadOnlyList<CalendarEventSnapshotResponse> UpcomingCalendarEvents,
     IReadOnlyList<EmailMessageSnapshotResponse> ImportantRecentEmails,
+    IReadOnlyList<FreeTimeBlock> SuggestedFocusBlocks,
+    IReadOnlyList<FileDocumentSnapshotResponse> RecentlyOpenedDocuments,
+    IReadOnlyList<ContactSnapshotResponse> RelevantContacts,
     IReadOnlyList<OpenLoopResponse> OpenLoops,
     IReadOnlyList<ProjectSuggestionResponse> ProjectSuggestions,
     IReadOnlyList<GoalSuggestionResponse> GoalSuggestions,
@@ -1103,6 +1121,24 @@ public static class CompanionApiMappings
             snapshot.ConnectorConnection?.DisplayName);
     }
 
+    public static ContactSnapshotResponse ToResponse(this ContactSnapshot snapshot)
+    {
+        return new ContactSnapshotResponse(
+            snapshot.Id,
+            snapshot.UserProfileId,
+            snapshot.ConnectorConnectionId,
+            snapshot.ExternalId,
+            snapshot.DisplayName,
+            snapshot.Email,
+            snapshot.Phone,
+            snapshot.Organization,
+            snapshot.BirthdayUtc,
+            snapshot.PhotoUrl,
+            snapshot.CreatedUtc,
+            snapshot.UpdatedUtc,
+            snapshot.ConnectorConnection?.DisplayName);
+    }
+
     public static HomeDeviceSnapshotResponse ToResponse(this HomeDeviceSnapshot snapshot)
     {
         return new HomeDeviceSnapshotResponse(
@@ -1349,6 +1385,9 @@ public static class CompanionApiMappings
             briefing.Projects.Select(x => x.ToResponse()).ToList(),
             briefing.UpcomingCalendarEvents.Select(x => x.ToResponse()).ToList(),
             briefing.ImportantRecentEmails.Select(x => x.ToResponse()).ToList(),
+            briefing.SuggestedFocusBlocks,
+            briefing.RecentlyOpenedDocuments.Select(x => x.ToResponse()).ToList(),
+            briefing.RelevantContacts.Select(x => x.ToResponse()).ToList(),
             briefing.OpenLoops.Select(x => x.ToResponse()).ToList(),
             briefing.ProjectSuggestions.Select(x => x.ToResponse()).ToList(),
             briefing.GoalSuggestions.Select(x => x.ToResponse()).ToList(),

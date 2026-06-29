@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   Database,
+  FileText,
   FolderKanban,
   Goal,
   Home,
@@ -26,6 +27,7 @@ import {
   Settings,
   ShieldCheck,
   Sun,
+  Users,
   Wrench
 } from "lucide-react";
 import Link from "next/link";
@@ -45,11 +47,14 @@ const navItems = [
   { href: "/open-loops", label: "Open Loops", icon: Activity },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/email", label: "Email", icon: Mail },
+  { href: "/drive", label: "Drive", icon: FileText },
+  { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/approvals", label: "Approvals", icon: ClipboardCheck },
   { href: "/tool-executions", label: "Tool Executions", icon: Wrench },
   { href: "/audit", label: "Audit", icon: ShieldCheck },
   { href: "/admin-health", label: "Health", icon: MonitorCog },
+  { href: "/google-account", label: "Google", icon: Plug },
   { href: "/connectors", label: "Connectors", icon: Plug },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/ai-settings", label: "AI Settings", icon: KeyRound }

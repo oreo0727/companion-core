@@ -189,6 +189,22 @@ public class ChiefOfStaffReasoningEngine(
                     x.HasAttachments,
                     x.IsAnswered
                 }),
+                recentlyOpenedDocuments = context.RecentlyOpenedDocuments.Select(x => new
+                {
+                    x.Name,
+                    x.MimeType,
+                    x.WebUrl,
+                    x.PreviewText,
+                    x.ModifiedUtc
+                }),
+                relevantContacts = context.RelevantContacts.Select(x => new
+                {
+                    x.DisplayName,
+                    x.Email,
+                    x.Phone,
+                    x.Organization,
+                    x.BirthdayUtc
+                }),
                 upcomingReminders = context.UpcomingReminders.Select(x => new
                 {
                     x.Title,

@@ -310,7 +310,8 @@ public class OAuthService(
             OAuthProviders.Google => connectorProvider is
                 ConnectorProviders.GoogleCalendar or
                 ConnectorProviders.GoogleDrive or
-                ConnectorProviders.Gmail,
+                ConnectorProviders.Gmail or
+                ConnectorProviders.GooglePeople,
             OAuthProviders.Microsoft => connectorProvider is
                 ConnectorProviders.MicrosoftCalendar or
                 ConnectorProviders.OneDrive or

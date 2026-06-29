@@ -7,41 +7,39 @@ using Microsoft.AspNetCore.Mvc;
 namespace Companion.Api.Controllers;
 
 [ApiController]
-[Route("api/email")]
+[Route("api/contacts")]
 [Authorize]
-public class EmailController(IEmailCapability emailCapability) : ControllerBase
+public class ContactsController(IPeopleCapability peopleCapability) : ControllerBase
 {
-    [HttpGet("messages")]
-    [ProducesResponseType(typeof(IEnumerable<EmailMessageSnapshotResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<EmailMessageSnapshotResponse>>> GetRecentMessages(
-        [FromQuery] int daysBack = 14,
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<ContactSnapshotResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<ContactSnapshotResponse>>> GetContacts(
         [FromQuery] int limit = 25,
         CancellationToken cancellationToken = default)
     {
-        var messages = await emailCapability.GetImportantRecentAsync(
+        var contacts = await peopleCapability.GetRelevantContactsAsync(
             User.GetRequiredUserProfileId(),
-            Math.Clamp(daysBack, 1, 90),
             Math.Clamp(limit, 1, 100),
             audit: true,
             cancellationToken: cancellationToken);
 
-        return Ok(messages.Select(x => x.ToResponse()));
+        return Ok(contacts.Select(x => x.ToResponse()));
     }
 
     [HttpGet("search")]
-    [ProducesResponseType(typeof(IEnumerable<EmailMessageSnapshotResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<EmailMessageSnapshotResponse>>> SearchMessages(
+    [ProducesResponseType(typeof(IEnumerable<ContactSnapshotResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<ContactSnapshotResponse>>> SearchContacts(
         [FromQuery] string query = "",
         [FromQuery] int limit = 25,
         CancellationToken cancellationToken = default)
     {
-        var messages = await emailCapability.SearchAsync(
+        var contacts = await peopleCapability.SearchAsync(
             User.GetRequiredUserProfileId(),
             query,
             Math.Clamp(limit, 1, 100),
             audit: true,
             cancellationToken: cancellationToken);
 
-        return Ok(messages.Select(x => x.ToResponse()));
+        return Ok(contacts.Select(x => x.ToResponse()));
     }
 }

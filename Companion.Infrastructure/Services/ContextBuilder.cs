@@ -10,7 +10,10 @@ namespace Companion.Infrastructure.Services;
 public class ContextBuilder(
     CompanionDbContext dbContext,
     IChiefOfStaffService chiefOfStaffService,
-    IConnectorSyncService connectorSyncService,
+    ICalendarCapability calendarCapability,
+    IEmailCapability emailCapability,
+    IFileCapability fileCapability,
+    IPeopleCapability peopleCapability,
     INotificationService notificationService,
     IKnowledgeSearchService knowledgeSearchService,
     TimeProvider timeProvider) : IContextBuilder
@@ -63,15 +66,25 @@ public class ContextBuilder(
         recentMessages.Reverse();
 
         var relevantMemories = await SelectRelevantMemoriesAsync(userProfileId, recentMessages, conversation.ActiveTopic, now, cancellationToken);
-        var upcomingCalendarEvents = await connectorSyncService.GetUpcomingCalendarEventsAsync(
+        var upcomingCalendarEvents = await calendarCapability.GetUpcomingEventsAsync(
             userProfileId,
             daysAhead: 7,
             audit: false,
             cancellationToken: cancellationToken);
-        var importantRecentEmails = await connectorSyncService.GetRecentEmailMessagesAsync(
+        var importantRecentEmails = await emailCapability.GetImportantRecentAsync(
             userProfileId,
             daysBack: 14,
             limit: 8,
+            audit: false,
+            cancellationToken: cancellationToken);
+        var recentlyOpenedDocuments = await fileCapability.GetRecentAsync(
+            userProfileId,
+            limit: 5,
+            audit: false,
+            cancellationToken: cancellationToken);
+        var relevantContacts = await peopleCapability.GetRelevantContactsAsync(
+            userProfileId,
+            limit: 5,
             audit: false,
             cancellationToken: cancellationToken);
         var upcomingReminders = await notificationService.GetUpcomingRemindersAsync(
@@ -147,6 +160,8 @@ public class ContextBuilder(
             activeProjects,
             upcomingCalendarEvents,
             importantRecentEmails,
+            recentlyOpenedDocuments,
+            relevantContacts,
             upcomingReminders,
             unreadNotifications,
             relevantKnowledge,

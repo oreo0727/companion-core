@@ -20,6 +20,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Read-only connector framework with connector definitions, user connections, sync runs, calendar snapshots, and email snapshots
 - OAuth foundation for Google and Microsoft connector consent, encrypted token storage, scope tracking, and connection lifecycle
 - Production read connectors for Google Calendar, Google Drive, Gmail, Microsoft Calendar, OneDrive, and Outlook Mail
+- Provider-independent capability layer for Calendar, Email, Files, and People, with Google Calendar, Gmail, Drive, and People as the first production capability set
 - Voice platform architecture with STT/TTS abstractions, sessions, interruption, wake sessions, conversation history, and streaming-ready responses
 - React Native Expo mobile app for chat, voice, dashboard, tasks, approvals, notifications, briefings, offline cache, and biometric local unlock
 - Desktop automation tool runtime for approved file, screenshot, clipboard, terminal, keyboard, mouse, and application-launch actions
@@ -221,6 +222,10 @@ docker compose up --build
 - `GET /api/email/messages`
 - `GET /api/email/search`
 - `GET /api/files/documents`
+- `GET /api/files/search`
+- `GET /api/files/documents/{id}`
+- `GET /api/contacts`
+- `GET /api/contacts/search`
 - `GET /api/voice/providers`
 - `POST /api/voice/wake`
 - `POST /api/voice/sessions`
@@ -348,6 +353,7 @@ The migrations seed:
 - Monitor health, diagnostics, logs, smoke-test status, backup, and restore at `/admin-health`.
 - Test AI providers from `/ai-settings`.
 - Test connectors from `/connectors`.
+- Inspect Google capability connections from `/google-account`.
 - Export backups with `GET /api/system/backup/export`.
 - Restore backups with `POST /api/system/backup/import`.
 
@@ -368,15 +374,19 @@ Backup exports contain user-owned preferences, active memories, tasks, goals, pr
 - [Desktop Automation](docs/DESKTOP_AUTOMATION.md)
 - [Connectors](docs/CONNECTORS.md)
 - [Calendar Connector](docs/CALENDAR_CONNECTOR.md)
+- [Capability Model](docs/CAPABILITY_MODEL.md)
 - [Email Connector](docs/EMAIL_CONNECTOR.md)
+- [Google Capability](docs/GOOGLE_CAPABILITY.md)
 - [Home Automation](docs/HOME_AUTOMATION.md)
 - [Knowledge Layer](docs/KNOWLEDGE.md)
 - [Learning](docs/LEARNING.md)
 - [Notifications](docs/NOTIFICATIONS.md)
 - [Mobile Application](docs/MOBILE.md)
 - [OAuth Foundation](docs/OAUTH.md)
+- [Google OAuth](docs/OAUTH_GOOGLE.md)
 - [Operating System](docs/OPERATING_SYSTEM.md)
 - [Production Connectors](docs/PRODUCTION_CONNECTORS.md)
+- [Sync Engine](docs/SYNC_ENGINE.md)
 - [Tool Runtime](docs/TOOLS.md)
 - [Voice Platform](docs/VOICE.md)
 - [Web Application](docs/WEB_APPLICATION.md)

@@ -32,6 +32,10 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
             connectorsDocument.RootElement.EnumerateArray(),
             x => x.GetProperty("definition").GetProperty("provider").GetString() == "GoogleCalendar" &&
                  x.GetProperty("definition").GetProperty("supportsOAuth").GetBoolean());
+        Assert.Contains(
+            connectorsDocument.RootElement.EnumerateArray(),
+            x => x.GetProperty("definition").GetProperty("provider").GetString() == "GooglePeople" &&
+                 x.GetProperty("definition").GetProperty("supportsOAuth").GetBoolean());
 
         using var authorizeResponse = await authenticatedClient.PostAsJsonAsync("/api/oauth/Google/authorize", new
         {
@@ -112,6 +116,7 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
         var googleCalendarConnectionId = await ConnectOAuthAsync(authenticatedClient, "Google", "GoogleCalendar", $"Google Calendar {suffix}");
         var googleDriveConnectionId = await ConnectOAuthAsync(authenticatedClient, "Google", "GoogleDrive", $"Google Drive {suffix}");
         var gmailConnectionId = await ConnectOAuthAsync(authenticatedClient, "Google", "Gmail", $"Gmail {suffix}");
+        var googlePeopleConnectionId = await ConnectOAuthAsync(authenticatedClient, "Google", "GooglePeople", $"Google People {suffix}");
         var microsoftCalendarConnectionId = await ConnectOAuthAsync(authenticatedClient, "Microsoft", "MicrosoftCalendar", $"Microsoft Calendar {suffix}");
         var oneDriveConnectionId = await ConnectOAuthAsync(authenticatedClient, "Microsoft", "OneDrive", $"OneDrive {suffix}");
         var outlookConnectionId = await ConnectOAuthAsync(authenticatedClient, "Microsoft", "OutlookMail", $"Outlook {suffix}");
@@ -209,6 +214,23 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
             }
         });
 
+        var contactName = $"Ada Lovelace {suffix}";
+        await SyncAsync(authenticatedClient, googlePeopleConnectionId, new
+        {
+            connections = new[]
+            {
+                new
+                {
+                    resourceName = $"people/{suffix}",
+                    names = new[] { new { displayName = contactName } },
+                    emailAddresses = new[] { new { value = $"ada-{suffix}@example.com" } },
+                    phoneNumbers = new[] { new { value = "555-0100" } },
+                    organizations = new[] { new { name = "Analytical Engines" } },
+                    photos = new[] { new { url = "https://people.example/photo.jpg" } }
+                }
+            }
+        });
+
         var oneDriveName = $"OneDrive Notes {suffix}.docx";
         await SyncAsync(authenticatedClient, oneDriveConnectionId, new
         {
@@ -241,6 +263,31 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
         using var fileDocument = JsonDocument.Parse(await fileResponse.Content.ReadAsStringAsync());
         Assert.Contains(fileDocument.RootElement.EnumerateArray(), x => x.GetProperty("name").GetString() == googleDriveName);
         Assert.Contains(fileDocument.RootElement.EnumerateArray(), x => x.GetProperty("name").GetString() == oneDriveName);
+
+        using var fileSearchResponse = await authenticatedClient.GetAsync($"/api/files/search?query={Uri.EscapeDataString("Drive Spec")}");
+        fileSearchResponse.EnsureSuccessStatusCode();
+        using var fileSearchDocument = JsonDocument.Parse(await fileSearchResponse.Content.ReadAsStringAsync());
+        Assert.Contains(fileSearchDocument.RootElement.EnumerateArray(), x => x.GetProperty("name").GetString() == googleDriveName);
+
+        using var contactsResponse = await authenticatedClient.GetAsync($"/api/contacts/search?query={Uri.EscapeDataString("Ada")}");
+        contactsResponse.EnsureSuccessStatusCode();
+        using var contactsDocument = JsonDocument.Parse(await contactsResponse.Content.ReadAsStringAsync());
+        Assert.Contains(contactsDocument.RootElement.EnumerateArray(), x => x.GetProperty("displayName").GetString() == contactName);
+
+        using var toolsResponse = await authenticatedClient.GetAsync("/api/tools");
+        toolsResponse.EnsureSuccessStatusCode();
+        using var toolsDocument = JsonDocument.Parse(await toolsResponse.Content.ReadAsStringAsync());
+        var toolNames = toolsDocument.RootElement.EnumerateArray()
+            .Select(x => x.GetProperty("name").GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("GetCalendarEvents", toolNames);
+        Assert.Contains("FindFreeTime", toolNames);
+        Assert.Contains("SearchEmail", toolNames);
+        Assert.Contains("ReadEmail", toolNames);
+        Assert.Contains("CreateDraftEmail", toolNames);
+        Assert.Contains("SearchDrive", toolNames);
+        Assert.Contains("ReadDocument", toolNames);
+        Assert.Contains("FindContact", toolNames);
     }
 
     private async Task<HttpClient> CreateSeedAdminClientAsync()
@@ -274,7 +321,7 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
             connectorProvider,
             displayName,
             redirectUri = "http://localhost:3000/connectors/oauth/callback",
-            scopes = new[] { "openid", "profile" }
+            scopes = ScopesFor(provider, connectorProvider)
         });
         authorizeResponse.EnsureSuccessStatusCode();
         using var authorizeDocument = JsonDocument.Parse(await authorizeResponse.Content.ReadAsStringAsync());
@@ -289,11 +336,28 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
             expiresUtc = DateTime.UtcNow.AddHours(1),
             subject = $"{provider}-{connectorProvider}-{Guid.NewGuid():N}",
             displayName,
-            scopes = new[] { "openid", "profile" }
+            scopes = ScopesFor(provider, connectorProvider)
         });
         callbackResponse.EnsureSuccessStatusCode();
         using var callbackDocument = JsonDocument.Parse(await callbackResponse.Content.ReadAsStringAsync());
         return callbackDocument.RootElement.GetProperty("connectionId").GetGuid();
+    }
+
+    private static string[] ScopesFor(string provider, string connectorProvider)
+    {
+        if (provider == "Google")
+        {
+            return connectorProvider switch
+            {
+                "GoogleCalendar" => ["openid", "email", "profile", "https://www.googleapis.com/auth/calendar.readonly"],
+                "Gmail" => ["openid", "email", "profile", "https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.compose"],
+                "GoogleDrive" => ["openid", "email", "profile", "https://www.googleapis.com/auth/drive.readonly"],
+                "GooglePeople" => ["openid", "email", "profile", "https://www.googleapis.com/auth/contacts.readonly"],
+                _ => ["openid", "email", "profile"]
+            };
+        }
+
+        return ["openid", "profile"];
     }
 
     private static async Task SyncAsync(HttpClient authenticatedClient, Guid connectionId, object payload)

@@ -44,6 +44,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<GoogleCalendarReadConnector>();
         services.AddHttpClient<GoogleDriveReadConnector>();
         services.AddHttpClient<GmailReadConnector>();
+        services.AddHttpClient<GooglePeopleReadConnector>();
         services.AddHttpClient<MicrosoftCalendarReadConnector>();
         services.AddHttpClient<OneDriveReadConnector>();
         services.AddHttpClient<OutlookMailReadConnector>();
@@ -83,6 +84,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<GoogleCalendarReadConnector>());
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<GoogleDriveReadConnector>());
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<GmailReadConnector>());
+        services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<GooglePeopleReadConnector>());
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<MicrosoftCalendarReadConnector>());
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<OneDriveReadConnector>());
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<OutlookMailReadConnector>());
@@ -95,6 +97,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IConnector>(serviceProvider => serviceProvider.GetRequiredService<MqttHomeConnector>());
         services.AddScoped<IConnectorRegistry, ConnectorRegistry>();
         services.AddScoped<IConnectorSyncService, ConnectorSyncService>();
+        services.AddScoped<ICalendarCapability, CalendarCapability>();
+        services.AddScoped<IEmailCapability, EmailCapability>();
+        services.AddScoped<IFileCapability, FileCapability>();
+        services.AddScoped<IPeopleCapability, PeopleCapability>();
         services.AddScoped<IOAuthService, OAuthService>();
         services.AddScoped<IKnowledgeImporter, KnowledgeImporter>();
         services.AddScoped<IKnowledgeSearchService, KnowledgeSearchService>();
@@ -117,6 +123,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITool, DesktopMoveMouseTool>();
         services.AddScoped<ITool, HomeStatusTool>();
         services.AddScoped<ITool, HomeExecuteActionTool>();
+        services.AddScoped<ITool, GetCalendarEventsTool>();
+        services.AddScoped<ITool, FindFreeTimeTool>();
+        services.AddScoped<ITool, SearchEmailTool>();
+        services.AddScoped<ITool, ReadEmailTool>();
+        services.AddScoped<ITool, CreateDraftEmailTool>();
+        services.AddScoped<ITool, SearchDriveTool>();
+        services.AddScoped<ITool, ReadDocumentTool>();
+        services.AddScoped<ITool, FindContactTool>();
         services.AddScoped<IToolRegistry, ToolRegistry>();
         services.AddScoped<IToolExecutor, ToolExecutor>();
         services.AddScoped<IContextBuilder, ContextBuilder>();

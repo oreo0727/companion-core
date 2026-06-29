@@ -36,6 +36,8 @@ public class ConnectorConnection
 
     public ICollection<FileDocumentSnapshot> FileDocuments { get; set; } = new List<FileDocumentSnapshot>();
 
+    public ICollection<ContactSnapshot> Contacts { get; set; } = new List<ContactSnapshot>();
+
     public ICollection<HomeDeviceSnapshot> HomeDevices { get; set; } = new List<HomeDeviceSnapshot>();
 
     public ICollection<HomeSensorSnapshot> HomeSensors { get; set; } = new List<HomeSensorSnapshot>();

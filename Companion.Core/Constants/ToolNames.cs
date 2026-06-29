@@ -7,7 +7,15 @@ public static class ToolNames
     public const string GetBriefing = "GetBriefing";
     public const string KnowledgeSearch = "KnowledgeSearch";
     public const string CalendarEvents = "CalendarEvents";
+    public const string GetCalendarEvents = "GetCalendarEvents";
+    public const string FindFreeTime = "FindFreeTime";
     public const string EmailSearch = "EmailSearch";
+    public const string SearchEmail = "SearchEmail";
+    public const string ReadEmail = "ReadEmail";
+    public const string CreateDraftEmail = "CreateDraftEmail";
+    public const string SearchDrive = "SearchDrive";
+    public const string ReadDocument = "ReadDocument";
+    public const string FindContact = "FindContact";
     public const string CreateReminder = "CreateReminder";
     public const string ListNotifications = "ListNotifications";
     public const string DesktopReadFile = "DesktopReadFile";

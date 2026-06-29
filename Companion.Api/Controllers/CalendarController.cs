@@ -9,7 +9,7 @@ namespace Companion.Api.Controllers;
 [ApiController]
 [Route("api/calendar")]
 [Authorize]
-public class CalendarController(IConnectorSyncService connectorSyncService) : ControllerBase
+public class CalendarController(ICalendarCapability calendarCapability) : ControllerBase
 {
     [HttpGet("events")]
     [ProducesResponseType(typeof(IEnumerable<CalendarEventSnapshotResponse>), StatusCodes.Status200OK)]
@@ -17,7 +17,7 @@ public class CalendarController(IConnectorSyncService connectorSyncService) : Co
         [FromQuery] int daysAhead = 7,
         CancellationToken cancellationToken = default)
     {
-        var events = await connectorSyncService.GetUpcomingCalendarEventsAsync(
+        var events = await calendarCapability.GetUpcomingEventsAsync(
             User.GetRequiredUserProfileId(),
             Math.Clamp(daysAhead, 1, 30),
             audit: true,

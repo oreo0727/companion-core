@@ -5,7 +5,7 @@ using Companion.Core.Models;
 
 namespace Companion.Infrastructure.Tools;
 
-public class EmailSearchTool(IConnectorSyncService connectorSyncService) : ITool
+public class EmailSearchTool(IEmailCapability emailCapability) : ITool
 {
     public string Name => ToolNames.EmailSearch;
 
@@ -23,8 +23,8 @@ public class EmailSearchTool(IConnectorSyncService connectorSyncService) : ITool
             : 10;
 
         var messages = string.IsNullOrWhiteSpace(query)
-            ? await connectorSyncService.GetRecentEmailMessagesAsync(context.UserProfileId, 14, limit, audit: true, cancellationToken: context.CancellationToken)
-            : await connectorSyncService.SearchEmailMessagesAsync(context.UserProfileId, query, limit, audit: true, cancellationToken: context.CancellationToken);
+            ? await emailCapability.GetImportantRecentAsync(context.UserProfileId, 14, limit, audit: true, cancellationToken: context.CancellationToken)
+            : await emailCapability.SearchAsync(context.UserProfileId, query, limit, audit: true, cancellationToken: context.CancellationToken);
 
         var output = messages.Select(x => new
         {

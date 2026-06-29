@@ -254,7 +254,9 @@ public class AgentRuntime(
                     goals = reasoningResult.Context.ActiveGoals.Count,
                     projects = reasoningResult.Context.ActiveProjects.Count,
                     openLoops = reasoningResult.Context.OpenLoops.Count,
-                    approvals = reasoningResult.Context.PendingApprovals.Count
+                    approvals = reasoningResult.Context.PendingApprovals.Count,
+                    documents = reasoningResult.Context.RecentlyOpenedDocuments.Count,
+                    contacts = reasoningResult.Context.RelevantContacts.Count
                 },
                 suggestions = new
                 {
