@@ -11,7 +11,7 @@ export function Panel({
   return (
     <section
       className={clsx(
-        "rounded-md border border-line bg-surface-raised shadow-soft",
+        "rounded-md border border-line/80 bg-surface-raised/90 shadow-soft backdrop-blur",
         className
       )}
     >
