@@ -11,7 +11,9 @@ namespace Companion.Api.Controllers;
 [ApiController]
 [Route("api/settings/ai")]
 [Authorize(Roles = SystemRoles.Administrator)]
-public class AiSettingsController(IAiProviderConfigurationService configurationService) : ControllerBase
+public class AiSettingsController(
+    IAiProviderConfigurationService configurationService,
+    IEnumerable<IAIProvider> aiProviders) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<AiProviderConfigurationResponse>), StatusCodes.Status200OK)]
@@ -76,6 +78,56 @@ public class AiSettingsController(IAiProviderConfigurationService configurationS
             return NotFound();
         }
     }
+
+    [HttpPost("{provider}/test")]
+    [ProducesResponseType(typeof(AiProviderTestResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AiProviderTestResponse>> TestProvider(
+        string provider,
+        CancellationToken cancellationToken)
+    {
+        var aiProvider = aiProviders.FirstOrDefault(x => string.Equals(x.ProviderName, provider, StringComparison.OrdinalIgnoreCase));
+        if (aiProvider is null)
+        {
+            return NotFound();
+        }
+
+        var startedUtc = DateTime.UtcNow;
+        try
+        {
+            var result = await aiProvider.CompleteAsync(
+                new AiCompletionRequest(
+                    [
+                        new AiMessage("system", "You are a health-check endpoint. Reply with a short plain-text status."),
+                        new AiMessage("user", "Return a five word or shorter Companion provider health response.")
+                    ],
+                    Temperature: 0,
+                    MaxTokens: 32),
+                cancellationToken);
+
+            return Ok(new AiProviderTestResponse(
+                provider,
+                result.Model,
+                "Succeeded",
+                result.LatencyMs,
+                result.Content,
+                null,
+                startedUtc,
+                DateTime.UtcNow));
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or TimeoutException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            return Ok(new AiProviderTestResponse(
+                provider,
+                null,
+                "Failed",
+                null,
+                null,
+                ex.Message,
+                startedUtc,
+                DateTime.UtcNow));
+        }
+    }
 }
 
 public sealed class UpdateAiProviderConfigurationRequest
@@ -106,3 +158,13 @@ public sealed class UpdateAiProviderConfigurationRequest
     [Range(1, 300)]
     public int TimeoutSeconds { get; init; } = 30;
 }
+
+public sealed record AiProviderTestResponse(
+    string Provider,
+    string? Model,
+    string Status,
+    long? LatencyMs,
+    string? Reply,
+    string? Error,
+    DateTime StartedUtc,
+    DateTime CompletedUtc);

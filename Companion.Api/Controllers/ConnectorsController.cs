@@ -1,18 +1,25 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text;
+using System.Text.Json;
 using Companion.Api.Contracts;
 using Companion.Api.Security;
 using Companion.Core.Abstractions;
+using Companion.Core.Entities;
 using Companion.Core.Models;
+using Companion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/connectors")]
 [Authorize]
-public class ConnectorsController(IConnectorSyncService connectorSyncService) : ControllerBase
+public class ConnectorsController(
+    IConnectorSyncService connectorSyncService,
+    IConnectorRegistry connectorRegistry,
+    CompanionDbContext dbContext) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<ConnectorCatalogEntryResponse>), StatusCodes.Status200OK)]
@@ -20,6 +27,82 @@ public class ConnectorsController(IConnectorSyncService connectorSyncService) : 
     {
         var catalog = await connectorSyncService.GetCatalogAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(catalog.Select(x => x.ToResponse()));
+    }
+
+    [HttpPost("{provider}/test")]
+    [ProducesResponseType(typeof(ConnectorTestResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ConnectorTestResponse>> TestConnector(
+        string provider,
+        [FromBody] ConnectorTestRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var connector = connectorRegistry.GetConnector(provider);
+        if (connector is null)
+        {
+            return NotFound();
+        }
+
+        var userProfileId = User.GetRequiredUserProfileId();
+        var definition = await dbContext.ConnectorDefinitions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Provider == connector.Provider, cancellationToken);
+        if (definition is null)
+        {
+            return NotFound();
+        }
+
+        var connection = await dbContext.ConnectorConnections
+            .AsNoTracking()
+            .Where(x => x.UserProfileId == userProfileId && x.ConnectorDefinitionId == definition.Id)
+            .OrderByDescending(x => x.UpdatedUtc)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? new ConnectorConnection
+            {
+                Id = Guid.NewGuid(),
+                UserProfileId = userProfileId,
+                ConnectorDefinitionId = definition.Id,
+                DisplayName = request?.DisplayName ?? $"{definition.Name} test",
+                Status = Companion.Core.Enums.ConnectorConnectionStatus.Connected,
+                CreatedUtc = DateTime.UtcNow,
+                UpdatedUtc = DateTime.UtcNow,
+                ConnectorDefinition = definition
+            };
+
+        JsonDocument? payloadDocument = null;
+        try
+        {
+            if (request?.Payload is not null)
+            {
+                payloadDocument = JsonDocument.Parse(request.Payload.Value.GetRawText());
+            }
+
+            var result = await connector.TestConnectionAsync(new ConnectorSyncContext(
+                userProfileId,
+                connection,
+                payloadDocument?.RootElement,
+                cancellationToken));
+
+            return Ok(new ConnectorTestResponse(
+                connector.Provider,
+                connector.Name,
+                result.Succeeded ? "Succeeded" : "Failed",
+                result.Error,
+                DateTime.UtcNow));
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JsonException or HttpRequestException or TimeoutException or TaskCanceledException)
+        {
+            return Ok(new ConnectorTestResponse(
+                connector.Provider,
+                connector.Name,
+                "Failed",
+                ex.Message,
+                DateTime.UtcNow));
+        }
+        finally
+        {
+            payloadDocument?.Dispose();
+        }
     }
 
     [HttpPost("local-calendar/import")]
@@ -139,6 +222,21 @@ public sealed class LocalCalendarImportRequest
     [MinLength(1)]
     public IReadOnlyList<LocalCalendarImportEventRequest> Events { get; init; } = [];
 }
+
+public sealed class ConnectorTestRequest
+{
+    [MaxLength(200)]
+    public string? DisplayName { get; init; }
+
+    public JsonElement? Payload { get; init; }
+}
+
+public sealed record ConnectorTestResponse(
+    string Provider,
+    string Name,
+    string Status,
+    string? Error,
+    DateTime TestedUtc);
 
 public sealed class LocalCalendarImportEventRequest
 {

@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Plug, RefreshCw, Search } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Plug, RefreshCw, Search, TestTube2 } from "lucide-react";
 import { apiFetch, type JsonRecord } from "@/lib/api";
 import { Badge, EmptyState, Panel, SectionHeader } from "@/components/ui";
 import { StatusBadge } from "@/components/data-page";
@@ -23,9 +23,32 @@ type ConnectorEntry = {
 
 export default function ConnectorsPage() {
   const [query, setQuery] = useState("");
+  const [testResults, setTestResults] = useState<Record<string, string>>({});
   const result = useQuery({
     queryKey: ["connectors"],
     queryFn: () => apiFetch<ConnectorEntry[]>("/api/connectors")
+  });
+  const testMutation = useMutation({
+    mutationFn: (provider: string) =>
+      apiFetch<{ provider: string; name: string; status: string; error?: string }>(
+        `/api/connectors/${encodeURIComponent(provider)}/test`,
+        { method: "POST", body: JSON.stringify({}) }
+      ),
+    onSuccess: (response) => {
+      setTestResults((current) => ({
+        ...current,
+        [response.provider]:
+          response.status === "Succeeded"
+            ? `${response.name} test succeeded.`
+            : `${response.name} test failed: ${response.error ?? "unknown error"}`
+      }));
+    },
+    onError: (error) => {
+      setTestResults((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : "Connector test failed"
+      }));
+    }
   });
 
   const entries = useMemo(() => result.data ?? [], [result.data]);
@@ -112,6 +135,21 @@ export default function ConnectorsPage() {
                 ) : (
                   <p className="text-ink-muted">No connection for this user.</p>
                 )}
+              </div>
+              <div className="mt-4 border-t border-line pt-3">
+                <button
+                  type="button"
+                  onClick={() => testMutation.mutate(entry.definition.provider)}
+                  disabled={testMutation.isPending}
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-60"
+                >
+                  <TestTube2 className="h-4 w-4" />
+                  Test
+                </button>
+                {testResults[entry.definition.provider] ? (
+                  <p className="mt-2 text-sm text-ink-muted">{testResults[entry.definition.provider]}</p>
+                ) : null}
+                {testResults.error ? <p className="mt-2 text-sm text-rose-600 dark:text-rose-300">{testResults.error}</p> : null}
               </div>
             </article>
           ))}

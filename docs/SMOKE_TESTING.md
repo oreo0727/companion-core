@@ -12,7 +12,9 @@ The script fails fast and verifies:
 
 - API health
 - Swagger availability
+- first-run setup readiness
 - seeded local administrator authentication
+- daily-use health, diagnostics, logs, smoke status, backup export, and backup import
 - tool discovery
 - immediate low-risk tool execution
 - approval-gated tool execution
@@ -20,6 +22,7 @@ The script fails fast and verifies:
 - knowledge import
 - knowledge search
 - connector discovery
+- connector test status
 - OAuth provider discovery
 - OAuth authorization, callback, disconnect, and audit
 - production Google/Microsoft read connector sync into snapshots
@@ -30,6 +33,7 @@ The script fails fast and verifies:
 - specialist agent catalog discovery and Chief of Staff delegation to child AgentRuns
 - adaptive learning events, conversation ratings, and profile aggregation
 - operating-system routine generation, context optimization, scheduled AgentRuns, and audit
+- provider test status against the mock Ollama endpoint
 - local calendar import
 - calendar event retrieval
 - local email import
@@ -93,6 +97,7 @@ It also exercises:
 19. multi-agent catalog discovery, Chief of Staff delegation, specialist child run completion, and audit
 20. adaptive learning profile updates from ratings, ignored suggestions, and tool usage
 21. operating-system morning/evening/weekly/context runs with scheduled background AgentRuns
+22. first-run setup status, admin health, diagnostics, logs, smoke status, backup export/import, connector test, and provider test endpoints
 
 The script uses `scripts/mock-ai-provider.py` to simulate successful, malformed, and slow provider behavior without adding product code for fake providers.
 

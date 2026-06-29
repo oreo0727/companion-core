@@ -27,6 +27,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Multi-agent orchestration with catalog-backed Chief of Staff, Planner, Research, Coder, Writer, Travel, Finance, Health, and Home specialists
 - Adaptive learning events for suggestion outcomes, tool usage, ratings, completions, and preference evolution
 - Companion operating-system routines for briefings, recaps, reviews, forecasting, memory pruning review, context optimization, and scheduled background AgentRuns
+- Daily-use stabilization with first-run setup, admin health, diagnostics, provider/connector tests, smoke status, and backup/restore
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture
@@ -61,7 +62,9 @@ docker compose --profile ollama up --build
 
 Once the containers are running:
 
+- First-run setup: `http://localhost:3000/setup`
 - Web console: `http://localhost:3000`
+- Admin health: `http://localhost:3000/admin-health`
 - Swagger UI: `http://localhost:8080/swagger`
 - PostgreSQL remains internal to Docker Compose; the API and worker connect to it over the compose network
 - Local development admin: `local.user@companion-core.local` / `CompanionDev123!`
@@ -134,15 +137,31 @@ To expose the development server to another machine on the LAN or Tailscale:
 npm run dev -- --hostname 0.0.0.0
 ```
 
+For Docker or mobile testing from another device, set reachable URLs before building:
+
+```bash
+cp .env.example .env
+# edit NEXT_PUBLIC_API_BASE_URL and COMPANION_WEB_BASE_URL for the LAN or Tailscale IP
+docker compose up --build
+```
+
 ## API Surface
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `GET /api/setup/status`
+- `GET /api/system/health`
+- `GET /api/system/diagnostics`
+- `GET /api/system/logs`
+- `GET /api/system/smoke-test/status`
+- `GET /api/system/backup/export`
+- `POST /api/system/backup/import`
 - `POST /api/chat`
 - `GET /api/settings/ai`
 - `PUT /api/settings/ai`
+- `POST /api/settings/ai/{provider}/test`
 - `GET /api/preferences`
 - `PUT /api/preferences/{preferenceType}`
 - `GET /api/audit`
@@ -188,6 +207,7 @@ npm run dev -- --hostname 0.0.0.0
 - `GET /api/tools/executions`
 - `POST /api/tools/{id}/execute`
 - `GET /api/connectors`
+- `POST /api/connectors/{provider}/test`
 - `GET /api/oauth/providers`
 - `GET /api/oauth/connections`
 - `POST /api/oauth/{provider}/authorize`
@@ -243,6 +263,7 @@ Tool executions are recorded separately from suggestions. Built-in tools can rea
 - API keys can live in the database row or config/environment settings.
 - Provider timeouts are stored per configuration row through `TimeoutSeconds` and default to `30`.
 - If Ollama is unavailable, chat still completes through fallback behavior.
+- Test live provider configuration from `/ai-settings` or `POST /api/settings/ai/{provider}/test`.
 
 ### Fallback Testing
 
@@ -318,6 +339,18 @@ The migrations seed:
 - Provider calls use plain `HttpClient` and require external model availability plus valid configuration
 - Suggestion approval boundaries remain in place before new durable user data is persisted
 - The seeded local admin is a development bootstrap only
+- `appsettings.json` is production-neutral; local database and JWT defaults live in development config or Docker environment variables
+
+## Daily Use Operations
+
+- Run first setup and readiness checks at `/setup`.
+- Monitor health, diagnostics, logs, smoke-test status, backup, and restore at `/admin-health`.
+- Test AI providers from `/ai-settings`.
+- Test connectors from `/connectors`.
+- Export backups with `GET /api/system/backup/export`.
+- Restore backups with `POST /api/system/backup/import`.
+
+Backup exports contain user-owned preferences, active memories, tasks, goals, projects, and reminders. They deliberately exclude passwords, JWTs, encrypted API keys, OAuth tokens, connector tokens, and other secrets.
 
 ## Additional Docs
 
@@ -329,6 +362,7 @@ The migrations seed:
 - [Authentication](docs/AUTHENTICATION.md)
 - [Context Builder](docs/CONTEXT_BUILDER.md)
 - [Data Ownership](docs/DATA_OWNERSHIP.md)
+- [Daily Use](docs/DAILY_USE.md)
 - [Developer Notes](docs/DEV_NOTES.md)
 - [Desktop Automation](docs/DESKTOP_AUTOMATION.md)
 - [Connectors](docs/CONNECTORS.md)

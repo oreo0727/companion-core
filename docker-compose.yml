@@ -4,13 +4,13 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: companion_core
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-companion_core}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - companion-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d companion_core"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-companion_core}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,8 +22,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=companion_core;Username=postgres;Password=postgres
-      Cors__AllowedOrigins__0: http://localhost:3000
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-companion_core};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-CompanionCoreDockerDevelopmentSigningKey-ChangeBeforeProduction-2026}
+      Companion__WebBaseUrl: ${COMPANION_WEB_BASE_URL:-http://localhost:3000}
+      Cors__AllowedOrigins__0: ${COMPANION_WEB_BASE_URL:-http://localhost:3000}
       Cors__AllowedOrigins__1: http://127.0.0.1:3000
     ports:
       - "8080:8080"
@@ -37,7 +39,7 @@ services:
       dockerfile: Companion.Worker/Dockerfile
     environment:
       DOTNET_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=companion_core;Username=postgres;Password=postgres
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-companion_core};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,9 +51,9 @@ services:
       context: .
       dockerfile: Companion.Web/Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
     environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
     ports:
       - "3000:3000"
     depends_on:

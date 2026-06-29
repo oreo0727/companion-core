@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Save } from "lucide-react";
+import { Save, TestTube2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Badge, EmptyState, Panel, SectionHeader } from "@/components/ui";
 import { StatusBadge } from "@/components/data-page";
@@ -23,6 +23,7 @@ type AiProvider = {
 export default function AiSettingsPage() {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<AiProvider | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
   const providers = useQuery({
     queryKey: ["ai-settings"],
     queryFn: () => apiFetch<AiProvider[]>("/api/settings/ai")
@@ -37,6 +38,27 @@ export default function AiSettingsPage() {
       queryClient.invalidateQueries({ queryKey: ["ai-settings"] });
       setSelected(null);
     }
+  });
+  const testMutation = useMutation({
+    mutationFn: (provider: string) =>
+      apiFetch<{
+        provider: string;
+        model?: string;
+        status: string;
+        latencyMs?: number;
+        reply?: string;
+        error?: string;
+      }>(`/api/settings/ai/${encodeURIComponent(provider)}/test`, {
+        method: "POST"
+      }),
+    onSuccess: (result) => {
+      setTestResult(
+        result.status === "Succeeded"
+          ? `${result.provider} responded in ${result.latencyMs ?? 0}ms: ${result.reply ?? "ok"}`
+          : `${result.provider} failed: ${result.error ?? "unknown error"}`
+      );
+    },
+    onError: (error) => setTestResult(error instanceof Error ? error.message : "Provider test failed")
   });
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -72,7 +94,10 @@ export default function AiSettingsPage() {
               <button
                 key={provider.id}
                 type="button"
-                onClick={() => setSelected(provider)}
+                onClick={() => {
+                  setSelected(provider);
+                  setTestResult(null);
+                }}
                 className="flex w-full flex-col gap-3 px-4 py-4 text-left hover:bg-surface-muted sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
@@ -114,13 +139,29 @@ export default function AiSettingsPage() {
                 {(mutation.error as Error).message}
               </p>
             ) : null}
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-white hover:bg-accent-strong"
-            >
-              <Save className="h-4 w-4" />
-              Save
-            </button>
+            {testResult ? (
+              <p className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-muted">
+                {testResult}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-white hover:bg-accent-strong"
+              >
+                <Save className="h-4 w-4" />
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => testMutation.mutate(selected.provider)}
+                disabled={testMutation.isPending}
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-line px-4 text-sm font-medium text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-60"
+              >
+                <TestTube2 className="h-4 w-4" />
+                {testMutation.isPending ? "Testing" : "Test"}
+              </button>
+            </div>
           </form>
         ) : (
           <EmptyState text="Select a provider" />

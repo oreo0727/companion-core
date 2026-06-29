@@ -56,3 +56,15 @@ npm --prefix Companion.Web run build
 ```
 
 Docker Compose builds `companion-web` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080`, which is the browser-visible API URL.
+
+## Development Vs Production Config
+
+`appsettings.json` is intentionally production-neutral. It does not include the local PostgreSQL connection string or a JWT signing key.
+
+Local development values live in:
+
+- `Companion.Api/appsettings.Development.json`
+- `Companion.Worker/appsettings.Development.json`
+- `docker-compose.yml` environment variables
+
+For a shared, exposed, or long-running machine, copy `.env.example` to `.env` and replace the PostgreSQL password, JWT signing key, and browser-visible API/web URLs. Keep provider keys, OAuth secrets, and connector tokens out of checked-in JSON.

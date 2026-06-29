@@ -70,7 +70,7 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `${response.status} ${response.statusText}`);
+    throw new Error(parseErrorMessage(text) || `${response.status} ${response.statusText}`);
   }
 
   if (response.status === 204) {
@@ -88,6 +88,17 @@ export async function login(email: string, password: string) {
   }>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password })
+  });
+}
+
+export async function register(email: string, displayName: string, password: string) {
+  return apiFetch<{
+    accessToken: string;
+    expiresUtc: string;
+    me: CurrentUser;
+  }>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, displayName, password })
   });
 }
 
@@ -114,3 +125,27 @@ export type PaginatedItem = JsonRecord & {
   status?: string;
   type?: string;
 };
+
+function parseErrorMessage(text: string) {
+  if (!text) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(text) as {
+      title?: string;
+      detail?: string;
+      error?: string;
+      errors?: Record<string, string[]>;
+    };
+    const validationErrors = parsed.errors
+      ? Object.entries(parsed.errors)
+          .flatMap(([field, messages]) => messages.map((message) => `${field}: ${message}`))
+          .join(" ")
+      : "";
+
+    return parsed.error ?? parsed.detail ?? validationErrors ?? parsed.title ?? text;
+  } catch {
+    return text;
+  }
+}

@@ -340,9 +340,26 @@ npm --prefix "${ROOT}/Companion.Mobile" run typecheck >/dev/null
 pass "Companion Mobile dependencies install and typecheck succeeded"
 
 start_api
+step "Verifying first-run setup status"
+SETUP_STATUS="$(http_get "${API_URL}/api/setup/status")"
+assert_json "$SETUP_STATUS" "data['isFirstRun'] is False and data['hasAdministrator'] is True and len(data['checks']) >= 4" "Setup status reports seeded local administrator and readiness checks"
 authenticate_api
 start_worker
 start_mock_ai
+
+step "Verifying daily-use operations endpoints"
+SYSTEM_HEALTH="$(http_get "${API_URL}/api/system/health")"
+assert_json "$SYSTEM_HEALTH" "data['databaseOk'] is True and data['status'] in ['Healthy','Degraded']" "System health endpoint reports database readiness"
+SYSTEM_DIAGNOSTICS="$(http_get "${API_URL}/api/system/diagnostics")"
+assert_json "$SYSTEM_DIAGNOSTICS" "data['counts']['memories'] >= 1 and len(data['providers']) >= 3 and len(data['connectors']) >= 3" "System diagnostics endpoint reports counts, providers, and connectors"
+SMOKE_STATUS="$(http_get "${API_URL}/api/system/smoke-test/status")"
+assert_json "$SMOKE_STATUS" "data['scriptFound'] is True and data['status'] == 'ReadyToRun'" "Smoke-test status endpoint finds the smoke script"
+BACKUP_EXPORT="$(http_get "${API_URL}/api/system/backup/export")"
+assert_json "$BACKUP_EXPORT" "data['schemaVersion'] == 1 and len(data['memories']) >= 1" "Backup export returns a user-owned backup envelope"
+BACKUP_IMPORT="$(http_post_json "${API_URL}/api/system/backup/import" "$BACKUP_EXPORT")"
+assert_json "$BACKUP_IMPORT" "'importedUtc' in data and 'importedCounts' in data" "Backup import accepts a valid backup envelope"
+SYSTEM_LOGS="$(http_get "${API_URL}/api/system/logs")"
+assert_json "$SYSTEM_LOGS" "isinstance(data, list)" "System logs endpoint returns log entries"
 
 step "Verifying voice platform"
 VOICE_PROVIDERS="$(http_get "${API_URL}/api/voice/providers")"
@@ -383,6 +400,8 @@ assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] ==
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'Shelly') == 1" "Shelly connector is discoverable"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'ESPHome') == 1" "ESPHome connector is discoverable"
 assert_json "$CONNECTORS" "sum(1 for x in data if x['definition']['provider'] == 'MQTT') == 1" "MQTT connector is discoverable"
+LOCAL_CONNECTOR_TEST="$(http_post_json "${API_URL}/api/connectors/LocalCalendar/test" '{}')"
+assert_json "$LOCAL_CONNECTOR_TEST" "data['provider'] == 'LocalCalendar' and data['status'] == 'Succeeded'" "LocalCalendar connector test succeeds"
 
 step "Verifying OAuth foundation"
 OAUTH_PROVIDERS="$(http_get "${API_URL}/api/oauth/providers")"
@@ -725,6 +744,8 @@ step "Scenario C: Ollama configured and available via mock server"
 CHAT_OK_MESSAGE="Use the available mock Ollama provider for ${RUN_ID}."
 set_mock_mode ok
 set_provider "Ollama" "${MOCK_AI_URL}" true 30 "mock-ollama" >/dev/null
+OLLAMA_TEST="$(http_post "${API_URL}/api/settings/ai/Ollama/test")"
+assert_json "$OLLAMA_TEST" "data['provider'] == 'Ollama' and data['status'] == 'Succeeded' and data['latencyMs'] is not None" "Ollama provider test succeeds against mock server"
 CHAT_OK="$(http_post_json "${API_URL}/api/chat" "$(cat <<JSON
 {"message":"${CHAT_OK_MESSAGE}"}
 JSON
@@ -798,4 +819,4 @@ OS_AUDIT="$(http_get "${API_URL}/api/audit")"
 assert_json "$OS_AUDIT" "sum(1 for x in data if x['eventType'] == 'OperatingSystemRunGenerated') >= 4" "Operating-system routines are audited"
 
 step "Smoke test completed"
-pass "Phase 20 smoke test passed"
+pass "Phase 21 smoke test passed"

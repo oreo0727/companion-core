@@ -19,6 +19,7 @@ import {
   Mail,
   MemoryStick,
   MessageSquare,
+  MonitorCog,
   Moon,
   Plug,
   Search,
@@ -48,6 +49,7 @@ const navItems = [
   { href: "/approvals", label: "Approvals", icon: ClipboardCheck },
   { href: "/tool-executions", label: "Tool Executions", icon: Wrench },
   { href: "/audit", label: "Audit", icon: ShieldCheck },
+  { href: "/admin-health", label: "Health", icon: MonitorCog },
   { href: "/connectors", label: "Connectors", icon: Plug },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/ai-settings", label: "AI Settings", icon: KeyRound }
@@ -59,12 +61,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [ready, setReady] = useState(false);
   const [dark, setDark] = useState(false);
+  const publicPaths = pathname === "/login" || pathname === "/setup";
 
   useEffect(() => {
     const token = getToken();
     const storedUser = getStoredUser<CurrentUser>();
 
-    if (!token && pathname !== "/login") {
+    if (!token && !publicPaths) {
       router.replace("/login");
       return;
     }
@@ -72,7 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setUser(storedUser);
     setReady(true);
     setDark(document.documentElement.classList.contains("dark"));
-  }, [pathname, router]);
+  }, [pathname, publicPaths, router]);
 
   const activeTitle = useMemo(
     () => navItems.find((item) => item.href === pathname)?.label ?? "Companion",
@@ -91,7 +94,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.replace("/login");
   }
 
-  if (pathname === "/login") {
+  if (publicPaths) {
     return <>{children}</>;
   }
 
