@@ -147,6 +147,7 @@ public class AgentRuntime(
             var reasoningResult = await reasoningEngine.GenerateReplyAsync(
                 userProfileId,
                 conversation.Id,
+                normalizedMessage,
                 cancellationToken);
             var extractionCandidates = await memoryExtractionService.ExtractAsync(
                 userProfileId,

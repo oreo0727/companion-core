@@ -32,7 +32,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { clearSession, getStoredUser, getToken, type CurrentUser } from "@/lib/api";
+import { apiFetch, clearSession, getStoredUser, getToken, logout as logoutApi, setSession, type CurrentUser } from "@/lib/api";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -75,6 +75,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     setUser(storedUser);
     setReady(true);
     setDark(document.documentElement.classList.contains("dark"));
+    if (token) {
+      apiFetch<CurrentUser>("/api/auth/me")
+        .then((me) => {
+          setUser(me);
+          setSession(token, me);
+        })
+        .catch(() => {
+          clearSession();
+          router.replace("/login");
+        });
+    }
   }, [pathname, publicPaths, router]);
 
   const activeTitle = useMemo(
@@ -89,9 +100,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.localStorage.setItem("companion.theme", next ? "dark" : "light");
   }
 
-  function logout() {
-    clearSession();
-    router.replace("/login");
+  async function logout() {
+    try {
+      await logoutApi();
+    } finally {
+      clearSession();
+      router.replace("/login");
+    }
   }
 
   if (publicPaths) {

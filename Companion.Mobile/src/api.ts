@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 
 const tokenKey = "companion.mobile.accessToken";
 const userKey = "companion.mobile.currentUser";
@@ -6,7 +7,9 @@ const apiBaseUrlKey = "companion.mobile.apiBaseUrl";
 const biometricKey = "companion.mobile.biometricEnabled";
 
 const defaultApiBaseUrl =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:8080";
+  normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL) ??
+  normalizeApiBaseUrl(Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
+  "http://100.71.8.121:8080";
 
 export type JsonRecord = Record<string, unknown>;
 
@@ -28,12 +31,21 @@ export type MobileSession = {
   apiBaseUrl: string;
 };
 
+export function normalizeApiBaseUrl(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.replace(/\/$/, "");
+}
+
 export async function getApiBaseUrl() {
   return (await AsyncStorage.getItem(apiBaseUrlKey)) ?? defaultApiBaseUrl;
 }
 
 export async function setApiBaseUrl(value: string) {
-  await AsyncStorage.setItem(apiBaseUrlKey, value.replace(/\/$/, ""));
+  await AsyncStorage.setItem(apiBaseUrlKey, normalizeApiBaseUrl(value) ?? defaultApiBaseUrl);
 }
 
 export async function getStoredSession(): Promise<MobileSession | null> {
@@ -83,7 +95,8 @@ export async function setBiometricEnabled(enabled: boolean) {
 }
 
 export async function login(apiBaseUrl: string, email: string, password: string) {
-  const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/api/auth/login`, {
+  const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl) ?? defaultApiBaseUrl;
+  const response = await fetch(`${normalizedBaseUrl}/api/auth/login`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -93,7 +106,7 @@ export async function login(apiBaseUrl: string, email: string, password: string)
   });
 
   if (!response.ok) {
-    throw new Error((await response.text()) || "Login failed");
+    throw new Error(parseErrorMessage(await response.text()) || "Login failed");
   }
 
   return (await response.json()) as {
@@ -101,6 +114,12 @@ export async function login(apiBaseUrl: string, email: string, password: string)
     expiresUtc: string;
     me: CurrentUser;
   };
+}
+
+export async function logout(session: MobileSession) {
+  await apiFetch<void>(session, "/api/auth/logout", {
+    method: "POST"
+  });
 }
 
 export async function apiFetch<T>(
@@ -127,7 +146,7 @@ export async function apiFetch<T>(
   }
 
   if (!response.ok) {
-    throw new Error((await response.text()) || `${response.status} ${response.statusText}`);
+    throw new Error(parseErrorMessage(await response.text()) || `${response.status} ${response.statusText}`);
   }
 
   if (response.status === 204) {
@@ -135,6 +154,45 @@ export async function apiFetch<T>(
   }
 
   return (await response.json()) as T;
+}
+
+export function parseErrorMessage(text: string) {
+  if (!text) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(text) as {
+      message?: unknown;
+      title?: unknown;
+      detail?: unknown;
+      errors?: Record<string, unknown>;
+    };
+    if (typeof parsed.message === "string") {
+      return parsed.message;
+    }
+
+    if (typeof parsed.detail === "string") {
+      return parsed.detail;
+    }
+
+    if (parsed.errors && typeof parsed.errors === "object") {
+      const values = Object.values(parsed.errors).flatMap((value) =>
+        Array.isArray(value) ? value.map(String) : [String(value)]
+      );
+      if (values.length > 0) {
+        return values.join("\n");
+      }
+    }
+
+    if (typeof parsed.title === "string") {
+      return parsed.title;
+    }
+  } catch {
+    return text;
+  }
+
+  return text;
 }
 
 export async function cachedApiFetch<T>(

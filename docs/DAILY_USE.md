@@ -79,6 +79,39 @@ docker compose up --build
 
 With Tailscale, use the Tailscale IP instead of the LAN IP. The web app and mobile app both need an API URL that is reachable from the device, not just from the server itself.
 
+The Expo mobile app reads the API URL in this order:
+
+1. `EXPO_PUBLIC_API_BASE_URL`
+2. `expo.extra.apiBaseUrl` from `Companion.Mobile/app.json`
+3. The local Tailscale dogfood default
+
+Use an explicit `EXPO_PUBLIC_API_BASE_URL` when testing from a different network.
+
+## Phase 22 Dogfood Fixes
+
+The first daily-use pass fixed the following rough edges without adding new product systems:
+
+- Web logout now calls the server logout endpoint before clearing local state.
+- Web sessions revalidate against `GET /api/auth/me` on app load, so stale tokens and roles do not linger.
+- The web login form no longer ships with a visible development password.
+- The web login form remembers only the last email address and disables submit until required fields are present.
+- The login page links to setup status and clarifies that the API follows the current web host.
+- The first-run setup form no longer pre-fills the development administrator credentials.
+- Setup submission is ignored after first-run has already completed.
+- Shared web data pages show specific loading text instead of `Loading data`.
+- Shared web data pages show search-aware empty states.
+- Shared web data pages show refresh-in-progress state and disable duplicate refresh taps.
+- Empty web tables now say `No pages` instead of `Page 1 of 1`.
+- Mobile login no longer pre-fills the local development account.
+- Mobile API URLs are normalized before storage and use a reachable Tailscale-oriented default.
+- Mobile login errors parse structured API validation responses into readable text.
+- Mobile authenticated API errors also parse structured backend responses.
+- Mobile logout attempts server logout and still clears local state if the API is unreachable.
+- Mobile briefing and dashboard screens show explicit loading states.
+- Mobile list screens show page-specific empty states.
+- Mobile chat shows a visible assistant thinking bubble while waiting for the API.
+- Mobile chat failures appear inline so the conversation surface is not silently stuck.
+
 ## Configuration Separation
 
 `appsettings.json` no longer contains local database credentials or the development JWT signing key. Local defaults live in `appsettings.Development.json`, while Docker Compose supplies explicit development environment variables.

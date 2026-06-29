@@ -89,6 +89,12 @@ export async function login(email: string, password: string) {
   });
 }
 
+export async function logout() {
+  return apiFetch<void>("/api/auth/logout", {
+    method: "POST"
+  });
+}
+
 export async function register(email: string, displayName: string, password: string) {
   return apiFetch<{
     accessToken: string;
@@ -124,7 +130,7 @@ export type PaginatedItem = JsonRecord & {
   type?: string;
 };
 
-function parseErrorMessage(text: string) {
+export function parseErrorMessage(text: string) {
   if (!text) {
     return "";
   }

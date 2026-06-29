@@ -17,6 +17,7 @@ public class ChiefOfStaffReasoningEngine(
     public async Task<ReasoningEngineResult> GenerateReplyAsync(
         Guid userProfileId,
         Guid conversationId,
+        string? currentUserMessage = null,
         CancellationToken cancellationToken = default)
     {
         var context = await contextBuilder.BuildContextAsync(userProfileId, conversationId, cancellationToken);
@@ -24,7 +25,7 @@ public class ChiefOfStaffReasoningEngine(
 
         if (providerConfiguration is null)
         {
-            return BuildFallback(context, "No enabled AI provider configuration was found.");
+            return BuildFallback(context, "No enabled AI provider configuration was found.", currentUserMessage: currentUserMessage);
         }
 
         var provider = providers.FirstOrDefault(x =>
@@ -35,6 +36,7 @@ public class ChiefOfStaffReasoningEngine(
             return BuildFallback(
                 context,
                 $"No provider implementation is registered for '{providerConfiguration.Provider}'.",
+                currentUserMessage: currentUserMessage,
                 provider: providerConfiguration.Provider,
                 model: providerConfiguration.Model);
         }
@@ -62,12 +64,13 @@ public class ChiefOfStaffReasoningEngine(
                 return BuildFallback(
                     context,
                     "The selected provider returned malformed JSON.",
-                    completion);
+                    completion,
+                    currentUserMessage);
             }
 
             if (string.IsNullOrWhiteSpace(reply))
             {
-                return BuildFallback(context, "The selected provider returned an empty response.", completion);
+                return BuildFallback(context, "The selected provider returned an empty response.", completion, currentUserMessage);
             }
 
             return new ReasoningEngineResult(
@@ -88,6 +91,7 @@ public class ChiefOfStaffReasoningEngine(
             return BuildFallback(
                 context,
                 ex.Message,
+                currentUserMessage: currentUserMessage,
                 provider: providerConfiguration.Provider,
                 model: providerConfiguration.Model);
         }
@@ -337,10 +341,11 @@ public class ChiefOfStaffReasoningEngine(
         CompanionContext context,
         string failureReason,
         AiCompletionResult? completion = null,
+        string? currentUserMessage = null,
         string? provider = null,
         string? model = null)
     {
-        var reply = BuildFallbackReply(context);
+        var reply = BuildFallbackReply(context, currentUserMessage);
 
         return new ReasoningEngineResult(
             context,
@@ -355,10 +360,15 @@ public class ChiefOfStaffReasoningEngine(
             failureReason);
     }
 
-    private static string BuildFallbackReply(CompanionContext context)
+    private static string BuildFallbackReply(CompanionContext context, string? currentUserMessage)
     {
-        var latestUserMessage = context.RecentMessages.LastOrDefault(x => string.Equals(x.Role.ToString(), "User", StringComparison.OrdinalIgnoreCase));
-        if (latestUserMessage is not null && IsCasualOpener(latestUserMessage.Content))
+        var latestUserMessage = currentUserMessage;
+        if (string.IsNullOrWhiteSpace(latestUserMessage))
+        {
+            latestUserMessage = context.RecentMessages.LastOrDefault(x => string.Equals(x.Role.ToString(), "User", StringComparison.OrdinalIgnoreCase))?.Content;
+        }
+
+        if (!string.IsNullOrWhiteSpace(latestUserMessage) && IsCasualOpener(latestUserMessage))
         {
             return "Hi. I am here and ready. What would you like to work on?";
         }
@@ -391,7 +401,7 @@ public class ChiefOfStaffReasoningEngine(
             reply.Append($"There are {context.PendingApprovals.Count} pending approvals that may block progress. ");
         }
 
-        if (latestUserMessage is not null)
+        if (!string.IsNullOrWhiteSpace(latestUserMessage))
         {
             reply.Append("I can help you turn the latest message into a clear next step plan.");
         }

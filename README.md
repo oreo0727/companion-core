@@ -28,6 +28,7 @@ Companion Core is the backend spine of a private AI companion platform. It is in
 - Adaptive learning events for suggestion outcomes, tool usage, ratings, completions, and preference evolution
 - Companion operating-system routines for briefings, recaps, reviews, forecasting, memory pruning review, context optimization, and scheduled background AgentRuns
 - Daily-use stabilization with first-run setup, admin health, diagnostics, provider/connector tests, smoke status, and backup/restore
+- Dogfood polish for remote login, web/mobile session reliability, clearer empty states, provider/chat error display, and Tailscale-oriented mobile defaults
 - Internal notification and reminder engine with worker processing
 - Background worker that processes pending `AgentRun` records every 30 seconds
 - Next.js web console with JWT login, dark mode, responsive navigation, search, pagination, Markdown chat rendering, and SignalR-ready client architecture

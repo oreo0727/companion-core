@@ -30,6 +30,10 @@ export default function SetupPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!status.data?.isFirstRun) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -115,7 +119,7 @@ export default function SetupPage() {
                   <span className="mb-1 block text-sm font-medium">Display name</span>
                   <input
                     name="displayName"
-                    defaultValue="Local User"
+                    placeholder="Your name"
                     className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm outline-none focus:border-accent"
                   />
                 </label>
@@ -124,7 +128,7 @@ export default function SetupPage() {
                   <input
                     name="email"
                     type="email"
-                    defaultValue="local.user@companion-core.local"
+                    placeholder="you@example.com"
                     className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm outline-none focus:border-accent"
                   />
                 </label>
@@ -133,7 +137,8 @@ export default function SetupPage() {
                   <input
                     name="password"
                     type="password"
-                    defaultValue="CompanionDev123!"
+                    placeholder="At least 8 characters"
+                    autoComplete="new-password"
                     className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm outline-none focus:border-accent"
                   />
                 </label>

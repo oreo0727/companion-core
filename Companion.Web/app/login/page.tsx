@@ -1,16 +1,23 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Bot, LogIn } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { login, setSession } from "@/lib/api";
 
+const lastEmailKey = "companion.lastEmail";
+
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("local.user@companion-core.local");
-  const [password, setPassword] = useState("CompanionDev123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setEmail(window.localStorage.getItem(lastEmailKey) ?? "");
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -19,6 +26,7 @@ export default function LoginPage() {
 
     try {
       const session = await login(email, password);
+      window.localStorage.setItem(lastEmailKey, email.trim());
       setSession(session.accessToken, session.me);
       router.replace("/dashboard");
     } catch (err) {
@@ -63,7 +71,7 @@ export default function LoginPage() {
             </div>
             <h2 className="text-xl font-semibold">Sign in</h2>
             <p className="mt-1 text-sm text-ink-muted">
-              Use the local admin account or any registered Companion account.
+              Use your Companion account. Keep this browser on the same network as the API.
             </p>
           </div>
           <label className="mb-4 block">
@@ -74,6 +82,7 @@ export default function LoginPage() {
               className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm outline-none focus:border-accent"
               type="email"
               autoComplete="email"
+              placeholder="you@example.com"
             />
           </label>
           <label className="mb-5 block">
@@ -84,6 +93,7 @@ export default function LoginPage() {
               className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm outline-none focus:border-accent"
               type="password"
               autoComplete="current-password"
+              placeholder="Password"
             />
           </label>
           {error ? (
@@ -93,12 +103,18 @@ export default function LoginPage() {
           ) : null}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !email.trim() || !password}
             className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-60"
           >
             <LogIn className="h-4 w-4" />
             {loading ? "Signing in" : "Sign in"}
           </button>
+          <div className="mt-4 flex items-center justify-between text-xs text-ink-muted">
+            <Link href="/setup" className="hover:text-ink">
+              Setup status
+            </Link>
+            <span>API host follows this page host.</span>
+          </div>
         </form>
       </section>
     </main>

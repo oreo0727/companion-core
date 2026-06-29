@@ -24,6 +24,8 @@ import {
   getStoredSession,
   isBiometricEnabled,
   login,
+  logout,
+  normalizeApiBaseUrl,
   setBiometricEnabled,
   setSession,
   type JsonRecord,
@@ -138,6 +140,14 @@ export default function App() {
   }
 
   async function signOut() {
+    if (session) {
+      try {
+        await logout(session);
+      } catch {
+        // Local session cleanup still needs to happen when the API is unreachable.
+      }
+    }
+
     await clearSession();
     setActiveSession(null);
     setLocked(false);
@@ -223,9 +233,10 @@ function LoadingScreen() {
 
 function LoginScreen({ onSession }: { onSession: (session: MobileSession) => void }) {
   const [apiBaseUrl, setApiBaseUrlInput] = useState("");
-  const [email, setEmail] = useState("local.user@companion-core.local");
-  const [password, setPassword] = useState("CompanionDev123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void getApiBaseUrl().then(setApiBaseUrlInput);
@@ -233,8 +244,14 @@ function LoginScreen({ onSession }: { onSession: (session: MobileSession) => voi
 
   async function submit() {
     setBusy(true);
+    setError(null);
     try {
-      const normalizedBaseUrl = apiBaseUrl.replace(/\/$/, "");
+      const normalizedBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
+      if (!normalizedBaseUrl) {
+        setError("Enter the Companion API URL.");
+        return;
+      }
+
       const result = await login(normalizedBaseUrl, email.trim(), password);
       await setSession(result.accessToken, result.me, normalizedBaseUrl);
       onSession({
@@ -243,7 +260,7 @@ function LoginScreen({ onSession }: { onSession: (session: MobileSession) => voi
         apiBaseUrl: normalizedBaseUrl
       });
     } catch (error) {
-      Alert.alert("Login failed", error instanceof Error ? error.message : "Unknown error");
+      setError(error instanceof Error ? error.message : "Login failed");
     } finally {
       setBusy(false);
     }
@@ -255,7 +272,7 @@ function LoginScreen({ onSession }: { onSession: (session: MobileSession) => voi
       style={styles.loginScreen}
     >
       <Text style={styles.brand}>Companion Core</Text>
-      <Text style={styles.loginCopy}>Mobile cockpit for chat, briefings, tasks, approvals, voice, and alerts.</Text>
+      <Text style={styles.loginCopy}>Use your Companion API URL from the same LAN or Tailscale network.</Text>
       <TextInput
         autoCapitalize="none"
         value={apiBaseUrl}
@@ -278,9 +295,10 @@ function LoginScreen({ onSession }: { onSession: (session: MobileSession) => voi
         placeholder="Password"
         secureTextEntry
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
       <Pressable
         disabled={busy || !apiBaseUrl.trim() || !email.trim() || !password}
-        style={[styles.primaryButton, busy && styles.disabledButton]}
+        style={[styles.primaryButton, (busy || !apiBaseUrl.trim() || !email.trim() || !password) && styles.disabledButton]}
         onPress={submit}
       >
         <Text style={styles.primaryButtonText}>{busy ? "Signing in" : "Sign in"}</Text>
@@ -303,7 +321,14 @@ function JsonDataScreen({
   return (
     <ScrollView style={styles.panel}>
       <ScreenHeader title={endpoint.includes("briefing") ? "Briefing" : "Dashboard"} fromCache={fromCache} onRefresh={refresh} />
-      {loading ? <ActivityIndicator /> : <JsonBlock data={data} />}
+      {loading ? (
+        <View style={styles.centerPanel}>
+          <ActivityIndicator />
+          <Text style={styles.muted}>Loading {endpoint.includes("briefing") ? "briefing" : "dashboard"}</Text>
+        </View>
+      ) : (
+        <JsonBlock data={data} />
+      )}
     </ScrollView>
   );
 }
@@ -331,7 +356,7 @@ function ListScreen({
         <FlatList
           data={items}
           keyExtractor={(item, index) => String(item.id ?? index)}
-          ListEmptyComponent={<Text style={styles.muted}>No records</Text>}
+          ListEmptyComponent={<Text style={styles.muted}>No {title.toLowerCase()} yet.</Text>}
           renderItem={({ item }) => (
             <View style={styles.listItem}>
               <Text style={styles.itemTitle}>
@@ -356,6 +381,7 @@ function ChatScreen({ session }: { session: MobileSession }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   async function send() {
     const message = input.trim();
@@ -364,6 +390,7 @@ function ChatScreen({ session }: { session: MobileSession }) {
     }
 
     setInput("");
+    setError(null);
     setMessages((current) => [...current, { role: "user", content: message }]);
     setBusy(true);
 
@@ -385,7 +412,7 @@ function ChatScreen({ session }: { session: MobileSession }) {
         }
       ]);
     } catch (error) {
-      Alert.alert("Chat failed", error instanceof Error ? error.message : "Unknown error");
+      setError(error instanceof Error ? error.message : "Chat failed");
     } finally {
       setBusy(false);
     }
@@ -398,6 +425,13 @@ function ChatScreen({ session }: { session: MobileSession }) {
         keyExtractor={(_, index) => String(index)}
         ListHeaderComponent={<ScreenHeader title="Chat" />}
         ListEmptyComponent={<Text style={styles.muted}>Ask Companion for help with the day.</Text>}
+        ListFooterComponent={
+          busy ? (
+            <View style={[styles.chatBubble, styles.assistantBubble]}>
+              <Text style={styles.assistantText}>Companion is thinking...</Text>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => (
           <View style={[styles.chatBubble, item.role === "user" ? styles.userBubble : styles.assistantBubble]}>
             <Text style={item.role === "user" ? styles.userText : styles.assistantText}>{item.content}</Text>
@@ -409,6 +443,7 @@ function ChatScreen({ session }: { session: MobileSession }) {
           </View>
         )}
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
       <View style={styles.composer}>
         <TextInput
           multiline
@@ -684,6 +719,12 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: 14
   },
+  centerPanel: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 28
+  },
   screenHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -743,6 +784,12 @@ const styles = StyleSheet.create({
   muted: {
     color: colors.muted,
     lineHeight: 20
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18
   },
   jsonText: {
     color: colors.ink,

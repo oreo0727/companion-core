@@ -64,10 +64,11 @@ export function DataPage({
           <button
             type="button"
             onClick={() => result.refetch()}
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink"
+            disabled={result.isFetching}
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-60"
           >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
+            <RefreshCw className={result.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            {result.isFetching ? "Refreshing" : "Refresh"}
           </button>
         }
       />
@@ -90,11 +91,11 @@ export function DataPage({
       </div>
 
       {result.isLoading ? (
-        <EmptyState text="Loading data" />
+        <EmptyState text={`Loading ${title.toLowerCase()}`} />
       ) : result.isError ? (
         <EmptyState text={(result.error as Error).message} />
       ) : visible.length === 0 ? (
-        <EmptyState text="No records found" />
+        <EmptyState text={query.trim() ? `No ${title.toLowerCase()} match that search` : `No ${title.toLowerCase()} yet`} />
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed text-left text-sm">
@@ -124,7 +125,7 @@ export function DataPage({
 
       <div className="flex items-center justify-between border-t border-line px-4 py-3 text-sm text-ink-muted">
         <span>
-          Page {safePage} of {pageCount}
+          {filtered.length === 0 ? "No pages" : `Page ${safePage} of ${pageCount}`}
         </span>
         <div className="flex gap-2">
           <button
