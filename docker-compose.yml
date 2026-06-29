@@ -27,6 +27,8 @@ services:
       Companion__WebBaseUrl: ${COMPANION_WEB_BASE_URL:-http://localhost:3000}
       Cors__AllowedOrigins__0: ${COMPANION_WEB_BASE_URL:-http://localhost:3000}
       Cors__AllowedOrigins__1: http://127.0.0.1:3000
+      Cors__AllowedOrigins__2: ${COMPANION_LAN_WEB_BASE_URL:-http://192.168.4.191:3000}
+      Cors__AllowedOrigins__3: ${COMPANION_TAILSCALE_WEB_BASE_URL:-http://100.71.8.121:3000}
     ports:
       - "8080:8080"
     depends_on:

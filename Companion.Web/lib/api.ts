@@ -3,9 +3,7 @@ export type JsonRecord = Record<string, unknown>;
 const tokenKey = "companion.accessToken";
 const userKey = "companion.currentUser";
 
-export const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
-  "http://localhost:8080";
+export const apiBaseUrl = resolveApiBaseUrl();
 
 export function getToken() {
   if (typeof window === "undefined") {
@@ -148,4 +146,22 @@ function parseErrorMessage(text: string) {
   } catch {
     return text;
   }
+}
+
+function resolveApiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+  if (typeof window === "undefined") {
+    return configured ?? "http://localhost:8080";
+  }
+
+  const browserHost = window.location.hostname;
+  const configuredUrl = configured ? new URL(configured) : null;
+  const configuredIsLoopback =
+    configuredUrl?.hostname === "localhost" || configuredUrl?.hostname === "127.0.0.1";
+
+  if (!configured || (configuredIsLoopback && browserHost !== "localhost" && browserHost !== "127.0.0.1")) {
+    return `${window.location.protocol}//${browserHost}:8080`;
+  }
+
+  return configured;
 }
