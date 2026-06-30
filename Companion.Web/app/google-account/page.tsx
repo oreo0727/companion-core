@@ -71,6 +71,10 @@ const connectorScopes: Record<string, string[]> = {
   GooglePeople: ["openid", "email", "profile", "https://www.googleapis.com/auth/contacts.readonly"]
 };
 
+function getOAuthRedirectOrigin() {
+  return process.env.NEXT_PUBLIC_OAUTH_REDIRECT_ORIGIN?.replace(/\/$/, "") ?? window.location.origin;
+}
+
 export default function GoogleAccountPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [clientId, setClientId] = useState("");
@@ -108,7 +112,7 @@ export default function GoogleAccountPage() {
         body: JSON.stringify({
           connectorProvider: request.connectorProvider,
           displayName: request.displayName,
-          redirectUri: `${window.location.origin}/oauth/google/callback`,
+          redirectUri: `${getOAuthRedirectOrigin()}/oauth/google/callback`,
           scopes: request.scopes
         })
       }),
