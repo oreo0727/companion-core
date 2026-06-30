@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plug, RefreshCw, Search, TestTube2 } from "lucide-react";
+import Link from "next/link";
+import { Pencil, Plug, RefreshCw, Search, TestTube2 } from "lucide-react";
 import { apiFetch, type JsonRecord } from "@/lib/api";
 import { Badge, EmptyState, Panel, SectionHeader } from "@/components/ui";
 import { StatusBadge } from "@/components/data-page";
@@ -20,6 +21,10 @@ type ConnectorEntry = {
   };
   connections: JsonRecord[];
 };
+
+function isGoogleConnector(provider: string) {
+  return provider.toLowerCase().includes("google") || provider === "Gmail";
+}
 
 export default function ConnectorsPage() {
   const [query, setQuery] = useState("");
@@ -137,15 +142,26 @@ export default function ConnectorsPage() {
                 )}
               </div>
               <div className="mt-4 border-t border-line pt-3">
-                <button
-                  type="button"
-                  onClick={() => testMutation.mutate(entry.definition.provider)}
-                  disabled={testMutation.isPending}
-                  className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-60"
-                >
-                  <TestTube2 className="h-4 w-4" />
-                  Test
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  {entry.definition.supportsOAuth && isGoogleConnector(entry.definition.provider) ? (
+                    <Link
+                      href="/google-account"
+                      className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      {entry.connections.length ? "Edit connection" : "Connect"}
+                    </Link>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => testMutation.mutate(entry.definition.provider)}
+                    disabled={testMutation.isPending}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-60"
+                  >
+                    <TestTube2 className="h-4 w-4" />
+                    Test
+                  </button>
+                </div>
                 {testResults[entry.definition.provider] ? (
                   <p className="mt-2 text-sm text-ink-muted">{testResults[entry.definition.provider]}</p>
                 ) : null}
