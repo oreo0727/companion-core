@@ -31,6 +31,8 @@ services:
       Cors__AllowedOrigins__3: ${COMPANION_TAILSCALE_WEB_BASE_URL:-http://100.71.8.121:3000}
     ports:
       - "8080:8080"
+    volumes:
+      - companion-data-protection-keys:/root/.aspnet/DataProtection-Keys
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,6 +44,8 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-companion_core};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - companion-data-protection-keys:/root/.aspnet/DataProtection-Keys
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,3 +79,4 @@ services:
 volumes:
   companion-postgres-data:
   companion-ollama-data:
+  companion-data-protection-keys:

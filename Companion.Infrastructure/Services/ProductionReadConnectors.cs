@@ -37,7 +37,7 @@ public abstract class OAuthReadConnectorBase(
                 : new ConnectorTestResult(true, null));
     }
 
-    public async Task<ConnectorSyncResult> SyncAsync(ConnectorSyncContext context)
+    public virtual async Task<ConnectorSyncResult> SyncAsync(ConnectorSyncContext context)
     {
         using var document = context.Payload is null
             ? await FetchProviderDocumentAsync(context)
@@ -52,15 +52,27 @@ public abstract class OAuthReadConnectorBase(
 
     protected CompanionDbContext DbContext => dbContext;
 
-    private async Task<JsonDocument> FetchProviderDocumentAsync(ConnectorSyncContext context)
+    protected async Task<JsonDocument> FetchProviderDocumentAsync(ConnectorSyncContext context)
+    {
+        return await FetchProviderDocumentAsync(context, Endpoint);
+    }
+
+    protected async Task<JsonDocument> FetchProviderDocumentAsync(ConnectorSyncContext context, string endpoint)
     {
         var accessToken = tokenProtector.Unprotect(context.Connection.AccessTokenEncrypted)
             ?? throw new InvalidOperationException("OAuth access token is missing or could not be decrypted.");
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, Endpoint);
+        using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await httpClient.SendAsync(request, context.CancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var responseText = await response.Content.ReadAsStringAsync(context.CancellationToken);
+            throw new HttpRequestException(
+                $"Provider request failed with HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {TrimProviderError(responseText)}",
+                null,
+                response.StatusCode);
+        }
 
         await using var stream = await response.Content.ReadAsStreamAsync(context.CancellationToken);
         return await JsonDocument.ParseAsync(stream, cancellationToken: context.CancellationToken);
@@ -198,6 +210,12 @@ public abstract class OAuthReadConnectorBase(
 
         value = default;
         return false;
+    }
+
+    private static string TrimProviderError(string value)
+    {
+        var compact = value.ReplaceLineEndings(" ").Trim();
+        return compact.Length <= 500 ? compact : string.Concat(compact.AsSpan(0, 500), "...");
     }
 }
 
@@ -438,7 +456,99 @@ public sealed class GmailReadConnector(HttpClient httpClient, CompanionDbContext
 {
     public override string Name => "Gmail";
     public override string Provider => ConnectorProviders.Gmail;
-    protected override string Endpoint => "https://gmail.googleapis.com/gmail/v1/users/me/messages";
+    protected override string Endpoint => "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q=newer_than:30d";
+
+    public override async Task<ConnectorSyncResult> SyncAsync(ConnectorSyncContext context)
+    {
+        if (context.Payload is not null)
+        {
+            return await base.SyncAsync(context);
+        }
+
+        using var listDocument = await FetchProviderDocumentAsync(context);
+        var messages = new List<JsonElement>();
+
+        foreach (var item in ReadArray(listDocument.RootElement, "messages"))
+        {
+            var id = ReadString(item, "id");
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                continue;
+            }
+
+            var detailUrl =
+                $"https://gmail.googleapis.com/gmail/v1/users/me/messages/{Uri.EscapeDataString(id)}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date";
+            using var detailDocument = await FetchProviderDocumentAsync(context, detailUrl);
+            messages.Add(ToEmailSnapshotJson(detailDocument.RootElement).RootElement.Clone());
+        }
+
+        using var normalizedDocument = JsonDocument.Parse(JsonSerializer.Serialize(new { messages }));
+        return await SyncDocumentAsync(context, normalizedDocument.RootElement);
+    }
+
+    private static JsonDocument ToEmailSnapshotJson(JsonElement message)
+    {
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (message.TryGetProperty("payload", out var payload) &&
+            payload.TryGetProperty("headers", out var headerArray) &&
+            headerArray.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var header in headerArray.EnumerateArray())
+            {
+                var name = ReadString(header, "name");
+                var value = ReadString(header, "value");
+                if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(value))
+                {
+                    headers[name] = value;
+                }
+            }
+        }
+
+        var internalDate = ReadString(message, "internalDate");
+        DateTime? receivedUtc = null;
+        if (!string.IsNullOrWhiteSpace(internalDate) && long.TryParse(internalDate, out var unixMs))
+        {
+            receivedUtc = DateTimeOffset.FromUnixTimeMilliseconds(unixMs).UtcDateTime;
+        }
+
+        var from = headers.GetValueOrDefault("From") ?? string.Empty;
+        var parsedFrom = ParseAddress(from);
+        var labelIds = message.TryGetProperty("labelIds", out var labels) && labels.ValueKind == JsonValueKind.Array
+            ? labels.EnumerateArray()
+                .Select(x => x.GetString())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : [];
+
+        return JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            externalId = ReadString(message, "id"),
+            subject = headers.GetValueOrDefault("Subject") ?? "(No subject)",
+            fromName = parsedFrom.Name,
+            fromAddress = parsedFrom.Address,
+            toAddresses = headers.GetValueOrDefault("To"),
+            preview = ReadString(message, "snippet"),
+            receivedUtc,
+            isRead = !labelIds.Contains("UNREAD"),
+            hasAttachments = false,
+            isAnswered = labelIds.Contains("SENT")
+        }));
+    }
+
+    private static (string? Name, string Address) ParseAddress(string value)
+    {
+        var trimmed = value.Trim();
+        var start = trimmed.LastIndexOf('<');
+        var end = trimmed.LastIndexOf('>');
+        if (start >= 0 && end > start)
+        {
+            var name = trimmed[..start].Trim().Trim('"');
+            var address = trimmed[(start + 1)..end].Trim();
+            return (string.IsNullOrWhiteSpace(name) ? null : name, address);
+        }
+
+        return (null, trimmed);
+    }
 }
 
 public sealed class GoogleDriveReadConnector(HttpClient httpClient, CompanionDbContext dbContext, IOAuthTokenProtector tokenProtector, TimeProvider timeProvider)
