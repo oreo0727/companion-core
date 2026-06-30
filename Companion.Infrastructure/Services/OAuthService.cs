@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Companion.Core.Abstractions;
 using Companion.Core.Constants;
 using Companion.Core.Entities;
@@ -16,8 +17,11 @@ public class OAuthService(
     IDataProtectionProvider dataProtectionProvider,
     IOAuthTokenProtector tokenProtector,
     IAuditService auditService,
+    ISecretStore secretStore,
+    IHttpClientFactory httpClientFactory,
     TimeProvider timeProvider) : IOAuthService
 {
+    private const string OAuthSecretScope = "OAuth";
     private readonly IDataProtector verifierProtector = dataProtectionProvider.CreateProtector("companion.oauth-verifiers.v1");
 
     public async Task<IReadOnlyList<OAuthProviderSummary>> GetProvidersAsync(CancellationToken cancellationToken = default)
@@ -72,7 +76,12 @@ public class OAuthService(
         dbContext.OAuthAuthorizationRequests.Add(request);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var authorizationUrl = BuildAuthorizationUrl(provider.AuthorizationEndpoint, request, scopes, codeVerifier);
+        var clientId = await GetRequiredOAuthSecretAsync(
+            userProfileId,
+            provider.ClientIdSecretName,
+            $"{provider.DisplayName} client ID",
+            cancellationToken);
+        var authorizationUrl = BuildAuthorizationUrl(provider.AuthorizationEndpoint, clientId, request, scopes, codeVerifier);
 
         await auditService.WriteEventAsync(
             userProfileId,
@@ -114,7 +123,16 @@ public class OAuthService(
         }
 
         var connectorDefinition = await GetOAuthConnectorDefinitionAsync(request.ConnectorProvider, provider.Provider, cancellationToken);
-        var scopes = NormalizeScopes(command.Scopes.Count == 0 ? SplitScopes(request.Scopes) : command.Scopes);
+        var tokenResponse = string.IsNullOrWhiteSpace(command.AccessToken)
+            ? await ExchangeAuthorizationCodeAsync(provider, request, command.Code, cancellationToken)
+            : new OAuthTokenExchangeResult(
+                command.AccessToken.Trim(),
+                command.RefreshToken?.Trim(),
+                command.ExpiresUtc,
+                NormalizeScopes(command.Scopes.Count == 0 ? SplitScopes(request.Scopes) : command.Scopes));
+        var scopes = NormalizeScopes(command.Scopes.Count == 0
+            ? tokenResponse.Scopes.Count == 0 ? SplitScopes(request.Scopes) : tokenResponse.Scopes
+            : command.Scopes);
         var subject = string.IsNullOrWhiteSpace(command.Subject) ? $"{provider.Provider}:{userProfileId}" : command.Subject.Trim();
         var displayName = string.IsNullOrWhiteSpace(command.DisplayName) ? request.DisplayName : command.DisplayName.Trim();
 
@@ -139,12 +157,11 @@ public class OAuthService(
         }
 
         connection.Status = ConnectorConnectionStatus.Connected;
-        connection.AccessTokenEncrypted = tokenProtector.Protect(
-            string.IsNullOrWhiteSpace(command.AccessToken) ? $"oauth-code:{command.Code.Trim()}" : command.AccessToken.Trim());
-        connection.RefreshTokenEncrypted = string.IsNullOrWhiteSpace(command.RefreshToken)
+        connection.AccessTokenEncrypted = tokenProtector.Protect(tokenResponse.AccessToken);
+        connection.RefreshTokenEncrypted = string.IsNullOrWhiteSpace(tokenResponse.RefreshToken)
             ? connection.RefreshTokenEncrypted
-            : tokenProtector.Protect(command.RefreshToken.Trim());
-        connection.ExpiresUtc = command.ExpiresUtc;
+            : tokenProtector.Protect(tokenResponse.RefreshToken);
+        connection.ExpiresUtc = tokenResponse.ExpiresUtc;
         connection.UpdatedUtc = now;
 
         var grant = await dbContext.OAuthConsentGrants
@@ -322,6 +339,7 @@ public class OAuthService(
 
     private static string BuildAuthorizationUrl(
         string authorizationEndpoint,
+        string clientId,
         OAuthAuthorizationRequest request,
         IReadOnlyList<string> scopes,
         string codeVerifier)
@@ -330,18 +348,119 @@ public class OAuthService(
         var codeChallenge = Base64Url(challengeBytes);
         var query = new Dictionary<string, string?>
         {
-            ["client_id"] = "configured-in-secret-store",
+            ["client_id"] = clientId,
             ["redirect_uri"] = request.RedirectUri,
             ["response_type"] = "code",
             ["scope"] = string.Join(' ', scopes),
             ["state"] = request.State,
             ["access_type"] = "offline",
             ["prompt"] = "consent",
+            ["include_granted_scopes"] = "true",
             ["code_challenge"] = codeChallenge,
             ["code_challenge_method"] = "S256"
         };
 
         return $"{authorizationEndpoint}?{string.Join('&', query.Select(x => $"{Uri.EscapeDataString(x.Key)}={Uri.EscapeDataString(x.Value ?? string.Empty)}"))}";
+    }
+
+    private async Task<OAuthTokenExchangeResult> ExchangeAuthorizationCodeAsync(
+        OAuthProviderConfiguration provider,
+        OAuthAuthorizationRequest request,
+        string code,
+        CancellationToken cancellationToken)
+    {
+        var clientId = await GetRequiredOAuthSecretAsync(
+            request.UserProfileId,
+            provider.ClientIdSecretName,
+            $"{provider.DisplayName} client ID",
+            cancellationToken);
+        var clientSecret = await GetRequiredOAuthSecretAsync(
+            request.UserProfileId,
+            provider.ClientSecretSecretName,
+            $"{provider.DisplayName} client secret",
+            cancellationToken);
+        if (string.IsNullOrWhiteSpace(request.CodeVerifierEncrypted))
+        {
+            throw new InvalidOperationException("OAuth authorization request is missing its PKCE verifier.");
+        }
+
+        var codeVerifier = verifierProtector.Unprotect(request.CodeVerifierEncrypted);
+
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
+            ["code"] = code.Trim(),
+            ["code_verifier"] = codeVerifier,
+            ["grant_type"] = "authorization_code",
+            ["redirect_uri"] = request.RedirectUri
+        });
+
+        var httpClient = httpClientFactory.CreateClient(nameof(OAuthService));
+        using var response = await httpClient.PostAsync(provider.TokenEndpoint, content, cancellationToken);
+        var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"OAuth token exchange failed with HTTP {(int)response.StatusCode}: {TrimForMessage(responseText)}");
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseText);
+            var root = document.RootElement;
+            var accessToken = root.TryGetProperty("access_token", out var accessTokenElement)
+                ? accessTokenElement.GetString()
+                : null;
+
+            if (string.IsNullOrWhiteSpace(accessToken))
+            {
+                throw new InvalidOperationException("OAuth token exchange did not return an access token.");
+            }
+
+            var refreshToken = root.TryGetProperty("refresh_token", out var refreshTokenElement)
+                ? refreshTokenElement.GetString()
+                : null;
+            DateTime? expiresUtc = null;
+            if (root.TryGetProperty("expires_in", out var expiresInElement) &&
+                expiresInElement.ValueKind == JsonValueKind.Number &&
+                expiresInElement.TryGetInt32(out var expiresInSeconds))
+            {
+                expiresUtc = timeProvider.GetUtcNow().UtcDateTime.AddSeconds(expiresInSeconds);
+            }
+
+            var scopes = root.TryGetProperty("scope", out var scopeElement) && scopeElement.ValueKind == JsonValueKind.String
+                ? SplitScopes(scopeElement.GetString() ?? string.Empty)
+                : SplitScopes(request.Scopes);
+
+            return new OAuthTokenExchangeResult(accessToken.Trim(), refreshToken?.Trim(), expiresUtc, scopes);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException("OAuth token exchange returned malformed JSON.", ex);
+        }
+    }
+
+    private async Task<string> GetRequiredOAuthSecretAsync(
+        Guid userProfileId,
+        string secretName,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        var secret = await secretStore.GetSecretAsync(OAuthSecretScope, secretName, userProfileId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            throw new InvalidOperationException($"{description} is not configured.");
+        }
+
+        return secret.Trim();
+    }
+
+    private static string TrimForMessage(string value)
+    {
+        var compact = value.ReplaceLineEndings(" ").Trim();
+        return compact.Length <= 500 ? compact : string.Concat(compact.AsSpan(0, 500), "...");
     }
 
     private static IReadOnlyList<string> NormalizeScopes(IEnumerable<string> scopes)
@@ -366,4 +485,10 @@ public class OAuthService(
             .Replace('+', '-')
             .Replace('/', '_');
     }
+
+    private sealed record OAuthTokenExchangeResult(
+        string AccessToken,
+        string? RefreshToken,
+        DateTime? ExpiresUtc,
+        IReadOnlyList<string> Scopes);
 }

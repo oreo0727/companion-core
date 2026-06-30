@@ -353,7 +353,7 @@ The migrations seed:
 - Monitor health, diagnostics, logs, smoke-test status, backup, and restore at `/admin-health`.
 - Test AI providers from `/ai-settings`.
 - Test connectors from `/connectors`.
-- Inspect Google capability connections from `/google-account`.
+- Configure Google OAuth credentials, connect Google Calendar/Gmail/Drive/Contacts, and sync read-only snapshots from `/google-account`.
 - Export backups with `GET /api/system/backup/export`.
 - Restore backups with `POST /api/system/backup/import`.
 

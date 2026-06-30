@@ -37,6 +37,17 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
             x => x.GetProperty("definition").GetProperty("provider").GetString() == "GooglePeople" &&
                  x.GetProperty("definition").GetProperty("supportsOAuth").GetBoolean());
 
+        await EnsureOAuthSettingsAsync(authenticatedClient, "Google");
+
+        using var settingsResponse = await authenticatedClient.GetAsync("/api/oauth/settings");
+        settingsResponse.EnsureSuccessStatusCode();
+        using var settingsDocument = JsonDocument.Parse(await settingsResponse.Content.ReadAsStringAsync());
+        Assert.Contains(
+            settingsDocument.RootElement.EnumerateArray(),
+            x => x.GetProperty("provider").GetString() == "Google" &&
+                 x.GetProperty("hasClientId").GetBoolean() &&
+                 x.GetProperty("hasClientSecret").GetBoolean());
+
         using var authorizeResponse = await authenticatedClient.PostAsJsonAsync("/api/oauth/Google/authorize", new
         {
             connectorProvider = "GoogleCalendar",
@@ -316,6 +327,8 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
         string connectorProvider,
         string displayName)
     {
+        await EnsureOAuthSettingsAsync(authenticatedClient, provider);
+
         using var authorizeResponse = await authenticatedClient.PostAsJsonAsync($"/api/oauth/{provider}/authorize", new
         {
             connectorProvider,
@@ -358,6 +371,16 @@ public sealed class OAuthIntegrationTests(PostgresTestApiFactory factory) : ICla
         }
 
         return ["openid", "profile"];
+    }
+
+    private static async Task EnsureOAuthSettingsAsync(HttpClient authenticatedClient, string provider)
+    {
+        using var response = await authenticatedClient.PutAsJsonAsync($"/api/oauth/settings/{provider}", new
+        {
+            clientId = $"{provider.ToLowerInvariant()}-client-id",
+            clientSecret = $"{provider.ToLowerInvariant()}-client-secret"
+        });
+        response.EnsureSuccessStatusCode();
     }
 
     private static async Task SyncAsync(HttpClient authenticatedClient, Guid connectionId, object payload)

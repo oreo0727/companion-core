@@ -2,17 +2,26 @@ using System.ComponentModel.DataAnnotations;
 using Companion.Api.Contracts;
 using Companion.Api.Security;
 using Companion.Core.Abstractions;
+using Companion.Core.Constants;
+using Companion.Core.Entities;
 using Companion.Core.Models;
+using Companion.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Companion.Api.Controllers;
 
 [ApiController]
 [Route("api/oauth")]
 [Authorize]
-public class OAuthController(IOAuthService oauthService) : ControllerBase
+public class OAuthController(
+    IOAuthService oauthService,
+    CompanionDbContext dbContext,
+    ISecretStore secretStore) : ControllerBase
 {
+    private const string OAuthSecretScope = "OAuth";
+
     [HttpGet("providers")]
     [ProducesResponseType(typeof(IEnumerable<OAuthProviderResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<OAuthProviderResponse>>> GetProviders(CancellationToken cancellationToken)
@@ -27,6 +36,67 @@ public class OAuthController(IOAuthService oauthService) : ControllerBase
     {
         var connections = await oauthService.GetConnectionsAsync(User.GetRequiredUserProfileId(), cancellationToken);
         return Ok(connections.Select(x => x.ToResponse()));
+    }
+
+    [HttpGet("settings")]
+    [Authorize(Roles = SystemRoles.Administrator)]
+    [ProducesResponseType(typeof(IEnumerable<OAuthProviderSettingsResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<OAuthProviderSettingsResponse>>> GetSettings(CancellationToken cancellationToken)
+    {
+        var userProfileId = User.GetRequiredUserProfileId();
+        var providers = await dbContext.OAuthProviderConfigurations
+            .AsNoTracking()
+            .OrderBy(x => x.DisplayName)
+            .ToListAsync(cancellationToken);
+        var response = new List<OAuthProviderSettingsResponse>();
+
+        foreach (var provider in providers)
+        {
+            response.Add(await ToSettingsResponseAsync(provider, userProfileId, cancellationToken));
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPut("settings/{provider}")]
+    [Authorize(Roles = SystemRoles.Administrator)]
+    [ProducesResponseType(typeof(OAuthProviderSettingsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OAuthProviderSettingsResponse>> UpdateSettings(
+        string provider,
+        [FromBody] UpdateOAuthProviderSettingsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userProfileId = User.GetRequiredUserProfileId();
+        var providerConfiguration = await dbContext.OAuthProviderConfigurations
+            .FirstOrDefaultAsync(x => x.Provider == provider && x.Enabled, cancellationToken);
+
+        if (providerConfiguration is null)
+        {
+            return NotFound();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ClientId))
+        {
+            await secretStore.SaveSecretAsync(
+                OAuthSecretScope,
+                providerConfiguration.ClientIdSecretName,
+                request.ClientId,
+                userProfileId,
+                cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ClientSecret))
+        {
+            await secretStore.SaveSecretAsync(
+                OAuthSecretScope,
+                providerConfiguration.ClientSecretSecretName,
+                request.ClientSecret,
+                userProfileId,
+                cancellationToken);
+        }
+
+        return Ok(await ToSettingsResponseAsync(providerConfiguration, userProfileId, cancellationToken));
     }
 
     [HttpPost("{provider}/authorize")]
@@ -114,6 +184,37 @@ public class OAuthController(IOAuthService oauthService) : ControllerBase
             return NotFound();
         }
     }
+
+    private async Task<OAuthProviderSettingsResponse> ToSettingsResponseAsync(
+        OAuthProviderConfiguration provider,
+        Guid userProfileId,
+        CancellationToken cancellationToken)
+    {
+        var clientId = await secretStore.GetSecretAsync(
+            OAuthSecretScope,
+            provider.ClientIdSecretName,
+            userProfileId,
+            cancellationToken);
+        var clientSecret = await secretStore.GetSecretAsync(
+            OAuthSecretScope,
+            provider.ClientSecretSecretName,
+            userProfileId,
+            cancellationToken);
+
+        return new OAuthProviderSettingsResponse(
+            provider.Provider,
+            provider.DisplayName,
+            provider.Enabled,
+            !string.IsNullOrWhiteSpace(clientId),
+            !string.IsNullOrWhiteSpace(clientSecret),
+            provider.ClientIdSecretName,
+            provider.ClientSecretSecretName,
+            provider.DefaultScopes
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(x => x, StringComparer.Ordinal)
+                .ToList());
+    }
 }
 
 public sealed class BeginOAuthAuthorizationRequest
@@ -159,3 +260,22 @@ public sealed class CompleteOAuthAuthorizationRequest
 
     public IReadOnlyList<string> Scopes { get; init; } = [];
 }
+
+public sealed class UpdateOAuthProviderSettingsRequest
+{
+    [MaxLength(1000)]
+    public string? ClientId { get; init; }
+
+    [MaxLength(4000)]
+    public string? ClientSecret { get; init; }
+}
+
+public sealed record OAuthProviderSettingsResponse(
+    string Provider,
+    string DisplayName,
+    bool Enabled,
+    bool HasClientId,
+    bool HasClientSecret,
+    string ClientIdSecretName,
+    string ClientSecretSecretName,
+    IReadOnlyList<string> DefaultScopes);

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { RefreshCw, Unplug } from "lucide-react";
+import { KeyRound, LinkIcon, RefreshCw, Save, Unplug } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { Badge, EmptyState, Panel, SectionHeader } from "@/components/ui";
 import { StatusBadge } from "@/components/data-page";
@@ -37,8 +37,44 @@ type OAuthConnection = {
   revokedUtc?: string | null;
 };
 
+type OAuthProviderSettings = {
+  provider: string;
+  displayName: string;
+  enabled: boolean;
+  hasClientId: boolean;
+  hasClientSecret: boolean;
+  clientIdSecretName: string;
+  clientSecretSecretName: string;
+  defaultScopes: string[];
+};
+
+type OAuthAuthorization = {
+  authorizationRequestId: string;
+  provider: string;
+  connectorProvider: string;
+  authorizationUrl: string;
+  state: string;
+  scopes: string[];
+  expiresUtc: string;
+};
+
+type ConnectRequest = {
+  connectorProvider: string;
+  displayName: string;
+  scopes: string[];
+};
+
+const connectorScopes: Record<string, string[]> = {
+  GoogleCalendar: ["openid", "email", "profile", "https://www.googleapis.com/auth/calendar.readonly"],
+  Gmail: ["openid", "email", "profile", "https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.compose"],
+  GoogleDrive: ["openid", "email", "profile", "https://www.googleapis.com/auth/drive.readonly"],
+  GooglePeople: ["openid", "email", "profile", "https://www.googleapis.com/auth/contacts.readonly"]
+};
+
 export default function GoogleAccountPage() {
   const [message, setMessage] = useState<string | null>(null);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const connectors = useQuery({
     queryKey: ["connectors", "google"],
     queryFn: () => apiFetch<ConnectorEntry[]>("/api/connectors")
@@ -46,6 +82,49 @@ export default function GoogleAccountPage() {
   const oauthConnections = useQuery({
     queryKey: ["oauth-connections", "google"],
     queryFn: () => apiFetch<OAuthConnection[]>("/api/oauth/connections")
+  });
+  const oauthSettings = useQuery({
+    queryKey: ["oauth-settings"],
+    queryFn: () => apiFetch<OAuthProviderSettings[]>("/api/oauth/settings")
+  });
+  const saveSettingsMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<OAuthProviderSettings>("/api/oauth/settings/Google", {
+        method: "PUT",
+        body: JSON.stringify({ clientId, clientSecret })
+      }),
+    onSuccess: () => {
+      setClientId("");
+      setClientSecret("");
+      setMessage("Google OAuth credentials saved.");
+      void oauthSettings.refetch();
+    },
+    onError: (error) => setMessage(error instanceof Error ? error.message : "Failed to save Google OAuth credentials")
+  });
+  const connectMutation = useMutation({
+    mutationFn: (request: ConnectRequest) =>
+      apiFetch<OAuthAuthorization>("/api/oauth/Google/authorize", {
+        method: "POST",
+        body: JSON.stringify({
+          connectorProvider: request.connectorProvider,
+          displayName: request.displayName,
+          redirectUri: `${window.location.origin}/oauth/google/callback`,
+          scopes: request.scopes
+        })
+      }),
+    onSuccess: (result, request) => {
+      window.localStorage.setItem(
+        `companion.oauth.${result.state}`,
+        JSON.stringify({
+          provider: result.provider,
+          connectorProvider: request.connectorProvider,
+          displayName: request.displayName,
+          scopes: result.scopes
+        })
+      );
+      window.location.assign(result.authorizationUrl);
+    },
+    onError: (error) => setMessage(error instanceof Error ? error.message : "Failed to start Google authorization")
   });
   const syncMutation = useMutation({
     mutationFn: (connectionId: string) =>
@@ -79,6 +158,11 @@ export default function GoogleAccountPage() {
     () => (oauthConnections.data ?? []).filter((connection) => connection.provider === "Google"),
     [oauthConnections.data]
   );
+  const googleSettings = useMemo(
+    () => (oauthSettings.data ?? []).find((settings) => settings.provider === "Google"),
+    [oauthSettings.data]
+  );
+  const credentialsReady = Boolean(googleSettings?.hasClientId && googleSettings?.hasClientSecret);
 
   return (
     <Panel>
@@ -91,6 +175,7 @@ export default function GoogleAccountPage() {
             onClick={() => {
               void connectors.refetch();
               void oauthConnections.refetch();
+              void oauthSettings.refetch();
             }}
             className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink"
           >
@@ -100,10 +185,66 @@ export default function GoogleAccountPage() {
         }
       />
       {message ? <div className="border-b border-line px-4 py-3 text-sm text-ink-muted">{message}</div> : null}
-      {connectors.isLoading || oauthConnections.isLoading ? (
+      <form
+        className="border-b border-line p-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          saveSettingsMutation.mutate();
+        }}
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="flex items-center gap-2 font-medium">
+              <KeyRound className="h-4 w-4 text-accent" />
+              OAuth credentials
+            </h3>
+            <p className="mt-1 text-sm text-ink-muted">
+              Store your Google OAuth web client credentials locally so Companion can connect Calendar, Gmail, Drive, and Contacts.
+            </p>
+          </div>
+          <StatusBadge value={credentialsReady ? "Configured" : "Action required"} />
+        </div>
+        <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+          <label className="grid gap-1 text-sm">
+            <span className="text-ink-muted">Client ID</span>
+            <input
+              value={clientId}
+              onChange={(event) => setClientId(event.target.value)}
+              placeholder={googleSettings?.hasClientId ? "Saved client ID" : "Google OAuth client ID"}
+              className="h-10 rounded-md border border-line bg-surface px-3 text-sm outline-none focus:border-accent"
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-ink-muted">Client secret</span>
+            <input
+              value={clientSecret}
+              type="password"
+              onChange={(event) => setClientSecret(event.target.value)}
+              placeholder={googleSettings?.hasClientSecret ? "Saved client secret" : "Google OAuth client secret"}
+              className="h-10 rounded-md border border-line bg-surface px-3 text-sm outline-none focus:border-accent"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={saveSettingsMutation.isPending || (!clientId.trim() && !clientSecret.trim())}
+            className="mt-6 inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line px-4 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-60"
+          >
+            <Save className="h-4 w-4" />
+            Save
+          </button>
+        </div>
+      </form>
+      {connectors.isLoading || oauthConnections.isLoading || oauthSettings.isLoading ? (
         <EmptyState text="Loading Google account status" />
-      ) : connectors.isError || oauthConnections.isError ? (
-        <EmptyState text={(connectors.error as Error | undefined)?.message ?? (oauthConnections.error as Error | undefined)?.message ?? "Failed to load Google account status"} />
+      ) : connectors.isError || oauthConnections.isError || oauthSettings.isError ? (
+        <EmptyState
+          text={
+            (connectors.error as Error | undefined)?.message ??
+            (oauthConnections.error as Error | undefined)?.message ??
+            (oauthSettings.error as Error | undefined)?.message ??
+            "Failed to load Google account status"
+          }
+        />
       ) : googleConnectors.length === 0 ? (
         <EmptyState text="No Google capability connectors are available" />
       ) : (
@@ -141,7 +282,22 @@ export default function GoogleAccountPage() {
                     </dd>
                   </div>
                 </dl>
-                <div className="mt-4 flex gap-2 border-t border-line pt-3">
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-3">
+                  <button
+                    type="button"
+                    disabled={!credentialsReady || Boolean(oauth && oauth.status === "Connected") || connectMutation.isPending}
+                    onClick={() =>
+                      connectMutation.mutate({
+                        connectorProvider: entry.definition.provider,
+                        displayName: entry.definition.name,
+                        scopes: connectorScopes[entry.definition.provider] ?? googleSettings?.defaultScopes ?? []
+                      })
+                    }
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-sm text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-60"
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                    Connect
+                  </button>
                   <button
                     type="button"
                     disabled={!connection || syncMutation.isPending}
